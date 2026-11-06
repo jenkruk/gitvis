@@ -104,7 +104,7 @@ Independent of the background: any panel style works with Solid, Gradient or Tra
 
 ## History calendars (`src/renderers/HistoryCalendars.tsx`)
 
-- **Full image:** one calendar per 12-month period, newest first, in one panel. Each period has a title row — dates (12px semibold, `text`) on the left and a summary on the right ("1,234 contributions", or "612 contributions · GitHub only") in `textMuted` — then, if a platform has no data for it, an 11px note: "GitLab history isn't available for this period." One legend under the last calendar; one colour scale (quartiles over all shown days) across every year.
+- **Full image:** one calendar per 12-month period, newest first, in one panel. Each period has a title row — dates (12px semibold, `text`) on the left and a summary on the right ("1,234 contributions", or "612 contributions · GitHub only") in `textMuted`. Missing platform history is explained once, in the scope note under the stats, not under each calendar. One legend under the last calendar; one colour scale (quartiles over all shown days) across every year.
 - **No hatching.** Missing coverage is explained in words (titles, notes, tooltips, description, data table), never by patterns.
 - **Phones (`size=compact`):** a "yearly summary" list (dates, total, coverage note) above the usual last-20-weeks heatmap.
 - **Scope note** under the stats whenever they cover less than the calendars.

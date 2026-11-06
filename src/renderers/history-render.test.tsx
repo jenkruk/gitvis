@@ -53,8 +53,10 @@ describe("multi-year history", () => {
 
   it("labels GitHub-only periods in words — no hatching — and never sums them with GitLab", () => {
     const svg = render();
-    expect(svg).toContain("GitHub only");
-    expect(svg.match(/GitLab history isn&#x27;t available for this period\./g)).toHaveLength(2);
+    expect(svg.match(/contributions · GitHub only</g)).toHaveLength(2); // both older period titles
+    // Explained once (scope note), not repeated under every calendar.
+    const visible = svg.replace(/<desc[\s\S]*?<\/desc>/, "");
+    expect(visible.match(/GitLab history isn&#x27;t available for earlier years\./g)).toHaveLength(1);
     expect(svg).not.toMatch(/<pattern/);
     // Older cells say GitLab's count is unknown rather than zero.
     expect(svg).toMatch(/<title>\d+ contributions? on [^<]+ \(GitHub only; GitLab not available\)<\/title>/);
@@ -65,7 +67,7 @@ describe("multi-year history", () => {
     expect(prepared.metricsView.range).toEqual(lastYear);
     const metrics = computeMetrics(prepared.metricsView);
     const svg = render();
-    expect(svg).toContain("Stats cover Nov 7, 2025 – Nov 6, 2026, when every platform has data");
+    expect(svg).toContain("Stats cover Nov 7, 2025 – Nov 6, 2026, when every platform has data.");
     expect(desc(svg)).toContain(`${metrics.total.toLocaleString("en-US")} contributions across`);
     expect(desc(svg)).toContain("from Nov 7, 2025 to Nov 6, 2026");
     expect(desc(svg)).toMatch(/By 12-month period, newest first: .*GitHub only; GitLab not available for this period/);

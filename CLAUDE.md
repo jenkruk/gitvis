@@ -13,6 +13,7 @@ Customizable contribution visualizations that combine GitHub + GitLab activity f
 - `npm run test:e2e` — Playwright + axe against a production build and a fake upstream (`e2e/`); never hits real GitHub/GitLab
 - `npm run format` — Prettier (`format:check` to verify only)
 - `npm run build` — production build
+- Live GitHub API check (opt-in, never in CI): `GITVIS_LIVE_GITHUB=<login> node --env-file=.env.local node_modules/vitest/vitest.mjs run src/server/github.live.test.ts`
 - `npm run storybook` / `npm run build-storybook` — Storybook (production components only; stories next to source as `*.stories.tsx`)
 
 ## Architecture rules

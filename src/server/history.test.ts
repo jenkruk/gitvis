@@ -190,7 +190,7 @@ describe("published multi-year card", () => {
     const card = await renderCard(new URLSearchParams("v=1&github=jenkruk&gitlab=contactkruk&yrs=3"), loaders());
     expect(card.status).toBe("ok");
     expect(card.svg).toContain("Nov 8, 2023 – Nov 6, 2024");
-    expect(card.svg).toContain("GitLab history isn&#x27;t available for this period.");
+    expect(card.svg).toContain("GitLab history isn&#x27;t available for earlier years.");
   });
 
   it("shows an explanatory error instead of fewer years when history can't load", async () => {

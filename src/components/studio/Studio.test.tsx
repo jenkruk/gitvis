@@ -8,8 +8,8 @@ const dataset = createSampleDataset();
 
 function setup() {
   const user = userEvent.setup();
-  render(<Studio sampleDataset={dataset} />);
-  const preview = () => screen.getByRole("img", { name: /contribution activity/i });
+  render(<Studio sampleDataset={dataset} origin="https://gitvis.test" />);
+  const preview = () => screen.getByRole("img", { name: "Contribution activity" });
   return { user, preview };
 }
 

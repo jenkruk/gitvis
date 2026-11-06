@@ -42,7 +42,7 @@ describe("loadContributions", () => {
       { platform: "github", username: "jenkruk", status: "ok", total: 2, privateCount: undefined },
       { platform: "gitlab", username: "contactkruk", status: "ok", total: 3, privateCount: undefined },
     ]);
-    expect(l.github).toHaveBeenCalledWith("jenkruk", { start: "2025-11-07", end: "2026-11-06" });
+    expect(l.github).toHaveBeenCalledWith("jenkruk");
   });
 
   it("only calls the platforms that were requested", async () => {

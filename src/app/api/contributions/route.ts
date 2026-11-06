@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { validateConnectRequest } from "@/adapters/connect";
 import { serverLoaders } from "@/server/cached";
 import { loadContributions } from "@/server/contributions";
+import { clientKey, contributionsLimiter, tooManyRequests } from "@/server/rate-limit";
 
 /**
  * GET /api/contributions?github=<user>&gitlab=<user>
@@ -9,6 +10,9 @@ import { loadContributions } from "@/server/contributions";
  * status per requested platform. Tokens never leave the server.
  */
 export async function GET(request: NextRequest) {
+  const limit = contributionsLimiter.hit(clientKey(request.headers));
+  if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
+
   const params = request.nextUrl.searchParams;
   const validation = validateConnectRequest({ github: params.get("github"), gitlab: params.get("gitlab") });
 

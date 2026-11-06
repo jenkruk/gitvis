@@ -148,18 +148,66 @@ ConnectForm (client) ──GET /api/contributions?github=&gitlab=──▶ route
 ```
 
 - **Partial success:** each platform resolves independently. The dataset is built from whichever succeeded, and `results[]` carries a status per requested platform.
-- **Caching:** `"use cache: remote"`, because serverless in-memory caches don't persist and both upstreams are rate-limited. Successes and `not_found` use `cacheLife("hours")`; transient failures (`rate_limited`, `upstream`) use `cacheLife("seconds")` so Retry recovers quickly. The route also sends `Cache-Control: public, s-maxage=900, stale-while-revalidate=3600`.
+- **Caching:** see "Publish › Caching". The studio and embeds share the same per-username cache entries.
 - **Fetches** have an 8s timeout (`AbortSignal.timeout`) and a `User-Agent: GitVis`. GitLab is fetched with `redirect: "manual"` so its 302-to-sign-in is detected as "not found or private".
-- **Range:** a 365-day window ending on today (UTC). If a platform reports activity dated tomorrow-in-UTC (users east of UTC), the window extends by that one day so nothing is silently dropped. GitHub is queried with matching `from`/`to` timestamps.
+- **Range:** a 365-day window ending on today (UTC). If a platform reports activity dated tomorrow-in-UTC (users east of UTC), the window extends by that one day so nothing is silently dropped. GitHub is queried for the trailing year as of fetch time (inside the cached function), so cache keys don't roll over daily.
 - **URL state:** the client mirrors usernames into `?github=&gitlab=` (`history.replaceState`) so a reload or shared link reconnects. Phase 3 adds the visualization config to the same URL.
 - **Abuse:** the endpoint is public and spends the server's GitHub quota. Caching is the first defense; edge rate limiting is planned (ROADMAP Phase 5).
 
-## Export and embedding (planned; Phase 3)
+## Publish: export and embedding (Phase 3)
 
-- `GET /api/card?gh=&gl=&layout=&palette=&mode=&f=` returns `image/svg+xml`. The config is fully encoded in the query string with a `v=1` version key, so URLs are stable and shareable.
-- Caching: upstream fetches are cached server-side (`use cache` + `cacheLife`, roughly 1 hour), and responses send `Cache-Control: public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400`. GitHub's camo honors cache headers.
-- README Markdown: `[![GitVis contributions](https://<host>/api/card?...)](https://<host>/?...)`.
-- PNG: rasterize the same SVG client-side via `<canvas>` (no dependency). Revisit server-side rasterization (e.g. resvg) only if needed.
+### URL contract (v1)
+
+```
+/api/card?v=1&github=jenkruk&gitlab=contactkruk&layout=dashboard&palette=aurora&mode=dark&f=heatmap,total,active,streak,breakdown,trends,labels
+```
+
+| Param              | Values                                                                                                                                | Missing                   |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| `v`                | `1`                                                                                                                                   | treated as `1`            |
+| `github`, `gitlab` | validated usernames; at least one required                                                                                            | platform not included     |
+| `layout`           | `minimal` · `dashboard` · `data-rich`                                                                                                 | v1 default (`dashboard`)  |
+| `palette`          | `aurora` · `amethyst` · `desert-sunset` · `ocean-depths` · `forest-gold` · `rose-quartz` · `electric-cobalt` · `ember` · `monochrome` | v1 default (`aurora`)     |
+| `mode`             | `light` · `dark`                                                                                                                      | v1 default (`dark`)       |
+| `f`                | comma list of **enabled** features: `heatmap` `total` `active` `streak` `best` `breakdown` `trends` `labels`                          | the frozen v1 default set |
+
+- **URL codes are a frozen public contract** (`src/publish/card-params.ts`), mapped explicitly to internal ids, so renaming code never breaks old URLs. Golden-URL tests pin this down.
+- **Explicit enabled-list semantics:** a feature added later is _off_ for existing URLs, so old embeds never change appearance. Encoders always write every param, so changing defaults never alters published images.
+- **Evolution:** unknown params are ignored, so new optional params (such as future custom colors, reserved as `colors`) can be added within v1. A breaking change bumps `v`, and the decoder keeps a branch for each published version.
+- **Validation:** the card endpoint is strict and renders an explanatory error card for an unsupported `v`, invalid usernames, unknown codes, or a query over 512 characters. The studio is lenient: an Edit link with a bad value falls back to defaults rather than failing.
+- The studio uses the **same query string** (`/?v=1&github=…`) as its Edit configuration link and keeps it in sync while you design, so a reload restores everything.
+
+### Rendering
+
+Next.js forbids `react-dom/server` in App Router code (verified: build error "You're importing a component that imports react-dom/server"). Our renderers are pure, hook-free SVG components, so `src/publish/svg-markup.ts` serializes the element tree directly: function components are called, attributes get React's SVG naming and escaping, and there's no dependency. **A parity test asserts byte-identical output to React's `renderToStaticMarkup`** for every layout × palette × mode, so the published image is guaranteed to match the studio preview.
+
+### Caching (target: data about 12 hours fresh)
+
+| Layer                               | Setting                                                                                                                                                             | Why                                                                                 |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Upstream data                       | `"use cache: remote"`, profile `contributions`: revalidate 12h, expire 7d. Keyed by **username only**.                                                              | One upstream fetch per user per 12h, shared by the studio and every embed.          |
+| Failed refresh                      | Transient failures **throw** inside the cached function, so they're never cached. Past the revalidate time, the last good data keeps being served while it retries. | Upstream blips don't turn a README into an error card.                              |
+| Not found                           | `cacheLife("hours")`                                                                                                                                                | Renamed or new accounts recover within about an hour.                               |
+| CDN (`CDN-Cache-Control`)           | `public, s-maxage=3600, stale-while-revalidate=86400`; errors 60s; invalid config 1h                                                                                | Embed traffic is served from the edge.                                              |
+| Camo and browsers (`Cache-Control`) | `no-cache` + strong `ETag`                                                                                                                                          | GitHub's documented advice for changing images. Revalidation returns a cheap `304`. |
+
+Worst-case age is about 13h (12h data + 1h edge). If GitHub's camo ever holds an old image, purge it with `curl -X PURGE <camo-url>` (GitHub docs, "About anonymized URLs").
+
+### Abuse protection
+
+- **Input limits:** strict validation, a 512-character query cap, and bounded render cost (the dataset is always ≤ 366 days, and layouts are fixed size).
+- **Per-IP rate limits** (in memory, per instance, best effort): `/api/card` 120/min, `/api/contributions` 30/min. Exceeding them returns `429` + `Retry-After`. Most embed traffic never reaches the function because the CDN answers it.
+- **Upstream budget:** at most 300 upstream fetches per minute per instance, so a flood of unique usernames can't drain the shared GitHub quota. Requests over budget fail as a transient "busy" error, which isn't cached.
+- **Production:** add a Vercel Firewall rate-limit rule on `/api/*` (configuration, not code) for limits shared across instances.
+
+### Error policy
+
+Card errors return **HTTP 200 with a readable error SVG** (plus `X-GitVis-Status: <code>`), because GitHub shows a broken-image icon for non-2xx responses and README owners need to see what's wrong. Messages come only from the fixed, user-safe adapter and validation strings. Unexpected exceptions become a generic "Something went wrong" card; details are logged server-side and never rendered. If **any** requested platform fails, the card shows an error rather than a silently partial (misleadingly low) total.
+
+### Markdown and downloads
+
+- Markdown: `[![alt](cardUrl)](editUrl)`, or an HTML `<picture>` with `prefers-color-scheme` sources for "match the viewer's theme". The alt text names the platforms and usernames. The SVG's own `<title>`/`<desc>` carries the numbers for direct viewing.
+- SVG download fetches the published card. PNG rasterizes that same SVG on a `<canvas>` at 2× (no dependency).
 
 ## Security
 

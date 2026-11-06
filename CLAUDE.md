@@ -22,6 +22,8 @@ Customizable contribution visualizations that combine GitHub + GitLab activity f
 - Dates are `ISODate` (`YYYY-MM-DD`) strings. Never `new Date("YYYY-MM-DD")` or local-time getters; use helpers in `src/domain/dates.ts`.
 - Feature flags come from the registry in `src/config/features.ts`; layouts declare supported features. Don't hardcode feature lists in components.
 - Layout, palette, mode, and features are independent; switching one never resets another.
+- Published image URLs are a public contract (`src/publish/card-params.ts`): never change or remove an existing URL code, never derive v1 defaults from current defaults, and add a golden-URL test for anything new. Breaking changes need a new `v`.
+- Route handlers can't import `react-dom/server`; serialize SVG with `src/publish/svg-markup.ts` and keep its React-parity test passing. Renderers must stay hook-free with inline attributes.
 
 ## Data honesty
 

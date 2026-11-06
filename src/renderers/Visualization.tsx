@@ -18,13 +18,29 @@ export interface VisualizationProps {
 
 /** Text alternative summarising the data the graphic shows. */
 export function describeVisualization(dataset: ContributionDataset, metrics: ContributionMetrics): string {
-  const platforms = dataset.sources.map((s) => PLATFORMS[s.platform].label);
-  const across = platforms.length > 0 ? ` across ${platforms.join(" and ")}` : "";
-  const streak = metrics.longestStreak ? ` Longest streak: ${metrics.longestStreak.length} days.` : "";
+  const labelFor = (s: ContributionDataset["sources"][number]) => `${PLATFORMS[s.platform].label} @${s.username}`;
+  const names = dataset.sources.map(labelFor);
+  const where =
+    names.length === 0
+      ? ""
+      : names.length === 1
+        ? ` on ${names[0]}`
+        : ` across ${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+  const breakdown =
+    metrics.platformTotals.length > 1
+      ? `${metrics.platformTotals.map((p) => `${PLATFORMS[p.platform].label} ${formatNumber(p.total)}`).join(", ")}.`
+      : "";
+  const streak = metrics.longestStreak ? `Longest streak: ${formatNumber(metrics.longestStreak.length)} days.` : "";
+  const best = metrics.bestDay
+    ? `Best day: ${formatNumber(metrics.bestDay.count)} on ${formatDate(metrics.bestDay.date)}.`
+    : "";
   return [
     dataset.provenance === "sample" ? "Sample data, not real activity." : "",
-    `${formatNumber(metrics.total)} contributions${across} from ${formatDate(dataset.range.start)} to ${formatDate(dataset.range.end)}.`,
-    `${formatNumber(metrics.activeDays)} active days.${streak}`,
+    `${formatNumber(metrics.total)} contributions${where} from ${formatDate(dataset.range.start)} to ${formatDate(dataset.range.end)}.`,
+    breakdown,
+    `${formatNumber(metrics.activeDays)} active days.`,
+    streak,
+    best,
   ]
     .filter(Boolean)
     .join(" ");

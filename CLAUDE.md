@@ -1,6 +1,6 @@
 # GitVis
 
-Customizable contribution visualizations that combine GitHub + GitLab activity for README embeds. Read `docs/` before structural changes: PRODUCT, ARCHITECTURE, ROADMAP, DESIGN_SYSTEM.
+Customizable contribution visualizations that combine GitHub + GitLab activity for README embeds. Read `docs/` before structural changes: PRODUCT, ARCHITECTURE, ROADMAP, DESIGN_SYSTEM, DEPLOYMENT.
 
 @AGENTS.md
 
@@ -25,6 +25,8 @@ Customizable contribution visualizations that combine GitHub + GitLab activity f
 - Layout, palette, mode, and features are independent; switching one never resets another.
 - Published image URLs are a public contract (`src/publish/card-params.ts`): never change or remove an existing URL code, never derive v1 defaults from current defaults, and add a golden-URL test for anything new. Breaking changes need a new `v`.
 - Route handlers can't import `react-dom/server`; serialize SVG with `src/publish/svg-markup.ts` and keep its React-parity test passing. Renderers must stay hook-free with inline attributes.
+- Contribution snapshots live in the Vercel Runtime Cache via `getCache` (`src/server/cached.ts`), not `"use cache: remote"` (its keys change every deploy). Bump `SNAPSHOT_SCHEMA` when the stored shape changes. Never write failures to the cache.
+- Published URLs must use the production origin from `src/server/origin.ts`; never build them from the request host.
 
 ## Data honesty
 

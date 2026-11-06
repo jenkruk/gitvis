@@ -35,6 +35,8 @@ test.describe("data freshness and cache layers", () => {
     const view = await getCard(request, `gitlab=${user}`);
     expect(view.status).toBe("ok");
     expect(view.desc).toContain("9 contributions"); // this request, not the next one
+    // The data-age header (used for post-deploy verification) shows a fetch made just now.
+    expect(Date.now() - Date.parse(view.res.headers()["x-gitvis-data-as-of"]!)).toBeLessThan(5_000);
     expect(view.svg).not.toContain("Data from");
     expect((await hits(request, user)).gitlab).toBe(2);
   });
@@ -54,7 +56,7 @@ test.describe("data freshness and cache layers", () => {
     expect(view.desc).toContain("5 contributions");
     expect(view.desc).toMatch(/Showing data last updated .+; a refresh is pending\./);
     expect(view.svg).toContain("Data from");
-    expect(view.res.headers()["cdn-cache-control"]).toBe("public, s-maxage=60, stale-while-revalidate=600");
+    expect(view.res.headers()["vercel-cdn-cache-control"]).toBe("public, s-maxage=60, stale-while-revalidate=600");
     expect((await hits(request, user)).github).toBe(2); // the refresh was attempted
   });
 

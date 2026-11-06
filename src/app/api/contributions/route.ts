@@ -29,6 +29,8 @@ export async function GET(request: NextRequest) {
   const stable = response.results.every((r) => (r.status === "ok" && !r.stale) || r.status === "not_found");
 
   return Response.json(response, {
-    headers: { "Cache-Control": stable ? "public, s-maxage=900, stale-while-revalidate=300" : "no-store" },
+    headers: stable
+      ? { "Cache-Control": "no-cache", "Vercel-CDN-Cache-Control": "public, s-maxage=900, stale-while-revalidate=300" }
+      : { "Cache-Control": "no-store" },
   });
 }

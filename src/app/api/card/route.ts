@@ -18,11 +18,14 @@ export async function GET(request: NextRequest) {
     "Content-Type": "image/svg+xml; charset=utf-8",
     // GitHub camo + browsers: always revalidate (GitHub's advice for changing images); ETag makes it a 304.
     "Cache-Control": "no-cache, max-age=0",
-    // Edge cache (RFC 9213 targeted header, honored by Vercel's CDN).
+    // Edge cache: Vercel-only targeted header. Vercel consumes and strips it, so GitHub camo and other
+    // downstream caches only ever see `no-cache` + ETag (plain CDN-Cache-Control would be forwarded to them).
     // SWR bounded to 10 min: after a long idle the edge must refetch rather than replay a day-old image.
-    "CDN-Cache-Control": `public, s-maxage=${card.edgeMaxAge}, stale-while-revalidate=600`,
+    "Vercel-CDN-Cache-Control": `public, s-maxage=${card.edgeMaxAge}, stale-while-revalidate=600`,
     ETag: etag,
     "X-GitVis-Status": card.status,
+    // Data age, for operators verifying freshness after idle periods and redeploys (public data only).
+    ...(card.asOf ? { "X-GitVis-Data-As-Of": card.asOf } : {}),
     "X-Content-Type-Options": "nosniff",
     // The SVG contains no scripts or external resources; lock it down when opened directly.
     "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",

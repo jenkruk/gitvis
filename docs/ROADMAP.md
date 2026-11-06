@@ -88,12 +88,29 @@ _Depends on:_ Phase 2.
 - [x] Fixed: step-number contrast, a nested-interactive SVG preview, and a 20px disclosure target (all found by axe or the E2E checks).
 - [x] Rate-limit review and production requirements documented (ARCHITECTURE "Abuse protection", "Production requirements").
 
-**Deployment verification (requires approval to deploy)**
+Deployment verification moved to Phase 3.2.
 
-- [ ] A real README embed through GitHub camo, in light, dark and mobile; `<picture>` media queries respected on github.com.
-- [ ] Vercel `"use cache: remote"` handler: shared across instances and honors `expire`; `CDN-Cache-Control` honored.
-- [ ] Vercel Firewall rules active; `SITE_URL` set; dedicated-account `GITHUB_TOKEN`.
-- [ ] After 12h+ without traffic, the first view of the deployed embed shows fresh data.
+## Phase 3.2: Deployment readiness 🚧 (code ready; deployment awaiting approval)
+
+**Audit fixes (done locally)**
+
+- [x] Snapshots moved from `"use cache: remote"` to the Vercel Runtime Cache via `getCache` with versioned keys we control. Next 16 keys `use cache: remote` entries by build ID, so every deploy would have wiped the snapshots and the 7-day last-known-good fallback. Unit tests cover deploy survival, read-only past windows, no writes on failure, 1h not-found re-checks, store outages, malformed entries, and in-flight de-duplication.
+- [x] The edge header is now `Vercel-CDN-Cache-Control`, which is stripped before camo or other downstream caches; `CDN-Cache-Control` would have been forwarded to them.
+- [x] Preview deployments always publish production URLs: `SITE_URL` → `VERCEL_PROJECT_PRODUCTION_URL` → request host (local only). A preview's own hostname is rejected, and the Publish panel shows a preview notice.
+- [x] Test-only `GITVIS_*` overrides are ignored when `VERCEL_ENV=production`.
+- [x] In-app limiter keyed on `x-real-ip`; card limit raised to 600/min/IP (camo shares IPs).
+- [x] An `X-GitVis-Data-As-Of` header for verifying freshness from outside.
+- [x] `<picture>` markup audit test: content model, attributes GitHub's sanitizer keeps, absolute production URLs, the compact source wins on narrow screens, and the alt text.
+- [x] `docs/DEPLOYMENT.md`: environment variables, Vercel settings, WAF rules that don't block camo, cost model, deploy, verify and rollback.
+
+**Deployment verification (requires approval; see DEPLOYMENT.md §6–7)**
+
+- [ ] Headers in production: `vercel-cdn-cache-control` stripped, `no-cache` + ETag, `x-vercel-cache` HIT, 304 on a HIT.
+- [ ] Snapshots survive a redeploy (`x-gitvis-data-as-of` unchanged; Runtime Cache reads without writes).
+- [ ] Preview publishes production URLs; preview `/api/card` returns 401.
+- [ ] A real README embed through camo: light, dark, mobile compact; the link restores the design.
+- [ ] After more than 13h with no traffic, the first view has fresh data.
+- [ ] WAF rule 1 logging, then enforcing; `/api/card` never challenged.
 
 ## Phase 4: Color studio and design-system depth
 

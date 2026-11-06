@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultConfig } from "@/config/config";
 import { decodeCardParams } from "./card-params";
-import { altText, cardUrl, downloadName, editUrl, readmeSnippet } from "./snippets";
+import { altText, cardUrl, downloadName, editUrl, readmeSnippet, type SnippetOptions } from "./snippets";
 
 const origin = "https://gitvis.example";
 const params = { request: { github: "jenkruk", gitlab: "contactkruk" }, config: createDefaultConfig() };
@@ -63,5 +63,78 @@ describe("publish snippets", () => {
   it("names downloads after the accounts", () => {
     expect(downloadName(params.request, "png")).toBe("gitvis-jenkruk-contactkruk.png");
     expect(downloadName({ gitlab: "contactkruk" }, "svg")).toBe("gitvis-contactkruk.svg");
+  });
+});
+
+/** Attributes GitHub's README HTML sanitizer keeps on these elements (others are stripped). */
+const GITHUB_ALLOWED: Record<string, string[]> = {
+  A: ["href"],
+  PICTURE: [],
+  SOURCE: ["media", "srcset"],
+  IMG: ["alt", "src"],
+};
+
+describe("README <picture> markup audit", () => {
+  const variants: SnippetOptions[] = [
+    { theme: "selected", responsive: true },
+    { theme: "auto", responsive: false },
+    { theme: "auto", responsive: true },
+  ];
+
+  it.each(variants)("is valid, GitHub-safe and accessible for %o", (options) => {
+    const html = readmeSnippet(origin, params, options);
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const link = doc.body.firstElementChild!;
+    expect(link.tagName).toBe("A");
+    expect(link.children).toHaveLength(1);
+
+    const picture = link.firstElementChild!;
+    expect(picture.tagName).toBe("PICTURE");
+    const children = [...picture.children];
+    // HTML content model: zero or more <source>, then exactly one <img>, last.
+    expect(children.at(-1)!.tagName).toBe("IMG");
+    expect(children.slice(0, -1).every((c) => c.tagName === "SOURCE")).toBe(true);
+    expect(children.length).toBeGreaterThan(1);
+
+    for (const el of [link, picture, ...children]) {
+      for (const attr of el.getAttributeNames()) expect(GITHUB_ALLOWED[el.tagName]).toContain(attr);
+    }
+
+    for (const source of children.slice(0, -1)) {
+      expect(source.getAttribute("media")).toMatch(/^\((max-width: 600px|prefers-color-scheme: (light|dark))\)/);
+      const url = new URL(source.getAttribute("srcset")!);
+      expect(url.origin).toBe(origin);
+      expect(url.pathname).toBe("/api/card");
+      expect(decodeCardParams(url.searchParams).issues).toEqual([]);
+      // Narrow-screen sources serve the compact image; others the full image.
+      expect(url.searchParams.get("size") === "compact").toBe(source.getAttribute("media")!.includes("max-width"));
+    }
+
+    // Fallback <img>: full-size image in the selected mode (for clients that ignore <source>).
+    const img = children.at(-1)!;
+    const fallback = new URL(img.getAttribute("src")!);
+    expect(fallback.searchParams.has("size")).toBe(false);
+    expect(fallback.searchParams.get("mode")).toBe(params.config.mode);
+    expect(img.getAttribute("alt")).toBe(altText(params.request));
+    expect(new URL(link.getAttribute("href")!).pathname).toBe("/");
+  });
+
+  it("makes every media query that could match a phone resolve to the compact image first", () => {
+    const html = readmeSnippet(origin, params, { theme: "auto", responsive: true });
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const sources = [...doc.querySelectorAll("source")].map((s) => ({
+      media: s.getAttribute("media")!,
+      compact: new URL(s.getAttribute("srcset")!).searchParams.get("size") === "compact",
+    }));
+    const firstMatch = (narrow: boolean, dark: boolean) =>
+      sources.find(
+        ({ media }) =>
+          (!media.includes("max-width") || narrow) &&
+          (!media.includes("prefers-color-scheme") || media.includes(dark ? "dark" : "light")),
+      )!;
+    expect(firstMatch(true, true).compact).toBe(true);
+    expect(firstMatch(true, false).compact).toBe(true);
+    expect(firstMatch(false, true)).toMatchObject({ compact: false, media: "(prefers-color-scheme: dark)" });
+    expect(firstMatch(false, false)).toMatchObject({ compact: false, media: "(prefers-color-scheme: light)" });
   });
 });

@@ -18,6 +18,8 @@ export interface PublishPanelProps {
   /** README snippet options (theme matching, mobile image), shared with the preview modes. */
   options: SnippetOptions;
   onOptionsChange: (options: SnippetOptions) => void;
+  /** Vercel preview deployment: show that published URLs point at production. */
+  isPreviewDeployment?: boolean;
 }
 
 const buttonClass =
@@ -25,7 +27,15 @@ const buttonClass =
 const fieldClass =
   "w-full min-w-0 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 font-mono text-xs text-zinc-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200";
 
-export function PublishPanel({ origin, request, results, config, options, onOptionsChange }: PublishPanelProps) {
+export function PublishPanel({
+  origin,
+  request,
+  results,
+  config,
+  options,
+  onOptionsChange,
+  isPreviewDeployment = false,
+}: PublishPanelProps) {
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState<"svg" | "png" | null>(null);
 
@@ -46,6 +56,16 @@ export function PublishPanel({ origin, request, results, config, options, onOpti
         Paste one snippet into your GitHub profile README. The image updates itself about every 12 hours — no GitHub
         Actions, accounts or manual updates.
       </p>
+
+      {isPreviewDeployment && (
+        <p className="mt-3 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+          <AlertCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          <span>
+            This is a preview deployment. Published URLs point to production (<strong>{new URL(origin).host}</strong>),
+            so options that only exist in this preview may not render there yet.
+          </span>
+        </p>
+      )}
 
       {request ? (
         <PublishContent

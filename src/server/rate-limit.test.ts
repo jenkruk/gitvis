@@ -36,6 +36,8 @@ describe("clientKey", () => {
   it("uses the first forwarded address, then fallbacks", () => {
     expect(clientKey(new Headers({ "x-forwarded-for": "203.0.113.1, 10.0.0.1" }))).toBe("203.0.113.1");
     expect(clientKey(new Headers({ "x-real-ip": "203.0.113.2" }))).toBe("203.0.113.2");
+    // On Vercel x-real-ip is set from the connecting address, so it wins over a client-supplied x-forwarded-for.
+    expect(clientKey(new Headers({ "x-real-ip": "203.0.113.3", "x-forwarded-for": "6.6.6.6" }))).toBe("203.0.113.3");
     expect(clientKey(new Headers())).toBe("unknown");
   });
 });

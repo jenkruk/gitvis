@@ -21,7 +21,7 @@ export function StepNav() {
             )}
             <a href={href} className={linkClass}>
               <Icon aria-hidden="true" className="size-4" />
-              <span className="text-xs tabular-nums opacity-70">{i + 1}.</span>
+              <span className="text-xs text-zinc-500 tabular-nums dark:text-zinc-400">{i + 1}.</span>
               {label}
             </a>
           </li>

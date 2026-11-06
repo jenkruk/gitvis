@@ -6,7 +6,7 @@ import type { ConnectRequest, PlatformResult } from "@/adapters/connect";
 import type { VisualizationConfig } from "@/config/config";
 import { PLATFORMS } from "@/domain/types";
 import type { CardParams } from "@/publish/card-params";
-import { altText, cardUrl, downloadName, editUrl, type ReadmeTheme, readmeSnippet } from "@/publish/snippets";
+import { altText, cardUrl, downloadName, editUrl, readmeSnippet, type SnippetOptions } from "@/publish/snippets";
 import { CardDownloadError, fetchPublishedSvg, saveBlob, svgToPng } from "./download";
 
 export interface PublishPanelProps {
@@ -15,6 +15,9 @@ export interface PublishPanelProps {
   request: ConnectRequest | null;
   results: PlatformResult[];
   config: VisualizationConfig;
+  /** README snippet options (theme matching, mobile image), shared with the preview modes. */
+  options: SnippetOptions;
+  onOptionsChange: (options: SnippetOptions) => void;
 }
 
 const buttonClass =
@@ -22,8 +25,7 @@ const buttonClass =
 const fieldClass =
   "w-full min-w-0 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 font-mono text-xs text-zinc-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200";
 
-export function PublishPanel({ origin, request, results, config }: PublishPanelProps) {
-  const [theme, setTheme] = useState<ReadmeTheme>("selected");
+export function PublishPanel({ origin, request, results, config, options, onOptionsChange }: PublishPanelProps) {
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState<"svg" | "png" | null>(null);
 
@@ -50,8 +52,8 @@ export function PublishPanel({ origin, request, results, config }: PublishPanelP
           params={{ request, config }}
           origin={origin}
           results={results}
-          theme={theme}
-          onThemeChange={setTheme}
+          options={options}
+          onOptionsChange={onOptionsChange}
           busy={busy}
           setBusy={setBusy}
           announce={announce}
@@ -73,8 +75,8 @@ function PublishContent({
   params,
   origin,
   results,
-  theme,
-  onThemeChange,
+  options,
+  onOptionsChange,
   busy,
   setBusy,
   announce,
@@ -82,8 +84,8 @@ function PublishContent({
   params: CardParams;
   origin: string;
   results: PlatformResult[];
-  theme: ReadmeTheme;
-  onThemeChange: (theme: ReadmeTheme) => void;
+  options: SnippetOptions;
+  onOptionsChange: (options: SnippetOptions) => void;
   busy: "svg" | "png" | null;
   setBusy: (busy: "svg" | "png" | null) => void;
   announce: (message: string) => void;
@@ -91,7 +93,7 @@ function PublishContent({
   const imageUrl = cardUrl(origin, params);
   // Defer the preview so rapid design changes don't fire an image request per click.
   const previewUrl = useDeferredValue(imageUrl);
-  const snippet = readmeSnippet(origin, params, theme);
+  const snippet = readmeSnippet(origin, params, options);
   const edit = editUrl(origin, params);
   const failed = results.filter((r) => r.status !== "ok");
   const modeLabel = params.config.mode === "dark" ? "Dark" : "Light";
@@ -147,7 +149,7 @@ function PublishContent({
                 <label
                   key={value}
                   className={`flex cursor-pointer flex-col rounded-lg border p-3 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-blue-600 ${
-                    theme === value
+                    options.theme === value
                       ? "border-zinc-900 ring-1 ring-zinc-900 dark:border-zinc-100 dark:ring-zinc-100"
                       : "border-zinc-200 dark:border-zinc-800"
                   }`}
@@ -156,8 +158,8 @@ function PublishContent({
                     type="radio"
                     name="readme-theme"
                     value={value}
-                    checked={theme === value}
-                    onChange={() => onThemeChange(value)}
+                    checked={options.theme === value}
+                    onChange={() => onOptionsChange({ ...options, theme: value })}
                     className="sr-only"
                   />
                   <span className="text-sm font-medium">{label}</span>
@@ -166,6 +168,22 @@ function PublishContent({
               ))}
             </div>
           </fieldset>
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 p-3 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-blue-600 dark:border-zinc-800">
+            <input
+              type="checkbox"
+              checked={options.responsive}
+              onChange={(e) => onOptionsChange({ ...options, responsive: e.target.checked })}
+              aria-describedby="publish-responsive-hint"
+              className="mt-0.5 size-5 shrink-0 accent-zinc-900 dark:accent-zinc-100"
+            />
+            <span>
+              <span className="block text-sm font-medium">Mobile-optimized image on small screens</span>
+              <span id="publish-responsive-hint" className="block text-xs text-zinc-600 dark:text-zinc-400">
+                Phones get a reflowed 400px layout with readable labels instead of a shrunken desktop graphic.
+              </span>
+            </span>
+          </label>
 
           <CopyField
             id="publish-markdown"

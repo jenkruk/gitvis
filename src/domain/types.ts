@@ -39,6 +39,18 @@ export interface PlatformContributions {
   privateCount?: number;
   /** The platform's own total for the period, if reported (useful for reconciliation). */
   reportedTotal?: number;
+  /** ISO timestamp of the upstream fetch that produced this data (live data only). */
+  fetchedAt?: string;
+  /** True when served as last-known-good because a refresh failed. */
+  stale?: boolean;
+}
+
+/** How current a live dataset is. Absent for sample data. */
+export interface DatasetFreshness {
+  /** ISO timestamp of the oldest source fetch in the dataset. */
+  asOf: string;
+  /** True when any source is last-known-good data served after a failed refresh. */
+  stale: boolean;
 }
 
 /** "live" = fetched from platforms; "sample" = fixture data that must be labeled as such. */
@@ -57,4 +69,5 @@ export interface ContributionDataset {
   sources: PlatformContributions[];
   /** Dense: exactly one entry per day in `range`, ascending. */
   days: CombinedDay[];
+  freshness?: DatasetFreshness;
 }

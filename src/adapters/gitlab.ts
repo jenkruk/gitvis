@@ -7,8 +7,10 @@ import type { AdapterResult } from "./types";
  * `{ "YYYY-MM-DD": count }` map covering roughly the past 12 months.
  * Unknown/private users respond with a 302 to sign-in (verified 2026-11-06).
  */
-export function gitlabCalendarUrl(username: string): string {
-  return `https://gitlab.com/users/${encodeURIComponent(username)}/calendar.json`;
+export const GITLAB_ORIGIN = "https://gitlab.com";
+
+export function gitlabCalendarUrl(username: string, origin: string = GITLAB_ORIGIN): string {
+  return `${origin}/users/${encodeURIComponent(username)}/calendar.json`;
 }
 
 /**

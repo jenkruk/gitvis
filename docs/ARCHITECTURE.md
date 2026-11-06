@@ -140,19 +140,19 @@ ConnectForm (client) ──GET /api/contributions?github=&gitlab=──▶ route
                                                                   │ validate usernames (400 on invalid)
                                                                   ▼
                                    src/server/contributions.ts  loadContributions()
-                                     ├─ cachedGitHub(user)  "use cache: remote"  ─▶ api.github.com/graphql
-                                     └─ cachedGitLab(user)  "use cache: remote"  ─▶ gitlab.com/users/:u/calendar.json
+                                     ├─ snapshot(github, user, window)  "use cache: remote"  ─▶ api.github.com/graphql
+                                     └─ snapshot(gitlab, user, window)  "use cache: remote"  ─▶ gitlab.com/users/:u/calendar.json
                                                                   │ PlatformContributions | AdapterError per platform
                                                                   ▼
                                    combineSources(successes, range, "live")  →  { dataset | null, results[] }
 ```
 
 - **Partial success:** each platform resolves independently. The dataset is built from whichever succeeded, and `results[]` carries a status per requested platform.
-- **Caching:** see "Publish › Caching". The studio and embeds share the same per-username cache entries.
-- **Fetches** have an 8s timeout (`AbortSignal.timeout`) and a `User-Agent: GitVis`. GitLab is fetched with `redirect: "manual"` so its 302-to-sign-in is detected as "not found or private".
+- **Caching:** see "Freshness policy". The studio and embeds share the same per-username snapshots.
+- **Fetches** have a 5s timeout (the first view in a new window waits on it) (`AbortSignal.timeout`) and a `User-Agent: GitVis`. GitLab is fetched with `redirect: "manual"` so its 302-to-sign-in is detected as "not found or private".
 - **Range:** a 365-day window ending on today (UTC). If a platform reports activity dated tomorrow-in-UTC (users east of UTC), the window extends by that one day so nothing is silently dropped. GitHub is queried for the trailing year as of fetch time (inside the cached function), so cache keys don't roll over daily.
 - **URL state:** the client mirrors usernames into `?github=&gitlab=` (`history.replaceState`) so a reload or shared link reconnects. Phase 3 adds the visualization config to the same URL.
-- **Abuse:** the endpoint is public and spends the server's GitHub quota. Caching is the first defense; edge rate limiting is planned (ROADMAP Phase 5).
+- **Abuse:** see "Abuse protection" and "Production requirements".
 
 ## Publish: export and embedding (Phase 3)
 
@@ -170,6 +170,7 @@ ConnectForm (client) ──GET /api/contributions?github=&gitlab=──▶ route
 | `palette`          | `aurora` · `amethyst` · `desert-sunset` · `ocean-depths` · `forest-gold` · `rose-quartz` · `electric-cobalt` · `ember` · `monochrome` | v1 default (`aurora`)     |
 | `mode`             | `light` · `dark`                                                                                                                      | v1 default (`dark`)       |
 | `f`                | comma list of **enabled** features: `heatmap` `total` `active` `streak` `best` `breakdown` `trends` `labels`                          | the frozen v1 default set |
+| `size`             | `full` · `compact` (400px reflowed mobile image; optional, added within v1)                                                           | `full`                    |
 
 - **URL codes are a frozen public contract** (`src/publish/card-params.ts`), mapped explicitly to internal ids, so renaming code never breaks old URLs. Golden-URL tests pin this down.
 - **Explicit enabled-list semantics:** a feature added later is _off_ for existing URLs, so old embeds never change appearance. Encoders always write every param, so changing defaults never alters published images.
@@ -181,24 +182,72 @@ ConnectForm (client) ──GET /api/contributions?github=&gitlab=──▶ route
 
 Next.js forbids `react-dom/server` in App Router code (verified: build error "You're importing a component that imports react-dom/server"). Our renderers are pure, hook-free SVG components, so `src/publish/svg-markup.ts` serializes the element tree directly: function components are called, attributes get React's SVG naming and escaping, and there's no dependency. **A parity test asserts byte-identical output to React's `renderToStaticMarkup`** for every layout × palette × mode, so the published image is guaranteed to match the studio preview.
 
-### Caching (target: data about 12 hours fresh)
+### Freshness policy (Phase 3.1, verified)
 
-| Layer                               | Setting                                                                                                                                                             | Why                                                                                 |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Upstream data                       | `"use cache: remote"`, profile `contributions`: revalidate 12h, expire 7d. Keyed by **username only**.                                                              | One upstream fetch per user per 12h, shared by the studio and every embed.          |
-| Failed refresh                      | Transient failures **throw** inside the cached function, so they're never cached. Past the revalidate time, the last good data keeps being served while it retries. | Upstream blips don't turn a README into an error card.                              |
-| Not found                           | `cacheLife("hours")`                                                                                                                                                | Renamed or new accounts recover within about an hour.                               |
-| CDN (`CDN-Cache-Control`)           | `public, s-maxage=3600, stale-while-revalidate=86400`; errors 60s; invalid config 1h                                                                                | Embed traffic is served from the edge.                                              |
-| Camo and browsers (`Cache-Control`) | `no-cache` + strong `ETag`                                                                                                                                          | GitHub's documented advice for changing images. Revalidation returns a cheap `304`. |
+**Why the Phase 3 design was replaced.** It relied on `cacheLife({ revalidate: 12h, expire: 7d })`. Next's docs define `revalidate` as "the next request will trigger a **background** refresh" (it serves stale data) and only `expire` as "the next one waits for fresh content". With little traffic, every view after an idle gap would show data as old as the gap, and only the following view would be fresh. Two more problems surfaced:
 
-Worst-case age is about 13h (12h data + 1h edge). If GitHub's camo ever holds an old image, purge it with `curl -X PURGE <camo-url>` (GitHub docs, "About anonymized URLs").
+- **The default handler drops entries at `revalidate`.** Without `cacheHandlers`, `"use cache: remote"` uses a per-process, in-memory LRU, so stale-on-failure didn't exist there at all.
+- **Production builds redact thrown errors.** Errors thrown from a `"use cache"` scope lose their message in production, which was verified in E2E. So "throw to avoid caching" turned specific errors into generic ones.
+
+**Policy** (`src/server/freshness.ts`, independent of handler semantics):
+
+1. Time is split into fixed **12h windows** (epochs). Data is cached as one **immutable snapshot per (platform, username, window)**. The cache key contains the window number, so nothing is ever revalidated in place.
+2. **First request in a new window → blocking upstream fetch.** After any idle period (hours or weeks), the first viewer gets fresh data immediately. Maximum data age is 12h. The cost is that one request per window per user waits about 1s for the upstream (fetch timeout 5s).
+3. **Fetch fails transiently → last-known-good.** We look up earlier windows' snapshots, newest first. Past windows are **lookup-only**: a missing past window is answered as `missing` and never fetches. We serve the newest successful snapshot younger than **7 days**, marked stale. The image then shows a "Data from <date>" badge and says so in its `<desc>`.
+4. **Older than 7 days, or nothing to fall back on → honest error card.** `not_found` is never masked by old data.
+5. Outcomes are **returned, not thrown**: `snapshot` is cached until the 7-day limit; `missing` is cached the same way (a past window can never gain data); `failed` is cached for about 2s, so a retry hits upstream again.
+
+**Low-traffic timeline (one user, one README):**
+
+| Situation                            | What the viewer sees                                                                                         | Upstream calls                              |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------- |
+| Several views within a window        | Same snapshot                                                                                                | 1 per window                                |
+| First view after 3 idle days         | Fresh data, on that request                                                                                  | 1 (blocking)                                |
+| First view after idle, upstream down | Last snapshot ≤ 7 days old, badged "Data from …"                                                             | 1 attempt + cached lookups                  |
+| Upstream down > 7 days               | "Contributions temporarily unavailable" error card with the platform's message                               | 1 attempt per request (failures cached ~2s) |
+| Upstream recovers                    | Fresh data on the next request in a new window, or on the first request after the failure entry's ~2s expiry | 1                                           |
+
+All rows are exercised against the real production server in `e2e/cache.spec.ts`, using a fake upstream and 4s windows. Cron and a database aren't needed: blocking refresh covers idle READMEs, and last-known-good covers outages.
+
+### Cache layers (worst-case data age ≈ 12h + 1h + 10 min)
+
+| Layer                               | Setting                                                                                      | Effect after a long idle period                                                                               |
+| ----------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Data snapshots                      | `"use cache: remote"`, keyed by 12h window; kept 7 days for last-known-good                  | Blocking refresh, never stale-then-refresh                                                                    |
+| Edge/CDN (`CDN-Cache-Control`)      | `s-maxage=3600, stale-while-revalidate=600` (stale and error cards: 60s; invalid config: 1h) | After about 70 min idle the edge refetches; it can't replay a day-old image (the Phase 3 setting allowed 24h) |
+| Camo and browsers (`Cache-Control`) | `no-cache, max-age=0` + strong `ETag`                                                        | Every view revalidates; unchanged images are a 0-byte `304`                                                   |
+| Studio API (`/api/contributions`)   | `s-maxage=900, stale-while-revalidate=300`; stale or failed results are `no-store`           | Shares the same snapshots as embeds                                                                           |
+
+**Verified locally:** data snapshots and the origin's ETag/304 behavior (E2E). **Needs verification after deployment:**
+
+- **Vercel's `"use cache: remote"` handler.** Shared across instances? Honors `expire`? If it doesn't share, each cold instance does its own fetch per window. That's still correct, just more upstream calls.
+- **Whether Vercel's CDN honors `CDN-Cache-Control`.**
+- **How camo treats `no-cache`.** GitHub documents it as the fix for stale images. If an image sticks, purge it with `curl -X PURGE <camo-url>`.
 
 ### Abuse protection
 
-- **Input limits:** strict validation, a 512-character query cap, and bounded render cost (the dataset is always ≤ 366 days, and layouts are fixed size).
-- **Per-IP rate limits** (in memory, per instance, best effort): `/api/card` 120/min, `/api/contributions` 30/min. Exceeding them returns `429` + `Retry-After`. Most embed traffic never reaches the function because the CDN answers it.
-- **Upstream budget:** at most 300 upstream fetches per minute per instance, so a flood of unique usernames can't drain the shared GitHub quota. Requests over budget fail as a transient "busy" error, which isn't cached.
-- **Production:** add a Vercel Firewall rate-limit rule on `/api/*` (configuration, not code) for limits shared across instances.
+- **Input limits:** strict validation, a 512-character query cap, and bounded render cost (the dataset is ≤ 366 days; layouts are fixed size).
+- **Upstream budget** (per instance): at most 300 upstream fetches per minute, so a flood of unique usernames can't drain the shared GitHub quota. Over budget, the request fails as a short-lived "busy" error.
+- **Per-IP limits** (in memory, per instance): `/api/card` 120/min, `/api/contributions` 30/min, then `429` + `Retry-After`.
+
+**Review: in-memory limits on serverless.** Each Vercel function instance has its own counters, and instances are created and recycled freely. These limits therefore only blunt bursts that land on one warm instance. A distributed attacker, or traffic spread across instances, passes through. They're a cheap second line of defense, not the control. The real controls are:
+
+1. The CDN absorbs repeat embed traffic.
+2. Snapshots make repeated usernames free.
+3. The upstream budget caps quota burn per instance.
+4. **Vercel Firewall rate limiting** (shared, at the edge) is required for production, and is listed under production requirements.
+
+Note that GitHub's camo fetches from a small pool of IPs, so a per-IP limit on `/api/card` must be generous, or keyed on more than the IP, to avoid throttling every README at once.
+
+### Production requirements (before the first deployment)
+
+| Requirement                                                                                                                                         | Why                                                                                                                                                            |
+| --------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GITHUB_TOKEN`: fine-grained PAT, public read-only, no permissions; ideally from a dedicated bot account                                            | GitHub GraphQL needs a token; a separate rate-limit budget                                                                                                     |
+| `SITE_URL=https://<canonical-domain>`                                                                                                               | Published Markdown and Edit links use it. Without it, URLs come from the request's `Host` header and preview deployments would bake preview URLs into READMEs. |
+| Vercel Firewall rules: `/api/contributions` about 30 req/min/IP; `/api/card` about 600 req/min/IP (camo shares IPs); a challenge on sustained abuse | Shared limits across instances (see the review above)                                                                                                          |
+| Do **not** set `GITVIS_DATA_TTL_SECONDS`, `GITVIS_MAX_STALE_SECONDS`, `GITVIS_GITHUB_GRAPHQL_URL` or `GITVIS_GITLAB_ORIGIN`                         | Test-only overrides (E2E)                                                                                                                                      |
+| Deployment verification (ROADMAP 3.1)                                                                                                               | A real README embed through camo, the `<picture>` media queries on github.com, and the remote cache handler semantics                                          |
 
 ### Error policy
 
@@ -206,7 +255,13 @@ Card errors return **HTTP 200 with a readable error SVG** (plus `X-GitVis-Status
 
 ### Markdown and downloads
 
-- Markdown: `[![alt](cardUrl)](editUrl)`, or an HTML `<picture>` with `prefers-color-scheme` sources for "match the viewer's theme". The alt text names the platforms and usernames. The SVG's own `<title>`/`<desc>` carries the numbers for direct viewing.
+- Markdown: `[![alt](cardUrl)](editUrl)`, or an HTML `<picture>` when theme matching and/or the mobile image is on (the default).
+  - The first matching `<source>` wins, so the order is: `(max-width: 600px)` sources pointing at `size=compact`, then the `prefers-color-scheme` sources, then `<img>`.
+  - The alt text names the platforms and usernames. The SVG's own `<title>`/`<desc>` carries the numbers.
+- **Compact image** (`size=compact`, 400px): reflowed, not shrunk.
+  - Stat cards in 2 columns, the last 20 weeks of heatmap (cells ≈ GitHub's 10px on a phone), stacked charts, and wrapped text.
+  - `size` is an optional v1 parameter. It's absent from full-size URLs, so every previously published URL is unchanged.
+- Profile links (`<a>`) are rendered in published SVGs, where they work when the file is opened directly, but not in the studio's `role="img"` preview, where nested links are unreachable by assistive tech (axe `nested-interactive`).
 - SVG download fetches the published card. PNG rasterizes that same SVG on a `<canvas>` at 2× (no dependency).
 
 ## Security

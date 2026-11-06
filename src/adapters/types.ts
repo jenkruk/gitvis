@@ -21,6 +21,11 @@ export function adapterError(platform: PlatformId, kind: AdapterErrorKind, messa
   return { ok: false, error: { platform, kind, message } };
 }
 
+/** Usernames echoed into messages are capped (GitLab allows 255 chars) so text never overflows. */
+export function displayUsername(username: string, max = 32): string {
+  return username.length > max ? `${username.slice(0, max - 1)}…` : username;
+}
+
 /** GitHub: 1–39 alphanumerics or single hyphens, not starting/ending with a hyphen. */
 export function isValidGitHubUsername(username: string): boolean {
   return /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i.test(username);

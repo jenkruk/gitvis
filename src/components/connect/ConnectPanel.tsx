@@ -131,7 +131,7 @@ export function ConnectPanel({ state, response, initialValues, onConnect, onDisc
       <ConnectionStatus state={state} onRetry={onConnect} />
 
       <details className="group mt-4 text-sm">
-        <summary className="cursor-pointer rounded-sm font-medium text-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-zinc-300">
+        <summary className="cursor-pointer rounded-sm py-3 font-medium text-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-zinc-300">
           How contributions are counted
         </summary>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-zinc-600 dark:text-zinc-400">

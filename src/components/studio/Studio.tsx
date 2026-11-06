@@ -1,7 +1,7 @@
 "use client";
 
 import { Info, Loader2, RotateCcw } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useReducer } from "react";
+import { type ReactNode, useEffect, useMemo, useReducer, useState } from "react";
 import type { ConnectRequest, ContributionsResponse } from "@/adapters/connect";
 import { ConnectPanel } from "@/components/connect/ConnectPanel";
 import { useContributions } from "@/components/connect/useContributions";
@@ -10,10 +10,11 @@ import { configReducer, createDefaultConfig, type VisualizationConfig } from "@/
 import { getLayout } from "@/config/layouts";
 import type { ContributionDataset } from "@/domain/types";
 import { computeMetrics } from "@/metrics/metrics";
-import { studioSearch } from "@/publish/snippets";
-import { Visualization } from "@/renderers/Visualization";
+import { type SnippetOptions, studioSearch } from "@/publish/snippets";
+import { DataView } from "./DataView";
 import { getPalette } from "@/theme/palettes";
 import { FeatureToggles, LayoutPicker, ModePicker, PalettePicker } from "./pickers";
+import { type PreviewDevice, PreviewFrame } from "./PreviewFrame";
 
 export interface StudioProps {
   /** Labeled sample data shown until an account loads. */
@@ -36,6 +37,8 @@ export function Studio({
 }: StudioProps) {
   const [config, dispatch] = useReducer(configReducer, initialConfig, (c) => c ?? createDefaultConfig());
   const connection = useContributions({ request: initialRequest, response: initialResponse });
+  const [previewDevice, setPreviewDevice] = useState<PreviewDevice>("desktop");
+  const [publishOptions, setPublishOptions] = useState<SnippetOptions>({ theme: "selected", responsive: true });
 
   // Keep the address bar equal to the Edit link, so a reload or shared URL restores everything.
   useEffect(() => {
@@ -78,23 +81,22 @@ export function Studio({
             Preview
           </h2>
           <DataNotice dataset={dataset} connected={connection.response !== null} totalIsZero={metrics.total === 0} />
-          <div
-            aria-busy={loading}
-            className="relative rounded-xl border border-zinc-200 bg-zinc-100 p-3 sm:p-6 dark:border-zinc-800 dark:bg-zinc-900"
-          >
-            {loading && (
-              <span className="absolute top-2 right-2 inline-flex items-center gap-1.5 rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium shadow-sm dark:bg-zinc-800/90">
-                <Loader2 aria-hidden="true" className="size-3.5 motion-safe:animate-spin" />
-                Updating…
-              </span>
-            )}
-            {/* The SVG has fixed intrinsic dimensions for embeds; scale it to the container here. */}
-            <div
-              className={`[&>svg]:h-auto [&>svg]:w-full ${loading ? "opacity-60" : ""} motion-safe:transition-opacity`}
-            >
-              <Visualization dataset={dataset} config={config} metrics={metrics} idPrefix="preview" />
-            </div>
-          </div>
+          {loading && (
+            <p className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300">
+              <Loader2 aria-hidden="true" className="size-3.5 motion-safe:animate-spin" />
+              Updating preview…
+            </p>
+          )}
+          <PreviewFrame
+            dataset={dataset}
+            config={config}
+            metrics={metrics}
+            device={previewDevice}
+            onDeviceChange={setPreviewDevice}
+            responsive={publishOptions.responsive}
+            busy={loading}
+          />
+          <DataView dataset={dataset} metrics={metrics} />
           <p role="status" className="sr-only">
             {summary}
           </p>
@@ -130,6 +132,8 @@ export function Studio({
         request={connection.response?.dataset ? connection.request : null}
         results={connection.response?.results ?? []}
         config={config}
+        options={publishOptions}
+        onOptionsChange={setPublishOptions}
       />
     </div>
   );

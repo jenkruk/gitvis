@@ -71,11 +71,29 @@ _Depends on:_ Phase 2.
 - SVG and PNG downloads match the published image.
 - No credentials or internal errors appear in SVGs, responses or bundles.
 
-## Phase 3.1: Publish hardening
+## Phase 3.1: Reliability, accessibility, responsiveness ✅ (deployment verification pending)
 
-- Playwright E2E with `@axe-core/playwright`: connect → customize → publish, a keyboard-only path, and an axe scan of each state (empty, loading, partial error, loaded, published) at mobile and desktop sizes. Runs in CI and fails on serious or critical violations.
-- Preview modes: desktop, tablet and mobile widths, plus GitHub light and dark README surfaces (preview container only).
-- Verify an embed inside a real GitHub README after the first deployment (requires approval to deploy), including how camo's caching behaves in practice.
+**Tasks**
+
+- [x] Freshness policy: 12h window snapshots with a blocking refresh after idle periods, last-known-good up to 7 days (badged "Data from …"), honest errors beyond that, and outcomes returned rather than thrown (production redacts thrown messages).
+- [x] Cache layers bounded for low traffic: edge SWR cut from 24h to 10 min; stale cards cached 60s at the edge; the studio API doesn't cache stale results.
+- [x] E2E cache suite against a real production server and a fake upstream (shortened windows): hit, idle refresh, last-known-good, expiry, recovery, combined partial outage, not-found, ETag/304, and a shared snapshot.
+- [x] Playwright + `@axe-core/playwright` (WCAG 2.2 AA tags; any violation fails): sample, connected, validation-error and partial-failure states at 320/375/768/1280.
+- [x] Keyboard-only Connect → Customize → Publish test (skip link, arrow keys, Space, Enter, visible focus, clipboard contents).
+- [x] Responsive: no horizontal scroll at 320/375/768/1280; 24px targets; ≥ 11px UI text; mobile editing.
+- [x] Studio preview modes: desktop, tablet and mobile README widths, with a label-size readout and warning.
+- [x] Mobile-optimized compact image (`size=compact`, 400px reflow) served via `<picture>` `(max-width: 600px)`; on by default.
+- [x] Alternative data view: written summary, key stats, and an accessible monthly table (pulled forward from Phase 4).
+- [x] Error cards wrap text; usernames are truncated in messages (GitLab allows 255 characters).
+- [x] Fixed: step-number contrast, a nested-interactive SVG preview, and a 20px disclosure target (all found by axe or the E2E checks).
+- [x] Rate-limit review and production requirements documented (ARCHITECTURE "Abuse protection", "Production requirements").
+
+**Deployment verification (requires approval to deploy)**
+
+- [ ] A real README embed through GitHub camo, in light, dark and mobile; `<picture>` media queries respected on github.com.
+- [ ] Vercel `"use cache: remote"` handler: shared across instances and honors `expire`; `CDN-Cache-Control` honored.
+- [ ] Vercel Firewall rules active; `SITE_URL` set; dedicated-account `GITHUB_TOKEN`.
+- [ ] After 12h+ without traffic, the first view of the deployed embed shows fresh data.
 
 ## Phase 4: Color studio and design-system depth
 
@@ -85,8 +103,8 @@ _Depends on:_ Phase 2.
 - Palette preview thumbnails with real mini-renders.
 - Persist the last config in `localStorage` as a convenience (the URL stays the source of truth).
 - **Storybook** for production components and the design system: controls, palette and token pages, every layout × palette × mode, and the Connect states. Includes the a11y addon (axe) per story.
-- **Accessibility preview modes:** standard, grayscale, and accessible-data views (DESIGN_SYSTEM, "Preview modes").
-- **Alternative data views:** a screen-reader-friendly written summary plus monthly and weekly data tables, derived from `ContributionMetrics`.
+- **Accessibility preview modes:** grayscale, and an accessible-data view that swaps the graphic for the data view (device widths shipped in 3.1).
+- **Alternative data views:** monthly table and summary shipped in 3.1; add a weekly table and sortable columns.
 
 **Acceptance criteria**
 
@@ -101,7 +119,7 @@ _Depends on:_ Phase 2.
 - **Visual regression:** snapshots of layouts × palettes × light/dark × mobile, tablet, and desktop (Playwright screenshots, or Storybook-based if that proves simpler), with review in CI.
 - Manual screen-reader passes (VoiceOver + Safari, NVDA + Firefox) and a WCAG 2.2 AA checklist review.
 - Performance budget (studio JS < 150 kB gz), Lighthouse ≥ 95 accessibility.
-- Edge rate limiting for the public API routes if usage warrants it.
+- Vercel Firewall rules (required before launch; see ARCHITECTURE "Production requirements").
 - Vercel deployment (requires approval), README with an embed example, contribution guide, license.
 
 ## Later

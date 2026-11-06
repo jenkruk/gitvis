@@ -31,7 +31,7 @@ describe("GET /api/card", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("image/svg+xml; charset=utf-8");
     expect(res.headers.get("Cache-Control")).toBe("no-cache, max-age=0");
-    expect(res.headers.get("CDN-Cache-Control")).toBe("public, s-maxage=3600, stale-while-revalidate=86400");
+    expect(res.headers.get("CDN-Cache-Control")).toBe("public, s-maxage=3600, stale-while-revalidate=600");
     expect(res.headers.get("ETag")).toMatch(/^"[0-9a-f]{40}"$/);
     expect(res.headers.get("X-GitVis-Status")).toBe("ok");
     expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");

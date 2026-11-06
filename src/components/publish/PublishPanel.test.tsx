@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlatformResult } from "@/adapters/connect";
@@ -6,7 +7,8 @@ import { Studio } from "@/components/studio/Studio";
 import { createDefaultConfig, type VisualizationConfig } from "@/config/config";
 import { createSampleDataset } from "@/fixtures/sample-dataset";
 import { decodeCardParams } from "@/publish/card-params";
-import { PublishPanel } from "./PublishPanel";
+import { PublishPanel, type PublishPanelProps } from "./PublishPanel";
+import type { SnippetOptions } from "@/publish/snippets";
 
 const origin = "https://gitvis.test";
 const okResults: PlatformResult[] = [{ platform: "github", username: "jenkruk", status: "ok", total: 630 }];
@@ -22,18 +24,39 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-function setup(config: VisualizationConfig = createDefaultConfig(), results = okResults) {
+/** Holds snippet options the way Studio does. */
+function Harness({
+  initialOptions = { theme: "selected", responsive: false },
+  ...props
+}: Omit<PublishPanelProps, "options" | "onOptionsChange"> & { initialOptions?: SnippetOptions }) {
+  const [options, setOptions] = useState<SnippetOptions>(initialOptions);
+  return <PublishPanel {...props} options={options} onOptionsChange={setOptions} />;
+}
+
+function setup(
+  config: VisualizationConfig = createDefaultConfig(),
+  results = okResults,
+  initialOptions?: SnippetOptions,
+) {
   const user = userEvent.setup();
   // After setup(): user-event installs its own clipboard stub, which we replace.
   Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
-  render(<PublishPanel origin={origin} request={{ github: "jenkruk" }} results={results} config={config} />);
+  render(
+    <Harness
+      origin={origin}
+      request={{ github: "jenkruk" }}
+      results={results}
+      config={config}
+      initialOptions={initialOptions}
+    />,
+  );
   const markdown = () => screen.getByRole("textbox", { name: "README Markdown" }) as HTMLTextAreaElement;
   return { user, markdown };
 }
 
 describe("PublishPanel", () => {
   it("refuses to publish sample data and explains how to proceed", () => {
-    render(<PublishPanel origin={origin} request={null} results={[]} config={createDefaultConfig()} />);
+    render(<Harness origin={origin} request={null} results={[]} config={createDefaultConfig()} />);
     expect(screen.getByText(/connect a github or gitlab account above to publish/i)).toBeVisible();
     expect(screen.queryByRole("textbox", { name: "README Markdown" })).not.toBeInTheDocument();
   });
@@ -67,6 +90,15 @@ describe("PublishPanel", () => {
     setup();
     expect(screen.getByText(/exactly what github will display/i)).toBeVisible();
     vi.restoreAllMocks();
+  });
+
+  it("adds a mobile-optimized source for narrow screens when enabled", async () => {
+    const { user, markdown } = setup();
+    const toggle = screen.getByRole("checkbox", { name: /mobile-optimized image/i });
+    expect(toggle).toHaveAccessibleDescription(/reflowed 400px layout/i);
+    await user.click(toggle);
+    expect(markdown().value).toContain('<source media="(max-width: 600px)" srcset="');
+    expect(markdown().value).toMatch(/max-width: 600px\)" srcset="[^"]*size=compact/);
   });
 
   it("switches to a theme-matching <picture> snippet via a keyboard-operable radio group", async () => {

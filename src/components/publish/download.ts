@@ -7,7 +7,7 @@ export async function fetchPublishedSvg(url: string): Promise<string> {
   const res = await fetch(url);
   if (!res.ok) throw new CardDownloadError(`The image endpoint responded with ${res.status}.`);
   const status = res.headers.get("X-GitVis-Status");
-  if (status && status !== "ok") {
+  if (status && status !== "ok" && status !== "stale") {
     throw new CardDownloadError("The published image is currently an error card, so there's nothing to download yet.");
   }
   return res.text();

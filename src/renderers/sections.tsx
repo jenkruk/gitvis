@@ -1,9 +1,10 @@
-import { formatDate } from "@/domain/dates";
+import { formatDate, toISODate } from "@/domain/dates";
 import { type ContributionDataset, PLATFORM_IDS, PLATFORMS, type PlatformId } from "@/domain/types";
 import type { ContributionMetrics, SeriesPoint } from "@/metrics/metrics";
 import type { ThemeTokens } from "@/theme/palettes";
 import { FONT_STACK, formatNumber, formatPercent, PADDING, Panel } from "./primitives";
 import type { StatItem } from "./stats";
+import { maxCharsFor, wrapText } from "./text";
 
 /** Platform → series color, stable regardless of which platforms are connected. */
 export function seriesColor(theme: ThemeTokens, platform: PlatformId): string {
@@ -14,22 +15,54 @@ export function seriesColor(theme: ThemeTokens, platform: PlatformId): string {
 
 export const HEADER_HEIGHT = 40;
 
+/** Compact images put platform labels on their own line so nothing overflows. */
+export function headerHeight(compact: boolean, showPlatformLabels: boolean): number {
+  return compact && showPlatformLabels ? 58 : HEADER_HEIGHT;
+}
+
 export function Header({
   dataset,
   theme,
   y,
   width,
   showPlatformLabels,
+  compact = false,
+  links = true,
 }: {
   dataset: ContributionDataset;
   theme: ThemeTokens;
   y: number;
   width: number;
   showPlatformLabels: boolean;
+  compact?: boolean;
+  /** Profile <a> links; off inside role="img" previews, where links are unreachable by assistive tech. */
+  links?: boolean;
 }) {
-  const { range, sources, provenance } = dataset;
+  const { range, sources } = dataset;
   const rangeLabel = `${formatDate(range.start)} – ${formatDate(range.end)}`;
   const font = { fontFamily: FONT_STACK };
+  const labels =
+    showPlatformLabels &&
+    sources.map((source, i) => {
+      const label = (
+        <>
+          <tspan dx={compact && i === 0 ? 0 : 10} fill={seriesColor(theme, source.platform)}>
+            ●
+          </tspan>
+          <tspan dx={4} fill={theme.text}>
+            {PLATFORMS[source.platform].label}
+          </tspan>
+          <tspan dx={4}>@{source.username}</tspan>
+        </>
+      );
+      return links && source.profileUrl ? (
+        <a key={source.platform} href={source.profileUrl} target="_blank">
+          {label}
+        </a>
+      ) : (
+        <tspan key={source.platform}>{label}</tspan>
+      );
+    });
 
   return (
     <g>
@@ -38,36 +71,55 @@ export function Header({
       </text>
       <text x={PADDING} y={y + 34} fontSize={11} fill={theme.textMuted} {...font}>
         <tspan>{rangeLabel}</tspan>
-        {showPlatformLabels &&
-          sources.map((source) => {
-            const label = (
-              <>
-                <tspan dx={10} fill={seriesColor(theme, source.platform)}>
-                  ●
-                </tspan>
-                <tspan dx={4} fill={theme.text}>
-                  {PLATFORMS[source.platform].label}
-                </tspan>
-                <tspan dx={4}>@{source.username}</tspan>
-              </>
-            );
-            return source.profileUrl ? (
-              <a key={source.platform} href={source.profileUrl} target="_blank">
-                {label}
-              </a>
-            ) : (
-              <tspan key={source.platform}>{label}</tspan>
-            );
-          })}
+        {!compact && labels}
       </text>
-      {provenance === "sample" && <SampleBadge theme={theme} x={PADDING + width} y={y} />}
+      {compact && labels && (
+        <text x={PADDING} y={y + 52} fontSize={11} fill={theme.textMuted} {...font}>
+          {labels}
+        </text>
+      )}
+      <StatusBadge dataset={dataset} theme={theme} x={PADDING + width} y={y} />
     </g>
   );
 }
 
-/** Non-removable label shown whenever the dataset is synthetic. */
-function SampleBadge({ theme, x, y }: { theme: ThemeTokens; x: number; y: number }) {
-  const w = 84;
+/**
+ * Non-removable labels: "Sample data" for synthetic datasets, and the data date
+ * when last-known-good data is shown after a failed refresh.
+ */
+export function StatusBadge({
+  dataset,
+  theme,
+  x,
+  y,
+}: {
+  dataset: ContributionDataset;
+  theme: ThemeTokens;
+  x: number;
+  y: number;
+}) {
+  if (dataset.provenance === "sample") return <Badge theme={theme} x={x} y={y} width={84} text="Sample data" />;
+  if (dataset.freshness?.stale) {
+    const text = `Data from ${formatDate(toISODate(dataset.freshness.asOf.slice(0, 10)))}`;
+    return <Badge theme={theme} x={x} y={y} width={136} text={text} />;
+  }
+  return null;
+}
+
+function Badge({
+  theme,
+  x,
+  y,
+  width,
+  text,
+}: {
+  theme: ThemeTokens;
+  x: number;
+  y: number;
+  width: number;
+  text: string;
+}) {
+  const w = width;
   return (
     <g>
       <rect x={x - w} y={y} width={w} height={22} rx={11} fill={theme.surface} stroke={theme.accent} />
@@ -80,7 +132,7 @@ function SampleBadge({ theme, x, y }: { theme: ThemeTokens; x: number; y: number
         fill={theme.text}
         fontFamily={FONT_STACK}
       >
-        Sample data
+        {text}
       </text>
     </g>
   );
@@ -88,8 +140,16 @@ function SampleBadge({ theme, x, y }: { theme: ThemeTokens; x: number; y: number
 
 /* --------------------------------------------------------------- Stat cards */
 
-export function statCardsHeight(detailed: boolean): number {
+const STAT_GAP = 12;
+
+function cardHeight(detailed: boolean): number {
   return detailed ? 84 : 70;
+}
+
+/** Height of the stat-card grid; `columns` caps cards per row (compact images use 2). */
+export function statCardsHeight(detailed: boolean, count = 1, columns = Infinity): number {
+  const rows = Math.ceil(count / Math.min(columns, Math.max(count, 1)));
+  return rows * cardHeight(detailed) + (rows - 1) * STAT_GAP;
 }
 
 export function StatCards({
@@ -98,33 +158,38 @@ export function StatCards({
   y,
   width,
   detailed,
+  columns = Infinity,
 }: {
   items: StatItem[];
   theme: ThemeTokens;
   y: number;
   width: number;
   detailed: boolean;
+  columns?: number;
 }) {
-  const gap = 12;
-  const cardWidth = (width - gap * (items.length - 1)) / items.length;
-  const height = statCardsHeight(detailed);
+  const perRow = Math.min(columns, items.length);
+  const cardWidth = (width - STAT_GAP * (perRow - 1)) / perRow;
+  const height = cardHeight(detailed);
   const font = { fontFamily: FONT_STACK };
 
   return (
     <g>
-      {items.map((item, i) => {
-        const x = PADDING + i * (cardWidth + gap);
+      {items.map((item, index) => {
+        const i = index % perRow;
+        const row = Math.floor(index / perRow);
+        const x = PADDING + i * (cardWidth + STAT_GAP);
+        const cardY = y + row * (height + STAT_GAP);
         return (
           <g key={item.id}>
-            <Panel x={x} y={y} width={cardWidth} height={height} theme={theme} />
-            <text x={x + 16} y={y + 22} fontSize={11} fontWeight={500} fill={theme.textMuted} {...font}>
+            <Panel x={x} y={cardY} width={cardWidth} height={height} theme={theme} />
+            <text x={x + 16} y={cardY + 22} fontSize={11} fontWeight={500} fill={theme.textMuted} {...font}>
               {item.label}
             </text>
-            <text x={x + 16} y={y + 50} fontSize={22} fontWeight={700} fill={theme.text} {...font}>
+            <text x={x + 16} y={cardY + 50} fontSize={22} fontWeight={700} fill={theme.text} {...font}>
               {item.value}
             </text>
             {detailed && (
-              <text x={x + 16} y={y + 70} fontSize={10} fill={theme.textMuted} {...font}>
+              <text x={x + 16} y={cardY + 70} fontSize={10} fill={theme.textMuted} {...font}>
                 {item.detail}
               </text>
             )}
@@ -137,13 +202,53 @@ export function StatCards({
 
 /* ------------------------------------------------------------- Inline stats */
 
-export function InlineStats({ items, theme, y }: { items: StatItem[]; theme: ThemeTokens; y: number }) {
+const INLINE_STATS = { fontSize: 13, lineHeight: 18 };
+
+/** Packs stat phrases into as few lines as fit `width` (never splitting a phrase). */
+function packInlineStats(items: StatItem[], width: number): StatItem[][] {
+  const limit = maxCharsFor(width, INLINE_STATS.fontSize);
+  const lines: StatItem[][] = [];
+  let current: StatItem[] = [];
+  let length = 0;
+  for (const item of items) {
+    const added = (current.length ? 5 : 0) + item.inline.length;
+    if (current.length && length + added > limit) {
+      lines.push(current);
+      current = [];
+      length = 0;
+    }
+    length += (current.length ? 5 : 0) + item.inline.length;
+    current.push(item);
+  }
+  if (current.length) lines.push(current);
+  return lines;
+}
+
+export function inlineStatsHeight(items: StatItem[], width: number): number {
+  return packInlineStats(items, width).length * INLINE_STATS.lineHeight;
+}
+
+export function InlineStats({
+  items,
+  theme,
+  y,
+  width,
+}: {
+  items: StatItem[];
+  theme: ThemeTokens;
+  y: number;
+  width: number;
+}) {
   return (
-    <text x={PADDING} y={y + 13} fontSize={13} fill={theme.text} fontFamily={FONT_STACK}>
-      {items.map((item, i) => (
-        <tspan key={item.id}>
-          {i > 0 && <tspan fill={theme.textMuted}>{"  ·  "}</tspan>}
-          {item.inline}
+    <text fontSize={INLINE_STATS.fontSize} fill={theme.text} fontFamily={FONT_STACK}>
+      {packInlineStats(items, width).map((line, row) => (
+        <tspan key={line[0]!.id} x={PADDING} y={y + 13 + row * INLINE_STATS.lineHeight}>
+          {line.map((item, i) => (
+            <tspan key={item.id}>
+              {i > 0 && <tspan fill={theme.textMuted}>{"  ·  "}</tspan>}
+              {item.inline}
+            </tspan>
+          ))}
         </tspan>
       ))}
     </text>
@@ -185,7 +290,14 @@ export function PlatformBreakdown({
         w > 0 ? <rect key={platform} x={x} y={barY} width={w} height={10} fill={seriesColor(theme, platform)} /> : null,
       )}
       {metrics.platformTotals.map(({ platform, total, share }, i) => (
-        <text key={platform} x={PADDING + 16 + i * 220} y={y + 62} fontSize={11} fill={theme.textMuted} {...font}>
+        <text
+          key={platform}
+          x={PADDING + 16 + i * Math.min(220, inner / 2)}
+          y={y + 62}
+          fontSize={11}
+          fill={theme.textMuted}
+          {...font}
+        >
           <tspan fill={seriesColor(theme, platform)}>●</tspan>
           <tspan dx={6} fill={theme.text} fontWeight={600}>
             {PLATFORMS[platform].label}
@@ -202,6 +314,12 @@ export function PlatformBreakdown({
 /* ----------------------------------------------------------- Trend charts */
 
 export const TRENDS_HEIGHT = 170;
+const TRENDS_GAP = 16;
+
+/** Side by side normally; stacked full-width in compact images. */
+export function trendsHeight(stacked: boolean): number {
+  return stacked ? TRENDS_HEIGHT * 2 + TRENDS_GAP : TRENDS_HEIGHT;
+}
 
 export function TrendCharts({
   metrics,
@@ -209,15 +327,16 @@ export function TrendCharts({
   theme,
   y,
   width,
+  stacked = false,
 }: {
   metrics: ContributionMetrics;
   dataset: ContributionDataset;
   theme: ThemeTokens;
   y: number;
   width: number;
+  stacked?: boolean;
 }) {
-  const gap = 16;
-  const panelWidth = (width - gap) / 2;
+  const panelWidth = stacked ? width : (width - TRENDS_GAP) / 2;
   return (
     <g>
       <WeeklyTrend weeks={metrics.weekly} theme={theme} x={PADDING} y={y} width={panelWidth} />
@@ -225,8 +344,8 @@ export function TrendCharts({
         months={metrics.monthly}
         platforms={dataset.sources.map((s) => s.platform)}
         theme={theme}
-        x={PADDING + panelWidth + gap}
-        y={y}
+        x={stacked ? PADDING : PADDING + panelWidth + TRENDS_GAP}
+        y={stacked ? y + TRENDS_HEIGHT + TRENDS_GAP : y}
         width={panelWidth}
       />
     </g>
@@ -363,13 +482,22 @@ function MonthlyComparison({
 
 /* ----------------------------------------------------------------- Footnote */
 
-export const FOOTNOTE_HEIGHT = 12;
+const FOOTNOTE_TEXT =
+  "Contributions as reported by each platform, not commits. Platforms count different activities; totals aren’t deduplicated.";
+const FOOTNOTE = { fontSize: 10, lineHeight: 14 };
 
-export function Footnote({ theme, y }: { theme: ThemeTokens; y: number }) {
+export function footnoteHeight(width: number): number {
+  return (wrapText(FOOTNOTE_TEXT, width, FOOTNOTE.fontSize).length - 1) * FOOTNOTE.lineHeight + 12;
+}
+
+export function Footnote({ theme, y, width }: { theme: ThemeTokens; y: number; width: number }) {
   return (
-    <text x={PADDING} y={y + 10} fontSize={10} fill={theme.textMuted} fontFamily={FONT_STACK}>
-      Contributions as reported by each platform, not commits. Platforms count different activities; totals aren’t
-      deduplicated.
+    <text fontSize={FOOTNOTE.fontSize} fill={theme.textMuted} fontFamily={FONT_STACK}>
+      {wrapText(FOOTNOTE_TEXT, width, FOOTNOTE.fontSize).map((line, i) => (
+        <tspan key={i} x={PADDING} y={y + 10 + i * FOOTNOTE.lineHeight}>
+          {line}
+        </tspan>
+      ))}
     </text>
   );
 }

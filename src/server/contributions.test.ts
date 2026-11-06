@@ -103,6 +103,18 @@ describe("loadContributions", () => {
     expect(response.results[0]).toMatchObject({ total: 1 });
   });
 
+  it("reports dataset freshness from the oldest source and flags last-known-good data", async () => {
+    const response = await loadContributions(
+      { github: "jenkruk", gitlab: "contactkruk" },
+      loaders({
+        github: async () => ok("github", [["2026-11-01", 2]], { fetchedAt: "2026-11-06T06:00:00.000Z" }),
+        gitlab: async () => ok("gitlab", [["2026-11-02", 3]], { fetchedAt: "2026-11-04T06:00:00.000Z", stale: true }),
+      }),
+    );
+    expect(response.dataset!.freshness).toEqual({ asOf: "2026-11-04T06:00:00.000Z", stale: true });
+    expect(response.results[1]).toMatchObject({ status: "ok", stale: true, fetchedAt: "2026-11-04T06:00:00.000Z" });
+  });
+
   it("passes through GitHub's private contribution count", async () => {
     const response = await loadContributions(
       { github: "jenkruk" },

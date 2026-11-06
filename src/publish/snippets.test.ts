@@ -24,13 +24,32 @@ describe("publish snippets", () => {
   });
 
   it("produces a linked Markdown image for the selected mode", () => {
-    expect(readmeSnippet(origin, params, "selected")).toBe(
+    expect(readmeSnippet(origin, params, { theme: "selected", responsive: false })).toBe(
       `[![${altText(params.request)}](${cardUrl(origin, params)})](${editUrl(origin, params)})`,
     );
   });
 
+  it("serves the compact image to narrow screens first when responsive", () => {
+    const html = readmeSnippet(origin, params, { theme: "selected", responsive: true });
+    const sources = [...html.matchAll(/<source media="([^"]+)" srcset="([^"]+)"/g)];
+    expect(sources.map((s) => s[1])).toEqual(["(max-width: 600px)"]);
+    expect(sources[0]![2]).toContain("size=compact");
+    expect(html).toMatch(/<img alt="[^"]+" src="[^"]*mode=dark[^"]*">/);
+    expect(html).not.toMatch(/<img[^>]*size=compact/);
+  });
+
+  it("orders narrow + theme sources so the first match is always right", () => {
+    const html = readmeSnippet(origin, params, { theme: "auto", responsive: true });
+    expect([...html.matchAll(/<source media="([^"]+)"/g)].map((s) => s[1])).toEqual([
+      "(max-width: 600px) and (prefers-color-scheme: dark)",
+      "(max-width: 600px) and (prefers-color-scheme: light)",
+      "(prefers-color-scheme: dark)",
+      "(prefers-color-scheme: light)",
+    ]);
+  });
+
   it("produces a theme-matching <picture> with escaped URLs", () => {
-    const html = readmeSnippet(origin, params, "auto");
+    const html = readmeSnippet(origin, params, { theme: "auto", responsive: false });
     expect(html).toContain(
       '<source media="(prefers-color-scheme: dark)" srcset="https://gitvis.example/api/card?v=1&amp;',
     );

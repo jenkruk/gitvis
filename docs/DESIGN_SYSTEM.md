@@ -107,21 +107,43 @@ Palette, layout, and mode are independent axes of `VisualizationConfig`, and cha
   - real `<table>`s for monthly totals by platform and for weekly totals, with `<caption>`, `scope`d headers, and sortable columns operated as native buttons.
   - These come from the same `ContributionMetrics` as the graphic, so they can't drift from it.
 
-### Preview modes (planned)
+### Preview modes
 
-| Mode                                | Purpose                                                                                   | Phase |
-| ----------------------------------- | ----------------------------------------------------------------------------------------- | ----- |
-| Device: desktop / tablet / mobile   | Shows how the README image scales in GitHub's layout at common widths                     | 3     |
-| README surface: GitHub light / dark | Previews the graphic against both GitHub themes                                           | 3     |
-| Grayscale                           | Checks that meaning survives without hue (CSS `filter: grayscale(1)` on the preview only) | 4     |
-| Accessible-data view                | Shows the summary and tables above instead of the graphic                                 | 4     |
+| Mode                                            | Purpose                                                                                                                                                                          | Status                                        |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| Device: desktop 830 / tablet 700 / mobile 360px | Shows the image at approximate GitHub README column widths. Mobile shows the compact image when it's enabled. A readout gives the smallest label size and warns below 60% scale. | Shipped (3.1)                                 |
+| README surface: GitHub light / dark             | Previews the graphic against both GitHub themes                                                                                                                                  | Planned                                       |
+| Grayscale                                       | Checks that meaning survives without hue (CSS `filter: grayscale(1)` on the preview only)                                                                                        | Phase 4                                       |
+| Accessible-data view                            | Shows the data view instead of the graphic                                                                                                                                       | Phase 4 (the data view itself shipped in 3.1) |
 
 Preview modes change only the **preview container**. They are never part of `VisualizationConfig` or the exported graphic.
 
+### Responsive graphics
+
+Shrinking the 840px graphic into a ~360px phone column puts labels at about 4px. The **compact image** (400px) reflows instead:
+
+- stat cards in two columns
+- the last 20 weeks of heatmap, with cells close to GitHub's 10px on a phone
+- trend charts stacked vertically
+- wrapped footnote and inline stats
+- platform labels on their own line
+
+Published snippets serve it through `<picture>` with `(max-width: 600px)` (on by default). The studio's mobile preview shows exactly that image.
+
+### Alternative data view
+
+"View the data as text and a table" is a native `<details>` element under the preview. It contains:
+
+- the same text summary as the SVG `<desc>`
+- key stats in a `<dl>`
+- a monthly `<table>` with a `<caption>`, `scope`d headers and row headers
+
+The table scrolls inside its own focusable, labelled region, never the page. All of it comes from the same `ContributionMetrics` as the graphic.
+
 ### Verification
 
-- **Now:** Vitest + Testing Library assertions on roles, names, descriptions, and keyboard paths for every interactive component; contrast tests for every palette.
-- **Planned:** Storybook stories for production components with the a11y addon (Phase 4); Playwright end-to-end with `@axe-core/playwright` on every page state (Phase 3); visual regression across themes × palettes × viewports (Phase 5); manual VoiceOver and NVDA passes before launch.
+- **Now:** Vitest + Testing Library assertions on roles, names, descriptions, and keyboard paths for every interactive component; contrast tests for every palette. **Playwright + axe-core** (`npm run test:e2e`): WCAG 2.2 AA scans of every major state at 320/375/768/1280 (any violation fails), a keyboard-only Connect → Customize → Publish run, 24px target sizes, ≥ 11px UI text, no horizontal scroll, and reduced motion.
+- **Planned:** Storybook stories with the a11y addon (Phase 4); visual regression across themes × palettes × viewports (Phase 5); manual VoiceOver and NVDA passes before launch.
 
 ## Original design
 

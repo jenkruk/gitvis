@@ -19,7 +19,8 @@ export async function GET(request: NextRequest) {
     // GitHub camo + browsers: always revalidate (GitHub's advice for changing images); ETag makes it a 304.
     "Cache-Control": "no-cache, max-age=0",
     // Edge cache (RFC 9213 targeted header, honored by Vercel's CDN).
-    "CDN-Cache-Control": `public, s-maxage=${card.edgeMaxAge}, stale-while-revalidate=86400`,
+    // SWR bounded to 10 min: after a long idle the edge must refetch rather than replay a day-old image.
+    "CDN-Cache-Control": `public, s-maxage=${card.edgeMaxAge}, stale-while-revalidate=600`,
     ETag: etag,
     "X-GitVis-Status": card.status,
     "X-Content-Type-Options": "nosniff",

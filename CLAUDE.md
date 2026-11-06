@@ -10,6 +10,7 @@ Customizable contribution visualizations that combine GitHub + GitLab activity f
 - `npm run check` — lint + typecheck + tests (run before declaring work done)
 - `npm run typecheck` — `next typegen` (route types like `LayoutProps`) + `tsc --noEmit`
 - `npm test` / `npm run test:watch` — Vitest
+- `npm run test:e2e` — Playwright + axe against a production build and a fake upstream (`e2e/`); never hits real GitHub/GitLab
 - `npm run format` — Prettier (`format:check` to verify only)
 - `npm run build` — production build
 

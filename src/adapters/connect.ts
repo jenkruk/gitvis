@@ -47,7 +47,16 @@ export function connectSearchParams(request: ConnectRequest): URLSearchParams {
 }
 
 export type PlatformResult =
-  | { platform: PlatformId; username: string; status: "ok"; total: number; privateCount?: number }
+  | {
+      platform: PlatformId;
+      username: string;
+      status: "ok";
+      total: number;
+      privateCount?: number;
+      /** Last-known-good data served after a failed refresh. */
+      stale?: boolean;
+      fetchedAt?: string;
+    }
   | { platform: PlatformId; username: string; status: AdapterErrorKind; message: string; retryable: boolean };
 
 export interface ContributionsResponse {

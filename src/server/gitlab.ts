@@ -1,6 +1,6 @@
 import "server-only";
 import { gitlabCalendarUrl, normalizeGitLabCalendar } from "@/adapters/gitlab";
-import { adapterError, type AdapterResult } from "@/adapters/types";
+import { adapterError, type AdapterResult, displayUsername } from "@/adapters/types";
 import type { FetchOptions } from "./github";
 
 /**
@@ -9,11 +9,11 @@ import type { FetchOptions } from "./github";
  */
 export async function fetchGitLabContributions(
   username: string,
-  { fetchImpl = fetch, timeoutMs = 8_000 }: FetchOptions = {},
+  { fetchImpl = fetch, timeoutMs = 5_000, url }: FetchOptions = {},
 ): Promise<AdapterResult> {
   let response: Response;
   try {
-    response = await fetchImpl(gitlabCalendarUrl(username), {
+    response = await fetchImpl(gitlabCalendarUrl(username, url), {
       headers: { Accept: "application/json", "User-Agent": "GitVis" },
       redirect: "manual",
       signal: AbortSignal.timeout(timeoutMs),
@@ -27,7 +27,7 @@ export async function fetchGitLabContributions(
     return adapterError(
       "gitlab",
       "not_found",
-      `No public GitLab profile found for “${username}”. It may not exist, or the profile may be private.`,
+      `No public GitLab profile found for “${displayUsername(username)}”. It may not exist, or the profile may be private.`,
     );
   }
   if (response.status === 429) {

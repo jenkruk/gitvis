@@ -74,6 +74,37 @@ describe("renderCard", () => {
     expect(card.svg).toMatch(/role="img"[^>]*aria-labelledby/);
   });
 
+  it("keeps a 255-character username inside the error card", async () => {
+    const longName = `a${"b".repeat(254)}`;
+    const notFound = (await import("./gitlab")).fetchGitLabContributions;
+    const result = await notFound(longName, { fetchImpl: async () => new Response(null, { status: 302 }) });
+    const card = await render(`gitlab=${longName}`, loaders({ gitlab: async () => result }));
+    expect(card.status).toBe("not_found");
+    const lines = [...card.svg.matchAll(/<tspan[^>]*>([^<]*)<\/tspan>/g)].map((m) => m[1]!);
+    // Every rendered line fits the 840px card at the conservative glyph estimate.
+    for (const line of lines) expect(line.length).toBeLessThanOrEqual(100);
+    expect(card.svg).not.toContain("b".repeat(40)); // the username is truncated in the message
+  });
+
+  it("labels last-known-good data in the image and keeps it short-lived at the edge", async () => {
+    const staleGitHub = async (u: string): Promise<AdapterResult> => {
+      const result = ok("github", u);
+      return result.ok
+        ? { ok: true, data: { ...result.data, stale: true, fetchedAt: "2026-11-03T08:00:00.000Z" } }
+        : result;
+    };
+    const card = await render("github=jenkruk&gitlab=contactkruk", loaders({ github: staleGitHub }));
+    expect(card).toMatchObject({ status: "stale", edgeMaxAge: 60 });
+    expect(card.svg).toContain("Data from Nov 3, 2026");
+    expect(descOf(card.svg)).toContain("Showing data last updated Nov 3, 2026; a refresh is pending.");
+  });
+
+  it("does not label fresh data", async () => {
+    const card = await render("github=jenkruk");
+    expect(card.svg).not.toContain("Data from");
+    expect(descOf(card.svg)).not.toContain("refresh is pending");
+  });
+
   it("never publishes a misleading partial total when one platform fails", async () => {
     const card = await render(
       "github=jenkruk&gitlab=contactkruk",

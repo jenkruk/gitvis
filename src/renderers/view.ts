@@ -44,11 +44,14 @@ export function prepareView(
   const yearsView = sliceToRange(dataset, historyRange(dataset.range.end, config.years));
   // Legacy 30/90-day links narrow further; 365 is already covered by the years slice.
   const view = config.range < 365 ? sliceToRecentDays(yearsView, config.range) : yearsView;
-  const span = coveredSpan(view);
-  const metricsView = span ? sliceToRange(view, span) : view;
   const shownPeriods = periodCount(view.range);
   const periods =
     shownPeriods > 1 ? periodSummaries(view).filter((p) => periodHasData(view, p.range)) : ([] as PeriodSummary[]);
+  // Summary statistics cover what every platform reports — and, when several years are shown,
+  // only the newest 12 months, so they sit inside (and belong to) that year's card.
+  const span = coveredSpan(view);
+  const covered = span ? sliceToRange(view, span) : view;
+  const metricsView = periods.length > 1 ? sliceToRange(covered, periods[0]!.range) : covered;
 
   const prepared: PreparedView = { view, metricsView, periods };
   // Several calendars are shown: say exactly which period and accounts the summary numbers cover.

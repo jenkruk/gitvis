@@ -32,14 +32,7 @@ import type { LayoutId } from "@/config/layouts";
 import type { CardSize } from "@/renderers/primitives";
 import type { ColorMode, PaletteId, PanelStyle } from "@/theme/palettes";
 
-/**
- * Version written by the encoder. v2 = v1's parameters with mandatory source
- * attribution (account labels can't be removed). v1 URLs keep decoding and
- * rendering exactly as before, including any that turned labels off.
- */
-export const CARD_PARAMS_VERSION = "2";
-const SUPPORTED_VERSIONS = ["1", "2"] as const;
-export type CardParamsVersion = (typeof SUPPORTED_VERSIONS)[number];
+export const CARD_PARAMS_VERSION = "1";
 /** Raised from 512 in Phase 4: worst-case percent-encoded Unicode name + title is ~1,600 chars. Camo hex-encodes URLs (~2×); still far below browser/CDN limits. */
 export const MAX_QUERY_LENGTH = 2048;
 
@@ -189,8 +182,6 @@ export interface DecodedCardParams {
   issues: ParamIssue[];
   /** Present only when the URL asks for a non-default image variant. */
   size?: CardSize;
-  /** The URL's contract version (missing `v` = "1"). */
-  version: CardParamsVersion;
 }
 
 function flagsFrom(enabled: Iterable<FeatureId>): FeatureFlags {
@@ -219,7 +210,7 @@ export function encodeCardParams({ request, config: design, size }: CardParams):
   // Phase 4 params: only when different from the frozen legacy default.
   const { identity } = config;
   if (identity.style !== LEGACY.identity) params.set("hdr", IDENTITY_CODES[identity.style]);
-  // `hl` (hidden handles) is v1-only: v2 always attributes every connected account.
+  // No `hl`: every connected account is always attributed.
   if (identity.avatars.length) params.set("av", identity.avatars.map((p) => PLATFORM_CODES[p]).join(","));
   if (finalText(identity.name)) params.set("name", finalText(identity.name));
   if (finalText(identity.title)) params.set("title", finalText(identity.title));
@@ -247,11 +238,10 @@ export function decodeCardParams(search: URLSearchParams): DecodedCardParams {
     issues.push({ param: "*", message: `The URL is too long (max ${MAX_QUERY_LENGTH} characters of options).` });
   }
 
-  const rawVersion = search.get("v") ?? "1";
-  const version: CardParamsVersion = (SUPPORTED_VERSIONS as readonly string[]).includes(rawVersion)
-    ? (rawVersion as CardParamsVersion)
-    : CARD_PARAMS_VERSION;
-  if (version !== rawVersion) issues.push({ param: "v", message: `Unsupported version “${truncate(rawVersion)}”.` });
+  const version = search.get("v");
+  if (version !== null && version !== CARD_PARAMS_VERSION) {
+    issues.push({ param: "v", message: `Unsupported version “${truncate(version)}”.` });
+  }
 
   const usernames = validateConnectRequest({ github: search.get("github"), gitlab: search.get("gitlab") });
   let request: ConnectRequest | null = null;
@@ -360,11 +350,9 @@ export function decodeCardParams(search: URLSearchParams): DecodedCardParams {
     years,
   };
   if (years > 1) config.range = 365;
-  // v2+: source attribution is part of the contract; v1 keeps its original (optional) labels.
-  const decoded = version === "1" ? config : withAttribution(config);
-  return size === "full"
-    ? { request, config: decoded, issues, version }
-    : { request, config: decoded, issues, size, version };
+  // Source attribution is part of the contract: account labels can't be removed (`labels`/`hl` are ignored).
+  const decoded = withAttribution(config);
+  return size === "full" ? { request, config: decoded, issues } : { request, config: decoded, issues, size };
 }
 
 function truncate(value: string, max = 24): string {

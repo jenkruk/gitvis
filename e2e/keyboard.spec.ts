@@ -77,7 +77,7 @@ test("the full Connect → Design → Publish flow works with the keyboard alone
   await expect(page.getByRole("status").filter({ hasText: "README Markdown copied." })).toBeVisible();
 
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());
-  expect(clipboard).toContain(`/api/card?v=2&amp;github=${user}&amp;gitlab=${user}&amp;layout=minimal`);
+  expect(clipboard).toContain(`/api/card?v=1&amp;github=${user}&amp;gitlab=${user}&amp;layout=minimal`);
   expect(clipboard).toMatch(/f=[^"&]*best/);
   expect(clipboard).toContain('<source media="(max-width: 600px)"');
 

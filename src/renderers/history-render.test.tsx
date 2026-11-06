@@ -55,11 +55,18 @@ describe("multi-year history", () => {
   it("gives every year its own card whose header pairs the dates with that year's total", () => {
     const svg = render();
     const prepared = prepareView(combined, years(3));
-    for (const period of prepared.periods) {
+    const [current, ...older] = prepared.periods;
+    // The current year's total is the card's headline: a large number with a small "contributions" label.
+    expect(svg).toMatch(
+      new RegExp(
+        `>Nov 7, 2025 – Nov 6, 2026</text><text[^>]*text-anchor="end"[^>]*><tspan font-size="22" font-weight="700"[^>]*>${current!.total.toLocaleString("en-US")}</tspan><tspan[^>]*font-size="12"[^>]*>contributions</tspan>`,
+      ),
+    );
+    for (const period of older) {
       const total = `${period.total.toLocaleString("en-US")} contribution${period.total === 1 ? "" : "s"}`;
-      // Dates and total share one header row (same y), so the total can't be read as another year's.
+      // Older years keep the compact header: dates and total share one row (same y).
       const header = new RegExp(
-        `y="(\\d+)"[^>]*>${period.range.end === "2026-11-06" ? "Nov 7, 2025" : "Nov"}[^<]*</text><text[^>]*y="\\1"[^>]*text-anchor="end"[^>]*>${total}<`,
+        `y="(\\d+)"[^>]*>Nov[^<]*</text><text[^>]*y="\\1"[^>]*text-anchor="end"[^>]*>${total}<`,
       );
       expect(svg).toMatch(header);
     }
@@ -90,12 +97,29 @@ describe("multi-year history", () => {
     expect(svg).toMatch(/<title>\d+ contributions? on [^<]+ \(GitHub only; GitLab not available\)<\/title>/);
   });
 
-  it("computes stats only over the span both platforms cover, and says so", () => {
+  it("puts the summary stats inside the newest year's card, and names their period", () => {
     const prepared = prepareView(combined, years(3));
     expect(prepared.metricsView.range).toEqual(lastYear);
     const metrics = computeMetrics(prepared.metricsView);
     const svg = render();
-    expect(svg).toContain(">Last 12 months · GitHub + GitLab<");
+    // No separate heading: the stat cards sit between the newest card's header and its calendar.
+    expect(svg).not.toContain(">Last 12 months · GitHub + GitLab<");
+    const order = [
+      "Nov 7, 2025 – Nov 6, 2026",
+      ">Active days<",
+      ">Longest streak<",
+      ">Mon<",
+      "Nov 7, 2024 – Nov 6, 2025",
+    ];
+    const visible = svg.replace(/<desc[\s\S]*?<\/desc>/, "");
+    const positions = order.map((text) => visible.indexOf(text));
+    expect(positions.every((p) => p >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+    // The total isn't repeated as a stat card inside the card (the header already states it).
+    expect(visible).not.toContain(">Contributions<");
+    expect(visible).not.toContain("per active day");
+    // The stat cards are inset inside the card (x = canvas padding + card padding).
+    expect(svg).toMatch(/<rect x="40" y="\d+" width="[\d.]+" height="70" rx="10"/);
     expect(svg).toContain(">Platform breakdown · Last 12 months<");
     expect(desc(svg)).toContain("Summary statistics: Last 12 months, GitHub + GitLab.");
     expect(desc(svg)).toContain(`${metrics.total.toLocaleString("en-US")} contributions across`);
@@ -103,11 +127,10 @@ describe("multi-year history", () => {
     expect(desc(svg)).toMatch(/By 12-month period, newest first: .*GitHub only; GitLab not available for this period/);
   });
 
-  it("uses the full history for GitHub-only accounts, and labels that period", () => {
+  it("GitHub-only stats also describe the newest year — the card they sit in", () => {
     const svg = render(githubOnly);
-    expect(svg).toContain(">Last 3 years · GitHub<");
-    expect(desc(svg)).toContain("Summary statistics: Last 3 years, GitHub.");
-    expect(desc(svg)).toContain("from Nov 8, 2023 to Nov 6, 2026");
+    expect(desc(svg)).toContain("Summary statistics: Last 12 months, GitHub.");
+    expect(desc(svg)).toContain("from Nov 7, 2025 to Nov 6, 2026");
     expect(svg).not.toContain("GitHub only"); // a single platform's complete history isn't "only" anything
     expect(svg.match(/>GitHub</g)!.length).toBeGreaterThanOrEqual(3); // each card names its source
   });

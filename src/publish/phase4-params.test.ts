@@ -46,10 +46,10 @@ describe("Phase 4 URL params", () => {
     expect(query).toContain("f=heatmap%2Ctotal%2Cactive%2Cstreak%2Ccurrent%2Cbreakdown%2Ctrends%2Clabels");
   });
 
-  it("leave legacy-equivalent designs with the same params (no new params written; only v is now 2)", () => {
+  it("leave legacy-equivalent designs with the same params (no new params written; same URL as before)", () => {
     const query = encodeCardParams({ request: { github: "jenkruk" }, config: createDefaultConfig() }).toString();
     expect(query).toBe(
-      "v=2&github=jenkruk&layout=dashboard&palette=aurora&mode=dark&f=heatmap%2Ctotal%2Cactive%2Cstreak%2Cbreakdown%2Ctrends%2Clabels",
+      "v=1&github=jenkruk&layout=dashboard&palette=aurora&mode=dark&f=heatmap%2Ctotal%2Cactive%2Cstreak%2Cbreakdown%2Ctrends%2Clabels",
     );
   });
 

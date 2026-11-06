@@ -8,6 +8,7 @@ import type { ContributionMetrics } from "@/metrics/metrics";
 import type { ThemeTokens } from "@/theme/palettes";
 import { Heatmap, measureHeatmap } from "./Heatmap";
 import {
+  type CardContent,
   historyScale,
   isBorderless,
   measureYearlySummary,
@@ -82,6 +83,9 @@ function statItems({ metrics, isVisible, metricOrder }: LayoutContext) {
   return orderedStats(metricOrder, isVisible).map((id) => buildStatItem(id, metrics));
 }
 
+/** Stats shown inside the newest year's card: its header already states the total, so it isn't repeated. */
+const cardStatItems = (ctx: LayoutContext) => statItems(ctx).filter((item) => item.id !== "totalContributions");
+
 const calendarOf = (ctx: LayoutContext) => ctx.calendar ?? ctx.dataset;
 const isHistory = (ctx: LayoutContext) => (ctx.periods?.length ?? 0) > 1;
 
@@ -144,7 +148,7 @@ function statsHeading(ctx: LayoutContext): Section | null {
  * Full-width images: one card per 12-month period, newest first, each with its
  * own header and the panel style's frame (Borderless: hairline separators).
  */
-function yearCards(ctx: LayoutContext): Section[] {
+function yearCards(ctx: LayoutContext, newestContent?: CardContent): Section[] {
   const periods = ctx.periods ?? [];
   const calendar = calendarOf(ctx);
   const scale = historyScale(calendar);
@@ -152,9 +156,10 @@ function yearCards(ctx: LayoutContext): Section[] {
   const padding = borderless ? 0 : ctx.spacing.panelPadding;
   return periods.map((period, i) => {
     const last = i === periods.length - 1;
+    const content = i === 0 ? newestContent : undefined;
     return {
       key: `year-${period.range.end}`,
-      height: yearCardHeight(calendar, period, width(ctx), padding, last),
+      height: yearCardHeight(calendar, period, width(ctx), padding, last, content),
       render: (y) => (
         <YearCard
           view={calendar}
@@ -167,16 +172,55 @@ function yearCards(ctx: LayoutContext): Section[] {
           showLegend={last}
           scale={scale}
           separator={borderless && i > 0 ? ctx.spacing.sectionGap / 2 : undefined}
+          content={content}
+          current={i === 0}
         />
       ),
     };
   });
 }
 
+/**
+ * Multi-year full images put the summary stats INSIDE the newest year's card, so
+ * its border says which year they describe. Phones and heatmap-less designs keep
+ * stats above, under a "Last 12 months · …" heading.
+ */
+const statsInNewestCard = (ctx: LayoutContext) => isHistory(ctx) && !isCompact(ctx) && ctx.isVisible("heatmap");
+
+/** Stat cards (Dashboard, Data-rich) laid out for any width — the canvas or a year card's interior. */
+function statCardsBlock(ctx: LayoutContext, detailed: boolean, inCard = false): CardContent | null {
+  const items = inCard ? cardStatItems(ctx) : statItems(ctx);
+  if (items.length === 0) return null;
+  // Up to 4 cards share one row (the original layout); 5 wrap into rows of 3 so labels stay readable.
+  const columns = isCompact(ctx) ? 2 : items.length > 4 ? 3 : Infinity;
+  const cardHeight = detailed ? ctx.spacing.statCardDetailed : ctx.spacing.statCard;
+  return {
+    height: statCardsHeight(detailed, items.length, columns, cardHeight),
+    render: (x, y, w) => (
+      <StatCards
+        items={items}
+        theme={ctx.theme}
+        x={x}
+        y={y}
+        width={w}
+        detailed={detailed}
+        columns={columns}
+        cardHeight={cardHeight}
+      />
+    ),
+  };
+}
+
+/** Inner width of a year card (no padding when borderless). */
+const cardInnerWidth = (ctx: LayoutContext) =>
+  width(ctx) - (isBorderless(ctx.theme) ? 0 : ctx.spacing.panelPadding * 2);
+
 /** The heatmap: year cards for multi-year full images, the single (or recent-weeks) calendar otherwise. */
-function heatmapSections(ctx: LayoutContext): (Section | null)[] {
+function heatmapSections(ctx: LayoutContext, detailed: boolean): (Section | null)[] {
   if (!ctx.isVisible("heatmap")) return [];
-  if (isHistory(ctx) && !isCompact(ctx)) return yearCards(ctx);
+  if (isHistory(ctx) && !isCompact(ctx)) {
+    return yearCards(ctx, statCardsBlock(ctx, detailed, true) ?? undefined);
+  }
   return [yearlySummary(ctx, true), heatmapPanel(ctx)];
 }
 
@@ -231,26 +275,9 @@ function heatmapPanel(ctx: LayoutContext): Section {
 }
 
 function statCards(ctx: LayoutContext, detailed: boolean): Section | null {
-  const items = statItems(ctx);
-  if (items.length === 0) return null;
-  // Up to 4 cards share one row (the original layout); 5 wrap into rows of 3 so labels stay readable.
-  const columns = isCompact(ctx) ? 2 : items.length > 4 ? 3 : Infinity;
-  const cardHeight = detailed ? ctx.spacing.statCardDetailed : ctx.spacing.statCard;
-  return {
-    key: "stats",
-    height: statCardsHeight(detailed, items.length, columns, cardHeight),
-    render: (y) => (
-      <StatCards
-        items={items}
-        theme={ctx.theme}
-        y={y}
-        width={width(ctx)}
-        detailed={detailed}
-        columns={columns}
-        cardHeight={cardHeight}
-      />
-    ),
-  };
+  if (statsInNewestCard(ctx)) return null;
+  const block = statCardsBlock(ctx, detailed);
+  return block && { key: "stats", height: block.height, render: (y) => block.render(PADDING, y, width(ctx)) };
 }
 
 function breakdown(ctx: LayoutContext): Section | null {
@@ -289,15 +316,26 @@ export const LAYOUT_SECTIONS: Record<LayoutId, (ctx: LayoutContext) => Section[]
     const caption = showCaption(ctx, days) ? CAPTION_HEIGHT : 0;
     const { height } = measureHeatmap(days, width(ctx));
     const history = isHistory(ctx) && !isCompact(ctx);
+    const inCard = statsInNewestCard(ctx);
+    const inner = cardInnerWidth(ctx);
+    const cardItems = cardStatItems(ctx);
+    const inlineInCard: CardContent | undefined =
+      inCard && cardItems.length > 0
+        ? {
+            height: inlineStatsHeight(cardItems, inner),
+            render: (x, y, w) => <InlineStats items={cardItems} theme={ctx.theme} x={x} y={y} width={w} />,
+          }
+        : undefined;
     return compact([
-      items.length > 0 && statsHeading(ctx),
-      items.length > 0 && {
-        key: "inline-stats",
-        height: inlineStatsHeight(items, width(ctx)),
-        render: (y) => <InlineStats items={items} theme={ctx.theme} y={y} width={width(ctx)} />,
-      },
+      !inCard && items.length > 0 && statsHeading(ctx),
+      !inCard &&
+        items.length > 0 && {
+          key: "inline-stats",
+          height: inlineStatsHeight(items, width(ctx)),
+          render: (y) => <InlineStats items={items} theme={ctx.theme} y={y} width={width(ctx)} />,
+        },
       ctx.isVisible("heatmap") && yearlySummary(ctx, false),
-      ...(ctx.isVisible("heatmap") && history ? yearCards(ctx) : []),
+      ...(ctx.isVisible("heatmap") && history ? yearCards(ctx, inlineInCard) : []),
       ctx.isVisible("heatmap") &&
         !history && {
           key: "heatmap",
@@ -315,9 +353,9 @@ export const LAYOUT_SECTIONS: Record<LayoutId, (ctx: LayoutContext) => Section[]
 
   dashboard: (ctx) =>
     compact([
-      statsHeading(ctx),
+      !statsInNewestCard(ctx) && statsHeading(ctx),
       statCards(ctx, false),
-      ...heatmapSections(ctx),
+      ...heatmapSections(ctx, false),
       ctx.isVisible("heatmap") && note(ctx, "history-note", ctx.historyNote),
       breakdown(ctx),
       footnote(ctx),
@@ -325,9 +363,9 @@ export const LAYOUT_SECTIONS: Record<LayoutId, (ctx: LayoutContext) => Section[]
 
   dataRich: (ctx) =>
     compact([
-      statsHeading(ctx),
+      !statsInNewestCard(ctx) && statsHeading(ctx),
       statCards(ctx, true),
-      ...heatmapSections(ctx),
+      ...heatmapSections(ctx, true),
       ctx.isVisible("heatmap") && note(ctx, "history-note", ctx.historyNote),
       breakdown(ctx),
       ctx.isVisible("activityTrends") && {

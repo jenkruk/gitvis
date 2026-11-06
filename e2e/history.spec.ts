@@ -20,7 +20,8 @@ test.describe("published multi-year card", () => {
     expect(svg.match(/>More</g)).toHaveLength(1); // one legend for all calendars
     expect(svg.match(/>GitHub only · GitLab unavailable</g)).toHaveLength(2); // the two older year cards
     expect(svg).toContain(">GitHub + GitLab<"); // the newest card
-    expect(svg).toContain(">Last 12 months · GitHub + GitLab<"); // the summary statistics' period
+    expect(svg).toContain(">Platform breakdown · Last 12 months<"); // stats name their period
+    expect(desc).toContain("Summary statistics: Last 12 months, GitHub + GitLab.");
     expect(desc).toContain("By 12-month period, newest first");
     expect(svg).not.toMatch(/<pattern/); // no hatching
   });
@@ -119,16 +120,13 @@ test.describe("phones (375px)", () => {
   });
 });
 
-test.describe("source attribution (v2)", () => {
-  test("a v2 URL can't hide the accounts, while the same v1 URL renders exactly as before", async ({ request }) => {
+test.describe("source attribution", () => {
+  test("a published graphic always names its accounts, even if the URL tries to hide them", async ({ request }) => {
     const user = uniqueUser("attr");
     await upstream(request, user, { count: 2 });
-    const hidden = `github=${user}&f=heatmap,total&hl=`;
-    const v1 = await getCard(request, `v=1&${hidden}`);
-    const v2 = await getCard(request, `v=2&${hidden}`);
-    const visible = (svg: string) => svg.replace(/<desc[\s\S]*?<\/desc>/, "");
-    expect(visible(v1.svg)).not.toContain(`@${user}`); // the legacy embed is untouched
-    expect(visible(v2.svg)).toContain(`@${user}`);
-    expect(v2.desc).toContain(`GitHub @${user}`);
+    const { svg, desc } = await getCard(request, `github=${user}&f=heatmap,total&hl=`);
+    const visible = svg.replace(/<desc[\s\S]*?<\/desc>/, "");
+    expect(visible).toContain(`@${user}`);
+    expect(desc).toContain(`GitHub @${user}`);
   });
 });

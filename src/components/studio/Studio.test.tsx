@@ -418,9 +418,9 @@ describe("source attribution", () => {
     expect(screen.getByText(/usernames always appear on the graphic/i)).toBeInTheDocument();
   });
 
-  it("re-publishes a legacy v1 link that hid its accounts as an attributed v2 design", () => {
+  it("shows the accounts even for a link that tried to hide them", () => {
     const { config } = decodeCardParams(new URLSearchParams("v=1&gitlab=contactkruk&f=heatmap,total&hl="));
-    expect(config.features.platformLabels).toBe(false); // the old embed itself is untouched
+    expect(config.features.platformLabels).toBe(true); // attribution can't be removed
     const { preview } = setup({
       initialRequest: { gitlab: "contactkruk" },
       initialResponse: live,
@@ -428,7 +428,7 @@ describe("source attribution", () => {
     });
     expect(within(preview()).getAllByText(/@contactkruk/).length).toBeGreaterThan(0);
     const search = new URLSearchParams(window.location.search);
-    expect(search.get("v")).toBe("2");
+    expect(search.get("v")).toBe("1");
     expect(search.get("f")).toContain("labels");
     expect(search.has("hl")).toBe(false);
   });
@@ -460,7 +460,7 @@ describe("source attribution", () => {
       ],
       history: { years: 3, status: "ok" },
     };
-    const { config } = decodeCardParams(new URLSearchParams("v=2&github=jenkruk&gitlab=contactkruk&yrs=3"));
+    const { config } = decodeCardParams(new URLSearchParams("v=1&github=jenkruk&gitlab=contactkruk&yrs=3"));
     const { user } = setup({
       initialRequest: { github: "jenkruk", gitlab: "contactkruk" },
       initialResponse: both,

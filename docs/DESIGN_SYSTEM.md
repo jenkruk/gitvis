@@ -115,13 +115,13 @@ Independent of the background: any panel style works with Solid, Gradient or Tra
 
 - **Full image — year cards:** one card per 12-month period, newest first, stacked with the section gap. Card header: dates (13px semibold, `text`) left and **that year's total** (13px semibold) right on the same row, then the coverage label (11px `textMuted`): "GitHub + GitLab", "GitHub", or "GitHub only · GitLab unavailable". Inner padding = the density's panel padding. One legend in the last card; one colour scale (quartiles over all shown days) across every year.
 - **Panel style:** Filled and Outlined frame each card like every other panel. **Borderless** draws no boxes (and no inner padding) — years are separated by a `border`-coloured hairline in the gap, plus the bold header row.
-- **Reporting period heading:** multi-year graphics put "Last 12 months · GitHub + GitLab" (or "Last 3 years · GitHub") above the stats, and append the period to the breakdown and chart titles ("Platform breakdown · Last 12 months"). Single-year graphics are unchanged.
+- **Stats belong to the newest year:** multi-year graphics draw the summary stats (stat cards, or Minimal's one-line stats) inside the newest year's card, between its header and calendar — the border makes clear they describe that year only. Breakdown and chart titles add the period ("Platform breakdown · Last 12 months"). Phones and heatmap-less designs put a "Last 12 months · GitHub + GitLab" heading above the stats instead. Single-year graphics are unchanged.
 - **No hatching.** Missing coverage is explained in words (coverage labels, tooltips, description, data table), never by patterns.
 - **Phones (`size=compact`):** a "yearly summary" list — dates, total, coverage label per year, separated by hairlines — above the usual last-20-weeks heatmap.
 
 ## Source attribution
 
-Every published graphic names the accounts behind its data: "● GitHub @jenkruk ● GitLab @contactkruk" on the header's date line (all layouts and both header presets; compact images on their own line). Labels move to their own line when they wouldn't fit beside the dates, and only then are over-long usernames shortened with "…" — the full usernames are always in `<desc>`. Avatars, names and titles stay optional; attribution doesn't (see ARCHITECTURE, URL contract v2).
+Every published graphic names the accounts behind its data: "● GitHub @jenkruk ● GitLab @contactkruk" on the header's date line (all layouts and both header presets; compact images on their own line). Labels move to their own line when they wouldn't fit beside the dates, and only then are over-long usernames shortened with "…" — the full usernames are always in `<desc>`. Avatars, names and titles stay optional; attribution doesn't (see ARCHITECTURE, URL contract).
 
 ## Density
 

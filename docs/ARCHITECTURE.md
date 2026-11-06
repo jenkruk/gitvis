@@ -162,13 +162,9 @@ ConnectForm (client) ──GET /api/contributions?github=&gitlab=──▶ route
 
 ## Publish: export and embedding (Phase 3)
 
-### URL contract (v1 and v2)
+### URL contract (v1)
 
-**v2 (current encoder) = v1's parameters + mandatory source attribution.** Under v1, account labels could be removed (`f` without `labels`, or `hl=`). Forcing them on at render time would have changed existing READMEs, so attribution became a new version, as the contract requires for breaking changes:
-
-- `v=1` (or no `v`) decodes and renders **exactly as before**, including URLs that hid their accounts. Legacy SVG snapshots and v1 golden tests pin this.
-- `v=2` decodes the same parameters, then applies `withAttribution`: account labels on and every connected account shown; `labels`/`hl` can't remove them. The encoder writes `v=2` and never writes `hl`. A default design's URL differs from v1 only in its version.
-- The studio applies `withAttribution` to every design (including legacy Edit links), so re-publishing an old embed produces an attributed v2 URL; the old embed itself is never changed.
+**Source attribution is part of v1.** The decoder applies `withAttribution` to every URL: account labels are on and every connected account is shown, whatever `f` (`labels`) or the legacy `hl` say. The encoder never writes `hl`. This was decided before the first deployment, so no published embed changed; two legacy snapshots that hid labels were re-recorded once, deliberately. **The contract freezes at the first production deployment** — from then on, breaking changes need a new `v`.
 
 ```
 /api/card?v=1&github=jenkruk&gitlab=contactkruk&layout=dashboard&palette=aurora&mode=dark&f=heatmap,total,active,streak,breakdown,trends,labels
@@ -315,8 +311,8 @@ Card errors return **HTTP 200 with a readable error SVG** (plus `X-GitVis-Status
 
 **One derivation for every view** (`src/renderers/view.ts`, `prepareView`): the years slice (`historyRange`, 365-day periods ending today), the legacy 30/90-day slice, and `metricsView` — the span **every** connected platform covers (`coveredSpan`). Stats, breakdown, trends, the monthly table and the description use `metricsView`; calendars use the full view. The graphic, studio preview and data table all call it, so their numbers can't drift.
 
-- **Combined accounts, 2–3 years:** each period is its own card whose header pairs the dates with that period's total and a coverage label ("GitHub + GitLab" / "GitHub only · GitLab unavailable"). Summary statistics carry a reporting-period heading — **"Last 12 months · GitHub + GitLab"** — also appended to breakdown and chart titles, and stated in `<desc>` ("Summary statistics: Last 12 months, GitHub + GitLab.") and the data table's headings. Cell tooltips say "(GitHub only; GitLab not available)". No hatching.
-- **GitHub-only accounts:** "Last 3 years · GitHub" (complete data, full-span stats).
+- **Combined accounts, 2–3 years:** each period is its own card whose header pairs the dates with that period's total and a coverage label ("GitHub + GitLab" / "GitHub only · GitLab unavailable"). **Summary statistics always describe the newest 12 months and are drawn inside that year's card**, so its border and header ("Nov 7, 2025 – Nov 6, 2026 · GitHub + GitLab") say which year they belong to. The period is also appended to breakdown and chart titles ("Platform breakdown · Last 12 months") and stated in `<desc>` ("Summary statistics: Last 12 months, GitHub + GitLab.") and the data table's headings. Phones (no year cards) and heatmap-less designs use a "Last 12 months · GitHub + GitLab" heading above the stats instead. Cell tooltips say "(GitHub only; GitLab not available)". No hatching.
+- **GitHub-only accounts:** the same rule — stats describe the newest 12 months, inside its card — so every multi-year graphic reads the same way.
 - **Per-period summaries** (`periodSummaries`): a platform's total is reported only if it covers the **whole** period; otherwise "unavailable". A combined total exists only when every platform is complete (the data table shows "Not available" / "Incomplete").
 - **GitHub-only accounts:** full-span stats (complete data).
 - **GitLab-only accounts:** the studio disables 2 and 3 years with the reason; a hand-made `yrs` URL renders 12 months plus "The earlier years aren't available: GitLab publishes only the last 12 months."

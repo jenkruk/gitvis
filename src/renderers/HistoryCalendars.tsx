@@ -1,10 +1,11 @@
+import type { ReactNode } from "react";
 import { isWithinRange } from "@/domain/dates";
 import type { PeriodSummary } from "@/domain/history";
 import type { ContributionDataset, PlatformId } from "@/domain/types";
 import type { ThemeTokens } from "@/theme/palettes";
 import { Heatmap, measureHeatmap } from "./Heatmap";
 import { heatmapThresholds } from "./heatmap-model";
-import { FONT_STACK, Panel } from "./primitives";
+import { FONT_STACK, formatNumber, Panel } from "./primitives";
 import { periodCoverage, periodTotal, rangeLabel } from "./view";
 
 /*
@@ -17,6 +18,14 @@ import { periodCoverage, periodTotal, rangeLabel } from "./view";
  */
 
 const HEADER_HEIGHT = 40;
+/** Space between in-card content (the newest year's stats) and its calendar. */
+const CONTENT_GAP = 14;
+
+/** Content placed inside a card between its header and calendar (the newest year's summary stats). */
+export interface CardContent {
+  height: number;
+  render: (x: number, y: number, width: number) => ReactNode;
+}
 
 /** Shared across every year so a dark cell means the same in each calendar. */
 export function historyScale(view: ContributionDataset): [number, number, number] {
@@ -36,8 +45,12 @@ export function yearCardHeight(
   width: number,
   padding: number,
   showLegend: boolean,
+  content?: CardContent,
 ): number {
-  return padding * 2 + HEADER_HEIGHT + measureHeatmap(daysOf(view, period), width - padding * 2, showLegend).height;
+  const extra = content ? content.height + CONTENT_GAP : 0;
+  return (
+    padding * 2 + HEADER_HEIGHT + extra + measureHeatmap(daysOf(view, period), width - padding * 2, showLegend).height
+  );
 }
 
 export function YearCard({
@@ -51,6 +64,8 @@ export function YearCard({
   showLegend,
   scale,
   separator,
+  content,
+  current = false,
 }: {
   view: ContributionDataset;
   period: PeriodSummary;
@@ -63,11 +78,16 @@ export function YearCard({
   scale: readonly [number, number, number];
   /** Borderless only: a hairline this many px above the card, between years. */
   separator?: number;
+  /** Rendered inside the card, under its header (the newest year's summary stats). */
+  content?: CardContent;
+  /** The newest year: its total is the headline number (larger), replacing a separate Contributions stat. */
+  current?: boolean;
 }) {
   const inner = width - padding * 2;
   const left = x + padding;
   const top = y + padding;
-  const height = yearCardHeight(view, period, width, padding, showLegend);
+  const height = yearCardHeight(view, period, width, padding, showLegend, content);
+  const calendarY = top + HEADER_HEIGHT + (content ? content.height + CONTENT_GAP : 0);
   const platforms: PlatformId[] = view.sources.map((s) => s.platform);
   const strong = { fontFamily: FONT_STACK, fontSize: 13, fontWeight: 600, fill: theme.text };
   return (
@@ -79,17 +99,30 @@ export function YearCard({
       <text x={left} y={top + 14} {...strong}>
         {rangeLabel(period.range)}
       </text>
-      <text x={left + inner} y={top + 14} textAnchor="end" {...strong}>
-        {periodTotal(period)}
-      </text>
+      {current && period.platforms.some((p) => p.status === "complete") ? (
+        // Headline total, centred across the two header lines: "809" large, "contributions" small.
+        <text x={left + inner} y={top + 29} textAnchor="end" fontFamily={FONT_STACK}>
+          <tspan fontSize={22} fontWeight={700} fill={theme.text}>
+            {formatNumber(period.total)}
+          </tspan>
+          <tspan dx={6} fontSize={12} fill={theme.textMuted}>
+            {period.total === 1 ? "contribution" : "contributions"}
+          </tspan>
+        </text>
+      ) : (
+        <text x={left + inner} y={top + 14} textAnchor="end" {...strong}>
+          {periodTotal(period)}
+        </text>
+      )}
       <text x={left} y={top + 32} fontSize={11} fill={theme.textMuted} fontFamily={FONT_STACK}>
         {periodCoverage(period)}
       </text>
+      {content?.render(left, top + HEADER_HEIGHT, inner)}
       <Heatmap
         days={daysOf(view, period)}
         theme={theme}
         x={left}
-        y={top + HEADER_HEIGHT}
+        y={calendarY}
         width={inner}
         showLegend={showLegend}
         scale={scale}

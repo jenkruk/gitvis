@@ -55,3 +55,20 @@ describe("GET /api/contributions", () => {
     expect(body.results[1]).toMatchObject({ status: "ok" });
   });
 });
+
+describe("years", () => {
+  it("rejects anything other than 1, 2 or 3", async () => {
+    for (const years of ["0", "4", "two", "-1"]) {
+      const res = await get(`gitlab=contactkruk&years=${years}`);
+      expect(res.status).toBe(400);
+    }
+  });
+
+  it("serves GitLab-only multi-year requests as 12 months (no history exists to fetch)", async () => {
+    const res = await get("gitlab=contactkruk&years=3");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.dataset.days).toHaveLength(365);
+    expect(body.history).toBeUndefined();
+  });
+});

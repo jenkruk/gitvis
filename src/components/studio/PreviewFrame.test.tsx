@@ -1,3 +1,4 @@
+import { prepareView } from "@/renderers/view";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
@@ -42,7 +43,7 @@ describe("DataView", () => {
 
   it("offers a text summary and an accessible monthly table", async () => {
     const user = userEvent.setup();
-    render(<DataView dataset={dataset} metrics={metrics} />);
+    render(<DataView prepared={prepareView(dataset, { years: 1, range: 365 })} metrics={metrics} />);
     await user.click(screen.getByText("View the data as text and a table"));
 
     const table = screen.getByRole("table", { name: "Contributions by month" });
@@ -58,7 +59,7 @@ describe("DataView", () => {
 
   it("matches the graphic's totals", async () => {
     const user = userEvent.setup();
-    render(<DataView dataset={dataset} metrics={metrics} />);
+    render(<DataView prepared={prepareView(dataset, { years: 1, range: 365 })} metrics={metrics} />);
     await user.click(screen.getByText("View the data as text and a table"));
     const sum = metrics.monthly.reduce((s, m) => s + m.total, 0);
     expect(sum).toBe(metrics.total);

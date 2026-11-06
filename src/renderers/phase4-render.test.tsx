@@ -170,6 +170,8 @@ describe("parity with React for every Phase 4 option", () => {
     with_({ type: "setBackground", background: "transparent" }, { type: "setMode", mode: "light" }),
     with_({ type: "setRange", range: 30 }, { type: "setDensity", density: "compact" }),
     with_({ type: "setPlatformColor", platform: "gitlab", color: "#123456" }),
+    with_({ type: "setPanel", panel: "outlined" }, { type: "setBackground", background: "gradient" }),
+    with_({ type: "setPanel", panel: "borderless" }, { type: "setBackground", background: "transparent" }),
   ];
 
   it("matches renderToStaticMarkup byte-for-byte (all layouts, both sizes)", () => {
@@ -189,5 +191,42 @@ describe("parity with React for every Phase 4 option", () => {
     const svg = renderSvgMarkup(<Visualization dataset={dataset} config={variants[1]!} />);
     expect(svg).toContain("A &lt;b&gt;&quot;bold&quot;&lt;/b&gt; &amp; &#x27;name&#x27;");
     expect(svg).not.toContain("<b>");
+  });
+});
+
+describe("panel styles (Phase 4.2)", () => {
+  const panels = (svg: string) => [...svg.matchAll(/<rect [^>]*rx="10"[^>]*>/g)].map((m) => m[0]);
+  const dataRich = (panel: "filled" | "outlined" | "borderless") =>
+    with_({ type: "setLayout", layout: "dataRich" }, { type: "setPanel", panel });
+
+  it("filled draws every panel with the surface fill and border", () => {
+    const theme = resolveTheme("aurora", "dark");
+    const rects = panels(render(dataRich("filled")));
+    expect(rects.length).toBeGreaterThanOrEqual(6); // 4 stat cards, heatmap, breakdown, charts
+    for (const rect of rects) expect(rect).toContain(`fill="${theme.surface}" stroke="${theme.border}"`);
+  });
+
+  it("outlined keeps the border and drops the fill, consistently for every panel", () => {
+    const theme = resolveTheme("aurora", "dark");
+    const rects = panels(render(dataRich("outlined")));
+    expect(rects).toHaveLength(panels(render(dataRich("filled"))).length);
+    for (const rect of rects) expect(rect).toContain(`fill="none" stroke="${theme.border}"`);
+  });
+
+  it("borderless draws no panel shapes but keeps every section's content", () => {
+    const svg = render(dataRich("borderless"));
+    expect(panels(svg)).toEqual([]);
+    for (const label of [">Contributions<", "Platform breakdown", ">Less<", ">More<"]) expect(svg).toContain(label);
+    // Same geometry: sections keep their spacing, so the graphic's height doesn't change.
+    const height = (markup: string) => /height="(\d+)"/.exec(markup)![1];
+    expect(height(svg)).toBe(height(render(dataRich("filled"))));
+  });
+
+  it("is independent of the canvas background", () => {
+    const svg = render(
+      with_({ type: "setPanel", panel: "outlined" }, { type: "setBackground", background: "transparent" }),
+    );
+    expect(svg).not.toMatch(/<rect x="0.5" y="0.5"/); // no canvas
+    expect(panels(svg).length).toBeGreaterThan(0);
   });
 });

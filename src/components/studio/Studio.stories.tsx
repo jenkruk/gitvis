@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import type { ContributionsResponse } from "@/adapters/connect";
-import { sampleDataset } from "@/stories/fixtures";
+import { configWith, createSampleHistoryDataset, renderSampleCard, sampleDataset } from "@/stories/fixtures";
 import { Studio } from "./Studio";
 
 /**
@@ -57,5 +57,43 @@ export const Step2Phone: Story = {
   globals: { viewport: { value: "phone" } },
 };
 
-/** The published image loads from the app's /api/card, so it shows its error state in Storybook. */
-export const Step3Publish: Story = { name: "Step 3 · Publish", args: { ...withAccounts, initialStep: "publish" } };
+/**
+ * Storybook has no /api/card, so `renderCard` renders the published URL offline with the
+ * production decoder and renderer. The URLs and Markdown shown are the real ones.
+ */
+export const Step3Publish: Story = {
+  name: "Step 3 · Publish",
+  args: { ...withAccounts, initialStep: "publish", renderCard: renderSampleCard },
+};
+
+export const Step3PublishPersonalized: Story = {
+  name: "Step 3 · Publish (profile card, outlined panels)",
+  args: {
+    ...withAccounts,
+    initialStep: "publish",
+    renderCard: renderSampleCard,
+    initialConfig: configWith(
+      { type: "applyPreset", preset: "profile" },
+      { type: "setName", name: "Avery Example" },
+      { type: "setPanel", panel: "outlined" },
+      { type: "setBackground", background: "gradient" },
+    ),
+  },
+};
+
+export const Step3Phone: Story = {
+  name: "Step 3 · Publish (phone 375)",
+  args: { ...withAccounts, initialStep: "publish", renderCard: renderSampleCard },
+  globals: { viewport: { value: "phone" } },
+};
+
+/** Design with 3 years of (sample) history loaded: the period table and yearly calendars. */
+export const Step2History: Story = {
+  name: "Step 2 · Design, 3 years of history",
+  args: {
+    ...withAccounts,
+    initialStep: "design",
+    initialResponse: { ...connected, dataset: createSampleHistoryDataset(), history: { years: 3, status: "ok" } },
+    initialConfig: configWith({ type: "setYears", years: 3 }),
+  },
+};

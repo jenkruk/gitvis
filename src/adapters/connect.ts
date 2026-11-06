@@ -40,9 +40,10 @@ export function validateConnectRequest(input: Partial<Record<PlatformId, ParamVa
   return { ok: true, request };
 }
 
-export function connectSearchParams(request: ConnectRequest): URLSearchParams {
+export function connectSearchParams(request: ConnectRequest, years = 1): URLSearchParams {
   const params = new URLSearchParams();
   for (const [platform, username] of Object.entries(request)) if (username) params.set(platform, username);
+  if (years > 1) params.set("years", String(years));
   return params;
 }
 
@@ -59,9 +60,21 @@ export type PlatformResult =
     }
   | { platform: PlatformId; username: string; status: AdapterErrorKind; message: string; retryable: boolean };
 
+/** Earlier GitHub years (multi-year requests only). GitLab publishes 12 months, so it never has history. */
+export type HistoryStatus =
+  { years: number; status: "ok" } | { years: number; status: AdapterErrorKind; message: string; retryable: boolean };
+
 export interface ContributionsResponse {
   /** Built from the platforms that loaded; null when none did. */
   dataset: ContributionDataset | null;
   /** One entry per requested platform, in PLATFORM_IDS order. */
   results: PlatformResult[];
+  /** Present when more than one year was requested and a GitHub account is included. */
+  history?: HistoryStatus;
+}
+
+/** Parses the `years` query value (1–3); anything else is invalid. */
+export function parseYears(value: string | null): 1 | 2 | 3 | null {
+  if (value === null || value === "") return 1;
+  return value === "1" || value === "2" || value === "3" ? (Number(value) as 1 | 2 | 3) : null;
 }

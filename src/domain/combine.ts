@@ -32,10 +32,13 @@ export function combineSources(
   const index = new Map(days.map((day, i) => [day.date, i]));
 
   for (const source of sources) {
-    // Seed explicit zeros so "connected but inactive" differs from "not connected".
-    for (const day of days) day.byPlatform[source.platform] ??= 0;
+    const covered = source.coverage === undefined ? range : source.coverage;
+    // Seed explicit zeros so "connected but inactive" differs from "not connected" — but only on
+    // covered days: outside its coverage a platform's activity is unknown, not zero.
+    if (!covered) continue;
+    for (const day of days) if (isWithinRange(day.date, covered)) day.byPlatform[source.platform] ??= 0;
     for (const { date, count } of source.days) {
-      if (!isWithinRange(date, range)) continue;
+      if (!isWithinRange(date, range) || !isWithinRange(date, covered)) continue;
       const day = days[index.get(date)!]!;
       day.total += count;
       day.byPlatform[source.platform] = (day.byPlatform[source.platform] ?? 0) + count;
@@ -53,11 +56,34 @@ export function combineSources(
 export function sliceToRecentDays(dataset: ContributionDataset, days: number): ContributionDataset {
   if (dataset.days.length <= days) return dataset;
   const end = dataset.range.end;
-  const range = { start: addDays(end, -(days - 1)), end };
+  return sliceToRange(dataset, { start: addDays(end, -(days - 1)), end });
+}
+
+/**
+ * Narrows a dataset to `range` (clipped to the dataset's own range). Returns the
+ * SAME object when nothing would change, keeping legacy renders byte-identical.
+ * Source coverage is clipped too, and dropped when it no longer overlaps.
+ */
+export function sliceToRange(dataset: ContributionDataset, range: DateRange): ContributionDataset {
+  const start = range.start > dataset.range.start ? range.start : dataset.range.start;
+  const end = range.end < dataset.range.end ? range.end : dataset.range.end;
+  if (start === dataset.range.start && end === dataset.range.end) return dataset;
+  const clipped = { start, end };
   return {
     ...dataset,
-    range,
-    days: dataset.days.filter((d) => isWithinRange(d.date, range)),
-    sources: dataset.sources.map((s) => ({ ...s, days: s.days.filter((d) => isWithinRange(d.date, range)) })),
+    range: clipped,
+    days: dataset.days.filter((d) => isWithinRange(d.date, clipped)),
+    sources: dataset.sources.map((s) => {
+      const days = s.days.filter((d) => isWithinRange(d.date, clipped));
+      if (s.coverage === undefined) return { ...s, days };
+      return { ...s, days, coverage: s.coverage && intersect(s.coverage, clipped) };
+    }),
   };
+}
+
+/** Overlap of two ranges, or null when they don't overlap. */
+export function intersect(a: DateRange, b: DateRange): DateRange | null {
+  const start = a.start > b.start ? a.start : b.start;
+  const end = a.end < b.end ? a.end : b.end;
+  return start <= end ? { start, end } : null;
 }

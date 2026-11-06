@@ -62,6 +62,8 @@ const LEGACY_EXTRAS = {
   metricOrder: ["totalContributions", "activeDays", "longestStreak", "bestDay", "currentStreak"],
   range: 365,
   density: "spacious",
+  panel: "filled", // Phase 4.2
+  years: 1, // Phase 4.2 history
 } as const satisfies Omit<VisualizationConfig, "layout" | "palette" | "mode" | "features">;
 const legacy = (c: Pick<VisualizationConfig, "layout" | "palette" | "mode" | "features">): VisualizationConfig =>
   ({

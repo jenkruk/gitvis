@@ -10,7 +10,7 @@ import {
   SquareActivity,
   Sun,
 } from "lucide-react";
-import { type Dispatch, useId, useState } from "react";
+import { type Dispatch, useEffect, useId, useRef, useState } from "react";
 import {
   type ConfigAction,
   getFeatureVisibility,
@@ -44,6 +44,13 @@ const PRESET_ICONS: Record<StartingPresetId, typeof PanelTop> = {
 /** Contribution graphic vs. developer profile card: a shortcut over the identity settings. */
 export function PresetPicker({ config, dispatch }: PickerProps) {
   const selected = presetOf(config);
+  // Remember the last profile-card header (e.g. Compact, or avatars turned off) so switching
+  // Graphic → Profile restores the user's own choices instead of the preset defaults.
+  const lastProfile = useRef<Extract<ConfigAction, { type: "applyPreset" }>["restore"]>(undefined);
+  const { style, avatars } = config.identity;
+  useEffect(() => {
+    if (style !== "none") lastProfile.current = { style, avatars };
+  }, [style, avatars]);
   return (
     <ControlGroup legend="Start with">
       <div className="grid gap-2 sm:grid-cols-2">
@@ -55,7 +62,13 @@ export function PresetPicker({ config, dispatch }: PickerProps) {
               name="starting-preset"
               value={preset.id}
               checked={selected === preset.id}
-              onSelect={() => dispatch({ type: "applyPreset", preset: preset.id })}
+              onSelect={() =>
+                dispatch({
+                  type: "applyPreset",
+                  preset: preset.id,
+                  restore: preset.id === "profile" ? lastProfile.current : undefined,
+                })
+              }
               className="items-start gap-3"
             >
               <Icon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-zinc-500 dark:text-zinc-400" />
@@ -73,7 +86,7 @@ export function PresetPicker({ config, dispatch }: PickerProps) {
 
 export function LayoutPicker({ config, dispatch }: PickerProps) {
   return (
-    <ControlGroup legend="Layout" description="Switching layouts keeps your features and colors.">
+    <ControlGroup legend="Layout">
       <div className="grid gap-2">
         {LAYOUTS.map((layout) => {
           const Icon = LAYOUT_ICONS[layout.id];
@@ -252,7 +265,7 @@ function MetricList({
   }
 
   return (
-    <ControlGroup legend={FEATURE_GROUP_LABELS.stats} description="Choose which metrics appear and in what order.">
+    <ControlGroup legend={FEATURE_GROUP_LABELS.stats}>
       <ol className="divide-y divide-zinc-200 dark:divide-zinc-800">
         {order.map((id, index) => {
           const feature = getFeature(id);

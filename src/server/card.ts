@@ -90,12 +90,22 @@ export async function renderCard(
     // Avatars only when the design shows them; fetched in parallel with the data, never fatal.
     const wantsAvatars = config.identity.style !== "none" && config.identity.avatars.length > 0 && loadAvatars;
     const [response, avatars] = await Promise.all([
-      loadContributions(request, loaders),
+      loadContributions(request, loaders, { years: config.years }),
       wantsAvatars ? loadAvatars(request, config.identity.avatars).catch(() => ({})) : Promise.resolve({}),
     ]);
     // Any failed platform → explain it, rather than publishing a misleadingly partial total.
     const failure = response.results.find((r): r is FailedResult => r.status !== "ok");
     if (failure) return failureCard(look, failure);
+    // Requested history that couldn't load → explain, never quietly show fewer years.
+    if (response.history && response.history.status !== "ok") {
+      return failureCard(look, {
+        platform: "github",
+        username: request.github ?? "",
+        status: response.history.status,
+        message: "Earlier GitHub history couldn't be loaded right now.",
+        retryable: response.history.retryable,
+      });
+    }
     if (!response.dataset) throw new Error("No dataset despite successful results");
 
     const svg = renderSvgMarkup(createElement(Visualization, { dataset: response.dataset, config, size, avatars }));

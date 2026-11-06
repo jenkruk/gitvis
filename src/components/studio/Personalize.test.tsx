@@ -112,13 +112,30 @@ describe("colors and backgrounds", () => {
 });
 
 describe("date range and density", () => {
-  it("range updates the preview description and URL", async () => {
-    const { user, preview, search } = setup();
-    await user.click(
-      within(screen.getByRole("group", { name: /date range/i })).getByRole("radio", { name: "30 days" }),
-    );
-    expect(preview().querySelector("desc")).toHaveTextContent(/from Oct 2, 2026 to Oct 31, 2026/);
+  it("offers 1, 2 and 3 years; earlier years need a connected GitHub account", () => {
+    setup();
+    const group = screen.getByRole("group", { name: /date range/i });
+    expect(within(group).getByRole("radio", { name: "1 year" })).toBeChecked();
+    expect(within(group).getByRole("radio", { name: "2 years" })).toBeDisabled();
+    expect(within(group).getByRole("radio", { name: "3 years" })).toBeDisabled();
+    expect(group).toHaveAccessibleDescription(/connect a github account to show earlier years/i);
+  });
+
+  it("keeps a legacy 30-day link's range until another option is chosen", async () => {
+    const { config } = decodeCardParams(new URLSearchParams("v=1&github=jenkruk&range=30"));
+    const { user, preview, search } = setup({
+      initialRequest: { github: "jenkruk" },
+      initialResponse: live,
+      initialConfig: config,
+    });
+    const group = () => screen.getByRole("group", { name: /date range/i });
+    expect(within(group()).getByRole("radio", { name: /last 30 days \(from your link\)/i })).toBeChecked();
+    expect(preview().querySelector("desc")).toHaveTextContent(/from Oct 8, 2026 to Nov 6, 2026/);
     expect(search().get("range")).toBe("30");
+
+    await user.click(within(group()).getByRole("radio", { name: "1 year" }));
+    expect(search().get("range")).toBeNull();
+    expect(within(group()).queryByRole("radio", { name: /from your link/i })).not.toBeInTheDocument();
     await user.click(within(screen.getByRole("group", { name: "Density" })).getByRole("radio", { name: "Compact" }));
     expect(search().get("den")).toBe("compact");
   });
@@ -136,7 +153,7 @@ describe("Edit link restores Phase 4 settings", () => {
     expect(screen.getByRole("radio", { name: /full profile/i })).toBeChecked();
     expect(screen.getByRole("textbox", { name: /display name/i })).toHaveValue("Jen");
     expect(screen.getByRole("radio", { name: /gradient/i })).toBeChecked();
-    expect(screen.getByRole("radio", { name: "90 days" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /last 90 days \(from your link\)/i })).toBeChecked();
     expect(screen.getByRole("button", { name: "Move Best day up" })).toBeDisabled(); // first in order
     expect(screen.getByLabelText("GitLab", { selector: "input[type=color]" })).toHaveValue("#123456");
   });

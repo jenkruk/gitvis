@@ -15,7 +15,7 @@ const PORT = Number(process.env.FAKE_UPSTREAM_PORT ?? 4010);
 const users = new Map(); // user → { mode, count, hits: { github, gitlab } }
 
 function state(user) {
-  if (!users.has(user)) users.set(user, { mode: "ok", count: 3, hits: { github: 0, gitlab: 0 } });
+  if (!users.has(user)) users.set(user, { mode: "ok", count: 3, hits: { github: 0, gitlab: 0, history: 0 } });
   return users.get(user);
 }
 
@@ -78,6 +78,21 @@ createServer(async (req, res) => {
   if (req.method === "POST" && url.pathname === "/graphql") {
     const { variables } = await readBody(req);
     const s = state(variables?.login);
+    // History query: aliased per-year collections (y0, y1, …) with $fromN/$toN variables.
+    if (variables && "from0" in variables) {
+      s.hits.history += 1;
+      if (s.mode === "fail") return json(res, 502, { message: "bad gateway" });
+      const user = {};
+      for (let i = 0; `from${i}` in variables; i++) {
+        const year = String(variables[`from${i}`]).slice(0, 4);
+        user[`y${i}`] = {
+          contributionCalendar: {
+            weeks: [{ contributionDays: [{ date: `${year}-06-15`, contributionCount: s.count + i }] }],
+          },
+        };
+      }
+      return json(res, 200, { data: { user } });
+    }
     s.hits.github += 1;
     if (s.mode === "fail") return json(res, 502, { message: "bad gateway" });
     if (s.mode === "notfound") {

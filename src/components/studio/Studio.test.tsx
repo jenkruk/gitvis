@@ -5,6 +5,7 @@ import type { ContributionsResponse } from "@/adapters/connect";
 import { combineSources } from "@/domain/combine";
 import { toISODate, trailingYear } from "@/domain/dates";
 import { createSampleDataset } from "@/fixtures/sample-dataset";
+import { decodeCardParams } from "@/publish/card-params";
 import { Studio, type StudioProps } from "./Studio";
 
 const dataset = createSampleDataset();
@@ -166,6 +167,41 @@ describe("design step", () => {
     expect(search().get("layout")).toBe("data-rich");
   });
 
+  it("switching presets back and forth never discards manual identity choices", async () => {
+    fetchMock.mockImplementation(async () => Response.json({ dataUri: null }));
+    const { user } = setup({ initialRequest: { gitlab: "contactkruk" }, initialResponse: live });
+    await user.click(screen.getByRole("radio", { name: /developer profile card/i }));
+    await user.click(screen.getByRole("radio", { name: /compact identity/i }));
+    const avatars = () => within(screen.getByRole("group", { name: "Avatars" }));
+    await user.click(avatars().getByRole("checkbox", { name: "GitHub" }));
+    await user.type(screen.getByRole("textbox", { name: /display name/i }), "Avery");
+
+    await user.click(screen.getByRole("radio", { name: /contribution graphic/i }));
+    await user.click(screen.getByRole("radio", { name: /developer profile card/i }));
+
+    expect(screen.getByRole("radio", { name: /compact identity/i })).toBeChecked();
+    expect(avatars().getByRole("checkbox", { name: "GitHub" })).not.toBeChecked();
+    expect(avatars().getByRole("checkbox", { name: "GitLab" })).toBeChecked();
+    expect(screen.getByRole("textbox", { name: /display name/i })).toHaveValue("Avery");
+  });
+
+  it("panel styles update the preview immediately and the shareable URL", async () => {
+    const { user, preview } = setup({ initialRequest: { gitlab: "contactkruk" }, initialResponse: live });
+    const group = screen.getByRole("group", { name: "Panels" });
+    expect(within(group).getByRole("radio", { name: /filled/i })).toBeChecked();
+    const panelRects = () => preview().querySelectorAll('rect[rx="10"]');
+    const filled = panelRects().length;
+
+    await user.click(within(group).getByRole("radio", { name: /outlined/i }));
+    expect(panelRects()).toHaveLength(filled);
+    for (const rect of panelRects()) expect(rect).toHaveAttribute("fill", "none");
+    expect(new URLSearchParams(window.location.search).get("pnl")).toBe("outlined");
+
+    await user.click(within(group).getByRole("radio", { name: /borderless/i }));
+    expect(panelRects()).toHaveLength(0);
+    expect(screen.getByRole("radio", { name: /^solid/i })).toBeChecked(); // background untouched
+  });
+
   it("shows six curated palettes until View all is pressed", async () => {
     const { user } = design();
     const group = () => screen.getByRole("group", { name: "Palette" });
@@ -255,5 +291,111 @@ describe("design step", () => {
     expect(toggle).toHaveAttribute("aria-controls", "preview-region");
     await user.click(toggle);
     expect(screen.getByRole("button", { name: "Collapse preview" })).toHaveAttribute("aria-expanded", "true");
+  });
+});
+
+describe("historical ranges", () => {
+  const github = {
+    platform: "github" as const,
+    username: "jenkruk",
+    profileUrl: "https://github.com/jenkruk",
+    days: [{ date: toISODate("2026-11-01"), count: 4 }],
+  };
+  const githubLive: ContributionsResponse = {
+    dataset: combineSources([github], trailingYear(toISODate("2026-11-06")), "live"),
+    results: [{ platform: "github", username: "jenkruk", status: "ok", total: 4 }],
+  };
+  const withHistory = (): ContributionsResponse => {
+    const range = { start: toISODate("2023-11-08"), end: toISODate("2026-11-06") };
+    return {
+      dataset: combineSources(
+        [{ ...github, coverage: range, days: [{ date: toISODate("2024-05-01"), count: 9 }, ...github.days] }],
+        range,
+        "live",
+      ),
+      results: githubLive.results,
+      history: { years: 3, status: "ok" },
+    };
+  };
+  const yearsGroup = () => within(screen.getByRole("group", { name: /date range/i }));
+
+  it("loads 3 years of GitHub history once when 2 years is chosen, then switches without refetching", async () => {
+    fetchMock.mockImplementation(async () => Response.json(withHistory()));
+    const { user, preview } = setup({ initialRequest: { github: "jenkruk" }, initialResponse: githubLive });
+    await user.click(yearsGroup().getByRole("radio", { name: "2 years" }));
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/contributions?github=jenkruk&years=3", expect.anything());
+    expect(await within(preview()).findByText("Nov 7, 2024 – Nov 6, 2025")).toBeInTheDocument();
+    expect(new URLSearchParams(window.location.search).get("yrs")).toBe("2");
+
+    await user.click(yearsGroup().getByRole("radio", { name: "3 years" }));
+    expect(within(preview()).getByText("Nov 8, 2023 – Nov 6, 2024")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables earlier years for GitLab-only accounts and explains why", () => {
+    setup({ initialRequest: { gitlab: "contactkruk" }, initialResponse: live });
+    expect(yearsGroup().getByRole("radio", { name: "2 years" })).toBeDisabled();
+    expect(yearsGroup().getByRole("radio", { name: "3 years" })).toBeDisabled();
+    expect(screen.getByRole("group", { name: /date range/i })).toHaveAccessibleDescription(
+      /gitlab publishes only the last 12 months/i,
+    );
+  });
+
+  it("says when history couldn't load and offers to try again", async () => {
+    fetchMock.mockImplementation(async () =>
+      Response.json({
+        ...githubLive,
+        history: { years: 3, status: "upstream", message: "down", retryable: true },
+      }),
+    );
+    const { user } = setup({ initialRequest: { github: "jenkruk" }, initialResponse: githubLive });
+    await user.click(yearsGroup().getByRole("radio", { name: "3 years" }));
+    expect(await screen.findByText(/earlier github history couldn't be loaded/i)).toBeVisible();
+
+    fetchMock.mockImplementation(async () => Response.json(withHistory()));
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(await screen.findAllByText("Nov 8, 2023 – Nov 6, 2024")).not.toHaveLength(0);
+  });
+
+  it("shows the by-period table with 'Not available' instead of zeros", async () => {
+    const range = { start: toISODate("2023-11-08"), end: toISODate("2026-11-06") };
+    const both: ContributionsResponse = {
+      dataset: combineSources(
+        [
+          { ...github, coverage: range },
+          {
+            platform: "gitlab",
+            username: "contactkruk",
+            coverage: trailingYear(toISODate("2026-11-06")),
+            days: [{ date: toISODate("2026-11-01"), count: 175 }],
+          },
+        ],
+        range,
+        "live",
+      ),
+      results: [githubLive.results[0]!, live.results[0]!],
+      history: { years: 3, status: "ok" },
+    };
+    const { config } = decodeCardParams(new URLSearchParams("v=1&github=jenkruk&gitlab=contactkruk&yrs=3"));
+    const { user } = setup({
+      initialRequest: { github: "jenkruk", gitlab: "contactkruk" },
+      initialResponse: both,
+      initialConfig: config,
+    });
+    await user.click(screen.getByText("View the data as text and a table"));
+    const table = screen.getByRole("table", { name: "Contributions by 12-month period" });
+    const rows = within(table).getAllByRole("row").slice(1);
+    expect(
+      within(rows[0]!)
+        .getAllByRole("cell")
+        .map((c) => c.textContent),
+    ).toEqual(["4", "175", "179"]);
+    expect(
+      within(rows[1]!)
+        .getAllByRole("cell")
+        .map((c) => c.textContent),
+    ).toEqual(["0", "Not available", "Incomplete"]);
   });
 });

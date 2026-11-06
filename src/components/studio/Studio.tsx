@@ -9,10 +9,11 @@ import { PublishPanel } from "@/components/publish/PublishPanel";
 import { isStepId, STEP_IDS, STEP_LABELS, type StepId, StepNav } from "@/components/shell/StepNav";
 import { configReducer, createDefaultConfig, type VisualizationConfig } from "@/config/config";
 import { getLayout } from "@/config/layouts";
-import { sliceToRecentDays } from "@/domain/combine";
+import { MAX_HISTORY_YEARS } from "@/domain/history";
 import { type ContributionDataset, PLATFORMS } from "@/domain/types";
 import { computeMetrics } from "@/metrics/metrics";
 import { type SnippetOptions, studioSearch } from "@/publish/snippets";
+import { prepareView } from "@/renderers/view";
 import { getPalette } from "@/theme/palettes";
 import { DataView } from "./DataView";
 import { DesignControls } from "./DesignControls";
@@ -33,6 +34,8 @@ export interface StudioProps {
   isPreviewDeployment?: boolean;
   /** Overrides the starting step (Storybook, tests). Otherwise: Design for shared links, Connect for new visitors. */
   initialStep?: StepId;
+  /** Offline published-card source for Storybook (see PublishPanel). Production omits it. */
+  renderCard?: (cardUrl: string) => string;
 }
 
 const primaryButton =
@@ -56,6 +59,7 @@ export function Studio({
   origin,
   isPreviewDeployment = false,
   initialStep,
+  renderCard,
 }: StudioProps) {
   const [config, dispatch] = useReducer(configReducer, initialConfig, (c) => c ?? createDefaultConfig());
   const connection = useContributions({ request: initialRequest, response: initialResponse });
@@ -121,14 +125,35 @@ export function Studio({
     }
   }, [connection.request, config, step]);
 
+  // Multi-year designs load all available history at once, so switching 2 ↔ 3 years never refetches.
+  const yearsToLoad = config.years > 1 ? MAX_HISTORY_YEARS : 1;
+
   async function handleConnect(request: ConnectRequest) {
-    const response = await connection.connect(request);
+    const response = await connection.connect(request, yearsToLoad);
     // Everything loaded → straight to Design. Partial failures stay here so they can be fixed or retried.
     if (response?.dataset && response.results.every((r) => r.status === "ok")) goTo("design");
   }
 
-  const view = useMemo(() => sliceToRecentDays(dataset, config.range), [dataset, config.range]);
-  const metrics = useMemo(() => computeMetrics(view), [view]);
+  // Same derivation as the published graphic: calendars show `view`, metrics cover what every platform reports.
+  const prepared = useMemo(
+    () => prepareView(dataset, { years: config.years, range: config.range }),
+    [dataset, config.years, config.range],
+  );
+  const { view, metricsView } = prepared;
+  const metrics = useMemo(() => computeMetrics(metricsView), [metricsView]);
+
+  // Choosing 2 or 3 years after connecting fetches earlier GitHub history once.
+  const { connect: reconnect, request: connectedRequest, response: connectedResponse } = connection;
+  const needsHistory =
+    config.years > 1 &&
+    !!connectedRequest?.github &&
+    !!connectedResponse?.dataset &&
+    connectedResponse.history === undefined &&
+    connection.state.phase !== "loading";
+  useEffect(() => {
+    if (needsHistory && connectedRequest) void reconnect(connectedRequest, MAX_HISTORY_YEARS);
+  }, [needsHistory, connectedRequest, reconnect]);
+  const historyFailed = connectedResponse?.history && connectedResponse.history.status !== "ok";
   const avatars = useAvatars(live ? connection.request : null, config.identity);
   const loading = connection.state.phase === "loading";
   const partial = connection.response?.results.some((r) => r.status !== "ok") ?? false;
@@ -183,6 +208,19 @@ export function Studio({
           totalIsZero={metrics.total === 0}
           onChangeAccounts={() => goTo("connect")}
         />
+        {historyFailed && connectedRequest && (
+          <p className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+            <Info aria-hidden="true" className="size-4 shrink-0" />
+            <span>Earlier GitHub history couldn&apos;t be loaded, so only the last 12 months are shown.</span>
+            <button
+              type="button"
+              onClick={() => void reconnect(connectedRequest, MAX_HISTORY_YEARS)}
+              className={linkButton}
+            >
+              Try again
+            </button>
+          </p>
+        )}
         <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(320px,400px)_1fr] lg:items-start">
           {/* Preview first in the DOM so phones see feedback above the controls; the grid moves it right on desktop. */}
           <section
@@ -210,7 +248,7 @@ export function Studio({
                 busy={loading}
               />
             </CollapsiblePreview>
-            <DataView dataset={view} metrics={metrics} />
+            <DataView prepared={prepared} metrics={metrics} />
             <p role="status" className="sr-only">
               {summary}
             </p>
@@ -252,6 +290,7 @@ export function Studio({
               isPreviewDeployment={isPreviewDeployment}
               onOptionsChange={setPublishOptions}
               onEdit={() => goTo("design")}
+              renderCard={renderCard}
             />
           </div>
         </StepSection>

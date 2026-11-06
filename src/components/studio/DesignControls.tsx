@@ -3,7 +3,14 @@ import { type ConfigAction, isFeatureVisible, type VisualizationConfig } from "@
 import { FEATURES } from "@/config/features";
 import type { ContributionDataset } from "@/domain/types";
 import { Disclosure } from "./controls";
-import { BackgroundPicker, DataPicker, IdentityPicker, PlatformColorPicker } from "./personalize";
+import {
+  BackgroundPicker,
+  DataPicker,
+  historyAvailability,
+  IdentityPicker,
+  PanelPicker,
+  PlatformColorPicker,
+} from "./personalize";
 import { FeatureToggles, LayoutPicker, ModePicker, PalettePicker, PresetPicker } from "./pickers";
 
 interface DesignControlsProps {
@@ -15,7 +22,8 @@ interface DesignControlsProps {
 
 const IDENTITY_SUMMARY = { none: "Off", compact: "Compact identity", full: "Full profile" } as const;
 const BACKGROUND_SUMMARY = { solid: "Solid", gradient: "Gradient", transparent: "Transparent" } as const;
-const RANGE_SUMMARY = { 30: "30 days", 90: "90 days", 365: "1 year" } as const;
+const PANEL_SUMMARY = { filled: "", outlined: "Outlined panels", borderless: "Borderless panels" } as const;
+const YEARS_SUMMARY = { 1: "1 year", 2: "2 years", 3: "3 years" } as const;
 
 /** One-line, plain-text state of each collapsed section, so users can scan without opening them. */
 export function sectionSummaries(config: VisualizationConfig, dataset: ContributionDataset) {
@@ -26,12 +34,15 @@ export function sectionSummaries(config: VisualizationConfig, dataset: Contribut
     colors: [
       config.mode === "dark" ? "Dark" : "Light",
       BACKGROUND_SUMMARY[config.background],
+      PANEL_SUMMARY[config.panel],
       custom ? "Custom colors" : "",
     ]
       .filter(Boolean)
       .join(" · "),
     metrics: `${shown} of ${FEATURES.length} shown`,
-    display: `${RANGE_SUMMARY[config.range]} · ${config.density === "compact" ? "Compact" : "Spacious"}`,
+    display: `${config.range < 365 ? `Last ${config.range} days` : YEARS_SUMMARY[config.years]} · ${
+      config.density === "compact" ? "Compact" : "Spacious"
+    }`,
   };
 }
 
@@ -56,13 +67,14 @@ export function DesignControls({ config, dispatch, dataset }: DesignControlsProp
         <Disclosure title="Colors & Background" summary={summaries.colors}>
           <ModePicker config={config} dispatch={dispatch} />
           <BackgroundPicker config={config} dispatch={dispatch} />
+          <PanelPicker config={config} dispatch={dispatch} />
           <PlatformColorPicker config={config} dispatch={dispatch} />
         </Disclosure>
         <Disclosure title="Metrics & Charts" summary={summaries.metrics}>
           <FeatureToggles config={config} dispatch={dispatch} dataset={dataset} />
         </Disclosure>
         <Disclosure title="Display" summary={summaries.display}>
-          <DataPicker config={config} dispatch={dispatch} />
+          <DataPicker config={config} dispatch={dispatch} history={historyAvailability(dataset)} />
         </Disclosure>
       </div>
     </div>

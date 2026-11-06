@@ -70,6 +70,16 @@ Contrast thresholds are **enforced by unit tests** (`src/theme/palettes.test.ts`
 
 Palette, layout, and mode are independent axes of `VisualizationConfig`, and changing one never resets the others. So are background, identity, platform colors, range, density and metric order.
 
+### Panel styles
+
+| Style      | Panels (stat cards, heatmap, breakdown, charts) | Content colors                          |
+| ---------- | ----------------------------------------------- | --------------------------------------- |
+| Filled     | `surface` fill + `border` stroke (default)      | Palette tokens as designed              |
+| Outlined   | `border` stroke, no fill                        | Re-checked against the real backdrop(s) |
+| Borderless | Not drawn; section gaps carry the hierarchy     | Re-checked against the real backdrop(s) |
+
+Independent of the background: any panel style works with Solid, Gradient or Transparent. Geometry and spacing are identical across styles, so switching never reflows the graphic. The Sample badge always keeps its filled pill.
+
 ### Backgrounds
 
 - **Solid:** the palette `background`.
@@ -92,6 +102,13 @@ Palette, layout, and mode are independent axes of `VisualizationConfig`, and cha
 - **Monogram fallback:** a circle in the series color with the initial in `bestTextOn(color)`.
 - Name and title are single lines with an ellipsis, and leave room for the Sample badge. They are also in `<title>`/`<desc>`.
 
+## History calendars (`src/renderers/HistoryCalendars.tsx`)
+
+- **Full image:** one calendar per 12-month period, newest first, in one panel. Each period has a title row — dates (12px semibold, `text`) on the left and a summary on the right ("1,234 contributions", or "612 contributions · GitHub only") in `textMuted` — then, if a platform has no data for it, an 11px note: "GitLab history isn't available for this period." One legend under the last calendar; one colour scale (quartiles over all shown days) across every year.
+- **No hatching.** Missing coverage is explained in words (titles, notes, tooltips, description, data table), never by patterns.
+- **Phones (`size=compact`):** a "yearly summary" list (dates, total, coverage note) above the usual last-20-weeks heatmap.
+- **Scope note** under the stats whenever they cover less than the calendars.
+
 ## Density
 
 `SPACING` in `src/renderers/layouts.tsx`: Spacious (section gap 16, panel padding 16, stat card 70/84, breakdown 74, trends 170) and Compact (10, 10, 58/70, 60, 140). Font sizes don't change with density; only whitespace does.
@@ -102,7 +119,7 @@ Palette, layout, and mode are independent axes of `VisualizationConfig`, and cha
 
 - **Graphic/Visualization:** every layout, the 15 × 2 palette gallery, backgrounds over GitHub light/dark, ranges, densities, profile headers (avatar and monogram), custom colors, the compact phone image.
 - **Graphic/Heatmap** and **Graphic/Metric cards:** the section components with palette, mode, width, density and count controls.
-- **Studio/Guided studio:** each step (Connect, Design with data or sample data, Publish) at desktop and phone viewports.
+- **Studio/Guided studio:** each step (Connect, Design with data or sample data, Publish) at desktop and phone viewports. Publish stories render the real published URL offline via `renderSampleCard` (production decoder + renderer), so they show a meaningful image instead of a failed request.
 - **Studio/Design controls** (the Design column on the real reducer, including the profile-card preset and a non-curated palette), **Studio/Step navigation** and **Studio/Preview modes**.
 
 The a11y addon runs axe with the WCAG 2.2 AA tags and `test: "error"`. `src/stories/stories.test.tsx` renders every story in Vitest, so a broken story fails `npm test`.
@@ -195,7 +212,7 @@ The table scrolls inside its own focusable, labelled region, never the page. All
 
 ### Verification
 
-- **Now:** Vitest + Testing Library assertions on roles, names, descriptions, and keyboard paths for every interactive component; contrast tests for every palette. **Playwright + axe-core** (`npm run test:e2e`): WCAG 2.2 AA scans of every major state at 320/375/768/1280 (any violation fails), a keyboard-only Connect → Customize → Publish run, 24px target sizes, ≥ 11px UI text, no horizontal scroll, and reduced motion.
+- **Now:** Vitest + Testing Library assertions on roles, names, descriptions, and keyboard paths for every interactive component; contrast tests for every palette. **Playwright + axe-core** (`npm run test:e2e`): WCAG 2.2 AA scans of every major state at 320/375/768/1280 (any violation fails), a keyboard-only Connect → Design → Publish run, 24px target sizes, ≥ 11px UI text, no horizontal scroll, and reduced motion.
 - **Storybook** with the a11y addon (Phase 4), plus a Vitest smoke test over every story.
 - **Planned:** visual regression across themes × palettes × viewports (Phase 5); manual VoiceOver and NVDA passes before launch.
 

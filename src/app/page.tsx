@@ -7,6 +7,7 @@ import { StudioSkeleton } from "@/components/studio/StudioSkeleton";
 import { createSampleDataset } from "@/fixtures/sample-dataset";
 import { decodeCardParams } from "@/publish/card-params";
 import { serverLoaders } from "@/server/cached";
+import { MAX_HISTORY_YEARS } from "@/domain/history";
 import { loadContributions } from "@/server/contributions";
 import { resolvePublicOrigin } from "@/server/origin";
 
@@ -47,7 +48,9 @@ async function StudioLoader({ searchParams }: Pick<PageProps<"/">, "searchParams
   const { request, config } = decodeCardParams(toSearchParams(await searchParams));
   const { origin, environment } = await resolveOrigin();
   if (request) await connection(); // "today" (new Date) must be computed per request, never prerendered
-  const initialResponse = request ? await loadContributions(request, serverLoaders) : null;
+  // A multi-year design loads all available history up front, so switching 2 ↔ 3 years never refetches.
+  const years = config.years > 1 ? MAX_HISTORY_YEARS : 1;
+  const initialResponse = request ? await loadContributions(request, serverLoaders, { years }) : null;
 
   return (
     <Studio

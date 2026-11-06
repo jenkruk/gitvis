@@ -1,5 +1,5 @@
 import { ChevronDown } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useId } from "react";
 
 /**
  * Native form controls styled with Tailwind. Native radios and checkboxes give
@@ -16,10 +16,16 @@ export function ControlGroup({
   description?: string;
   children: ReactNode;
 }) {
+  const descriptionId = useId();
   return (
-    <fieldset className="min-w-0">
+    // The description is linked so screen readers announce it on entering the group (e.g. why options are disabled).
+    <fieldset className="min-w-0" aria-describedby={description ? descriptionId : undefined}>
       <legend className="text-sm font-semibold">{legend}</legend>
-      {description && <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{description}</p>}
+      {description && (
+        <p id={descriptionId} className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+          {description}
+        </p>
+      )}
       <div className="mt-3">{children}</div>
     </fieldset>
   );
@@ -35,6 +41,7 @@ export function RadioCard({
   onSelect,
   children,
   className = "",
+  disabled = false,
 }: {
   name: string;
   value: string;
@@ -42,13 +49,17 @@ export function RadioCard({
   onSelect: (value: string) => void;
   children: ReactNode;
   className?: string;
+  /** Native disabled radio; explain why in the group's description. */
+  disabled?: boolean;
 }) {
   return (
     <label
-      className={`relative flex cursor-pointer rounded-lg border bg-white p-3 motion-safe:transition-colors dark:bg-zinc-900 ${
-        checked
-          ? "border-zinc-900 ring-1 ring-zinc-900 dark:border-zinc-100 dark:ring-zinc-100"
-          : "border-zinc-200 hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
+      className={`relative flex rounded-lg border bg-white p-3 motion-safe:transition-colors dark:bg-zinc-900 ${
+        disabled
+          ? "cursor-not-allowed border-dashed border-zinc-300 text-zinc-500 dark:border-zinc-700 dark:text-zinc-400"
+          : checked
+            ? "cursor-pointer border-zinc-900 ring-1 ring-zinc-900 dark:border-zinc-100 dark:ring-zinc-100"
+            : "cursor-pointer border-zinc-200 hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
       } ${focusRing} ${className}`}
     >
       <input
@@ -56,6 +67,7 @@ export function RadioCard({
         name={name}
         value={value}
         checked={checked}
+        disabled={disabled}
         onChange={() => onSelect(value)}
         className="sr-only"
       />

@@ -22,7 +22,13 @@ export interface PaletteVariant {
 export interface ThemeTokens extends PaletteVariant {
   /** Five heatmap colors: index 0 = no activity, 1–4 = increasing activity. */
   heatmap: readonly [string, string, string, string, string];
+  /** Panel fill/stroke overrides ("none" = not drawn). Absent = filled panels (`surface` + `border`). */
+  panelFill?: string;
+  panelStroke?: string;
 }
+
+export type PanelStyle = "filled" | "outlined" | "borderless";
+export type BackdropStyle = "solid" | "gradient" | "transparent";
 
 export interface PaletteDefinition {
   id: string;
@@ -520,3 +526,40 @@ export const GITHUB_SURFACES: Record<ColorMode, readonly string[]> = {
   light: ["#ffffff"],
   dark: ["#0d1117", "#212830"],
 };
+
+/** Every color an unfilled panel's content can sit on, for the chosen background. */
+export function panelBackdrops(theme: PaletteVariant, background: BackdropStyle, mode: ColorMode): readonly string[] {
+  if (background === "transparent") return GITHUB_SURFACES[mode];
+  if (background === "gradient") return [theme.background, gradientEnd(theme)];
+  return [theme.background];
+}
+
+/** Adjusts `color` until it meets `minRatio` against every backdrop (backdrops in one mode share a direction). */
+export function ensureContrastAll(color: string, backdrops: readonly string[], minRatio: number): string {
+  let result = color;
+  for (let pass = 0; pass < 2; pass++)
+    for (const backdrop of backdrops) result = ensureContrast(result, backdrop, minRatio);
+  return result;
+}
+
+/**
+ * Outlined / borderless panels: content sits directly on the backdrop instead
+ * of `surface`, so text, accent, series and the top heatmap level are
+ * re-checked against what's actually underneath. Filled panels are returned
+ * unchanged (keeping every existing embed byte-identical).
+ */
+export function applyPanelStyle(theme: ThemeTokens, style: PanelStyle, backdrops: readonly string[]): ThemeTokens {
+  if (style === "filled") return theme;
+  const fit = (color: string, ratio: number) => ensureContrastAll(color, backdrops, ratio);
+  const [h0, h1, h2, h3, h4] = theme.heatmap;
+  return {
+    ...theme,
+    text: fit(theme.text, 4.5),
+    textMuted: fit(theme.textMuted, 4.5),
+    accent: fit(theme.accent, SERIES_MIN_CONTRAST),
+    series: [fit(theme.series[0], SERIES_MIN_CONTRAST), fit(theme.series[1], SERIES_MIN_CONTRAST)],
+    heatmap: [h0, h1, h2, h3, fit(h4, SERIES_MIN_CONTRAST)],
+    panelFill: "none",
+    panelStroke: style === "outlined" ? theme.border : "none",
+  };
+}

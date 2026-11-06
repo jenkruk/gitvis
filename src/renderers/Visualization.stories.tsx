@@ -1,7 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { BACKGROUND_STYLES, DATE_RANGES, DENSITIES, IDENTITY_STYLES, type VisualizationConfig } from "@/config/config";
 import { LAYOUT_IDS } from "@/config/layouts";
-import { configWith, gitlabOnlyDataset, sampleDataset, storyAvatar } from "@/stories/fixtures";
+import {
+  configWith,
+  createSampleHistoryDataset,
+  gitlabOnlyDataset,
+  sampleDataset,
+  storyAvatar,
+} from "@/stories/fixtures";
 import { PALETTE_IDS, PALETTES } from "@/theme/palettes";
 import { Visualization, type VisualizationProps } from "./Visualization";
 
@@ -178,4 +184,37 @@ export const ProfileHeaders: Story = {
       </div>
     </div>
   ),
+};
+
+const history = createSampleHistoryDataset();
+const threeYears = configWith({ type: "setYears", years: 3 });
+
+/** GitHub + GitLab, 3 years: GitHub-only earlier periods are labelled; stats cover the shared 12 months. */
+export const HistoryCombined: Story = {
+  name: "History · 3 years, GitHub + GitLab",
+  args: { dataset: history, config: threeYears },
+};
+
+export const HistoryGitHubOnly: Story = {
+  name: "History · 3 years, GitHub only (full-span stats)",
+  args: { dataset: createSampleHistoryDataset(["github"]), config: threeYears },
+};
+
+export const HistoryTwoYearsDataRich: Story = {
+  name: "History · 2 years, Data-rich",
+  args: {
+    dataset: history,
+    config: configWith({ type: "setYears", years: 2 }, { type: "setLayout", layout: "dataRich" }),
+  },
+};
+
+export const HistoryPhone: Story = {
+  name: "History · phones (yearly summaries + recent weeks)",
+  args: { dataset: history, config: threeYears, size: "compact" },
+  decorators: [(Story) => <div className="max-w-[400px]">{Story()}</div>],
+};
+
+export const HistoryGitLabOnly: Story = {
+  name: "History · GitLab only (explains the 12-month limit)",
+  args: { dataset: gitlabOnlyDataset, config: threeYears },
 };

@@ -88,7 +88,12 @@ describe("PublishPanel", () => {
     const match = /^\[!\[(.+)\]\((.+)\)\]\((.+)\)$/.exec(markdown().value)!;
     expect(match[1]).toBe("GitVis contribution activity for GitHub @jenkruk");
     for (const url of [new URL(match[2]!), new URL(match[3]!)]) {
-      expect(decodeCardParams(url.searchParams)).toEqual({ request: { github: "jenkruk" }, config, issues: [] });
+      expect(decodeCardParams(url.searchParams)).toEqual({
+        request: { github: "jenkruk" },
+        config,
+        issues: [],
+        version: "2",
+      });
     }
     expect(new URL(match[2]!).pathname).toBe("/api/card");
   });
@@ -96,7 +101,7 @@ describe("PublishPanel", () => {
   it("shows the real published image with the same alt text", () => {
     setup();
     const image = screen.getByRole("img", { name: "GitVis contribution activity for GitHub @jenkruk" });
-    expect(image.getAttribute("src")).toMatch(/^https:\/\/gitvis\.test\/api\/card\?v=1&github=jenkruk/);
+    expect(image.getAttribute("src")).toMatch(/^https:\/\/gitvis\.test\/api\/card\?v=2&github=jenkruk/);
     expect(screen.getByText(/loading the published image/i)).toBeVisible();
   });
 
@@ -151,7 +156,7 @@ describe("PublishPanel", () => {
     const { user } = setup();
     await user.click(screen.getByRole("button", { name: "Download SVG" }));
 
-    expect(fetchMock.mock.calls[0]![0]).toMatch(/\/api\/card\?v=1&github=jenkruk/);
+    expect(fetchMock.mock.calls[0]![0]).toMatch(/\/api\/card\?v=2&github=jenkruk/);
     expect(click).toHaveBeenCalled();
     expect(await screen.findByText("SVG downloaded.")).toBeInTheDocument();
   });
@@ -189,7 +194,7 @@ describe("offline card source (Storybook)", () => {
     const image = screen.getByRole("img", { name: /github @jenkruk/i });
     expect(image.getAttribute("src")).toMatch(/^data:image\/svg\+xml;charset=utf-8,/);
     expect(renderCard).toHaveBeenCalledWith(
-      expect.stringMatching(/^https:\/\/gitvis\.test\/api\/card\?v=1&github=jenkruk/),
+      expect.stringMatching(/^https:\/\/gitvis\.test\/api\/card\?v=2&github=jenkruk/),
     );
     // The URL users copy is still the real one.
     expect(screen.getByRole("textbox", { name: "Image URL" })).toHaveValue(renderCard.mock.calls[0]![0]);
@@ -221,6 +226,8 @@ describe("Edit configuration link", () => {
     const search = new URLSearchParams(window.location.search);
     expect(search.get("layout")).toBe("data-rich");
     expect(search.get("palette")).toBe("forest-gold");
-    expect(search.get("f")).toBe("heatmap,best");
+    // Re-published designs always attribute their sources (v2), so account labels join the list.
+    expect(search.get("v")).toBe("2");
+    expect(search.get("f")).toBe("heatmap,best,labels");
   });
 });

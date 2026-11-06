@@ -13,7 +13,7 @@ describe("publish snippets", () => {
     expect(card.pathname).toBe("/api/card");
     expect(edit.pathname).toBe("/");
     for (const url of [card, edit]) {
-      expect(decodeCardParams(url.searchParams)).toEqual({ ...params, issues: [] });
+      expect(decodeCardParams(url.searchParams)).toEqual({ ...params, issues: [], version: "2" });
     }
   });
 
@@ -51,13 +51,13 @@ describe("publish snippets", () => {
   it("produces a theme-matching <picture> with escaped URLs", () => {
     const html = readmeSnippet(origin, params, { theme: "auto", responsive: false });
     expect(html).toContain(
-      '<source media="(prefers-color-scheme: dark)" srcset="https://gitvis.example/api/card?v=1&amp;',
+      '<source media="(prefers-color-scheme: dark)" srcset="https://gitvis.example/api/card?v=2&amp;',
     );
     expect(html).toMatch(/prefers-color-scheme: dark\)" srcset="[^"]*mode=dark/);
     expect(html).toMatch(/prefers-color-scheme: light\)" srcset="[^"]*mode=light/);
     expect(html).toContain(`<img alt="${altText(params.request)}"`);
     expect(html).not.toMatch(/&(?!amp;)/); // every & is escaped inside HTML attributes
-    expect(html.startsWith('<a href="https://gitvis.example/?v=1&amp;')).toBe(true);
+    expect(html.startsWith('<a href="https://gitvis.example/?v=2&amp;')).toBe(true);
   });
 
   it("names downloads after the accounts", () => {

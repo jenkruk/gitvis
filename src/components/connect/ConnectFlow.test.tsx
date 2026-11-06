@@ -93,7 +93,7 @@ describe("Connect flow", () => {
     // The address bar becomes the full Edit link (usernames + design).
     const search = new URLSearchParams(window.location.search);
     expect([search.get("v"), search.get("github"), search.get("gitlab"), search.get("layout")]).toEqual([
-      "1",
+      "2",
       "jenkruk",
       "contactkruk",
       "dashboard",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createDefaultConfig, type VisualizationConfig } from "@/config/config";
+import { createDefaultConfig, type VisualizationConfig, withAttribution } from "@/config/config";
 import { FEATURE_IDS, type FeatureFlags } from "@/config/features";
 import { LAYOUT_IDS } from "@/config/layouts";
 import { PALETTE_IDS } from "@/theme/palettes";
@@ -15,7 +15,7 @@ describe("card params: round trip", () => {
         for (const mode of ["light", "dark"] as const) {
           const config: VisualizationConfig = { ...createDefaultConfig(), layout, palette, mode };
           const decoded = decodeCardParams(encodeCardParams({ request: { github: "jenkruk" }, config }));
-          expect(decoded).toEqual({ request: { github: "jenkruk" }, config, issues: [] });
+          expect(decoded).toEqual({ request: { github: "jenkruk" }, config, issues: [], version: "2" });
         }
       }
     }
@@ -25,7 +25,10 @@ describe("card params: round trip", () => {
     const sets = [[], ...FEATURE_IDS.map((id) => [id])];
     for (const on of sets) {
       const config = { ...createDefaultConfig(), features: flags(...on) };
-      expect(decodeCardParams(encodeCardParams({ request: { gitlab: "contactkruk" }, config })).config).toEqual(config);
+      // v2 always attributes sources, so account labels come back on even when the set omits them.
+      expect(decodeCardParams(encodeCardParams({ request: { gitlab: "contactkruk" }, config })).config).toEqual(
+        withAttribution(config),
+      );
     }
   });
 
@@ -45,7 +48,7 @@ describe("card params: round trip", () => {
       config: { ...createDefaultConfig(), layout: "dataRich", palette: "desertSunset", mode: "light" },
     }).toString();
     expect(query).toBe(
-      "v=1&github=jenkruk&gitlab=contactkruk&layout=data-rich&palette=desert-sunset&mode=light&f=heatmap%2Ctotal%2Cactive%2Cstreak%2Cbreakdown%2Ctrends%2Clabels",
+      "v=2&github=jenkruk&gitlab=contactkruk&layout=data-rich&palette=desert-sunset&mode=light&f=heatmap%2Ctotal%2Cactive%2Cstreak%2Cbreakdown%2Ctrends%2Clabels",
     );
   });
 });
@@ -123,7 +126,8 @@ describe("card params: v1 compatibility (golden URLs)", () => {
   ];
 
   it.each(golden)("%s", (query, config) => {
-    expect(decode(query)).toEqual({ request: expect.any(Object), config, issues: [] });
+    // v1 keeps its original semantics — including URLs that turned account labels off.
+    expect(decode(query)).toEqual({ request: expect.any(Object), config, issues: [], version: "1" });
   });
 
   it("treats the optional size param as a non-breaking addition", () => {
@@ -168,7 +172,7 @@ describe("card params: validation", () => {
   });
 
   it("rejects unsupported versions", () => {
-    expect(decode("v=2&github=jenkruk").issues).toEqual([{ param: "v", message: "Unsupported version “2”." }]);
+    expect(decode("v=3&github=jenkruk").issues).toEqual([{ param: "v", message: "Unsupported version “3”." }]);
   });
 
   it("rejects overly long queries and truncates echoed values", () => {
@@ -181,5 +185,64 @@ describe("card params: validation", () => {
     expect(decode("github=jenkruk&layout=dataRich").issues).toEqual([
       { param: "layout", message: "Unknown layout “dataRich”." },
     ]);
+  });
+});
+
+/**
+ * v2 golden URLs: v1's parameters with mandatory source attribution.
+ * Never edit an existing entry — add new ones.
+ */
+describe("card params: v2 (source attribution)", () => {
+  it("always shows every connected account, whatever f and hl say", () => {
+    for (const query of [
+      "v=2&github=jenkruk&gitlab=contactkruk&f=heatmap",
+      "v=2&github=jenkruk&gitlab=contactkruk&f=",
+      "v=2&github=jenkruk&gitlab=contactkruk&hl=github",
+      "v=2&github=jenkruk&gitlab=contactkruk&hl=",
+    ]) {
+      const { config, issues, version } = decode(query);
+      expect(version).toBe("2");
+      expect(issues).toEqual([]);
+      expect(config.features.platformLabels).toBe(true);
+      expect(config.identity.handles).toEqual(["github", "gitlab"]);
+    }
+  });
+
+  it("leaves the same parameters on v1 URLs exactly as they were", () => {
+    const { config } = decode("v=1&github=jenkruk&gitlab=contactkruk&f=heatmap&hl=github");
+    expect(config.features.platformLabels).toBe(false);
+    expect(config.identity.handles).toEqual(["github"]);
+    expect(decode("github=jenkruk").version).toBe("1"); // a missing v has always meant v1
+  });
+
+  it("encodes v2 without hl, and a default design differs from v1 only in its version", () => {
+    const hidden = withAttribution(createDefaultConfig());
+    const query = encodeCardParams({
+      request: { github: "jenkruk" },
+      config: {
+        ...hidden,
+        features: { ...hidden.features, platformLabels: false },
+        identity: { ...hidden.identity, handles: [] },
+      },
+    }).toString();
+    expect(query).toBe(
+      "v=2&github=jenkruk&layout=dashboard&palette=aurora&mode=dark&f=heatmap%2Ctotal%2Cactive%2Cstreak%2Cbreakdown%2Ctrends%2Clabels",
+    );
+  });
+
+  it("decodes the nine new palette codes", () => {
+    for (const code of [
+      "obsidian-gold",
+      "velvet-plum",
+      "lagoon",
+      "citrus",
+      "terracotta",
+      "mocha",
+      "porcelain",
+      "sage-linen",
+      "volt",
+    ]) {
+      expect(decode(`v=2&github=jenkruk&palette=${code}`).issues).toEqual([]);
+    }
   });
 });

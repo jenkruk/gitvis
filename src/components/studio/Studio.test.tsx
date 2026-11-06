@@ -206,16 +206,16 @@ describe("design step", () => {
     const { user } = design();
     const group = () => screen.getByRole("group", { name: "Palette" });
     expect(within(group()).getAllByRole("radio")).toHaveLength(6);
-    const toggle = screen.getByRole("button", { name: "View all 15 palettes" });
+    const toggle = screen.getByRole("button", { name: "View all 24 palettes" });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     await user.click(toggle);
-    expect(within(group()).getAllByRole("radio")).toHaveLength(15);
+    expect(within(group()).getAllByRole("radio")).toHaveLength(24);
     expect(screen.getByRole("button", { name: "Show fewer palettes" })).toHaveAttribute("aria-expanded", "true");
   });
 
   it("always lists the selected palette, even outside the curated six", async () => {
     const { user } = design();
-    await user.click(screen.getByRole("button", { name: "View all 15 palettes" }));
+    await user.click(screen.getByRole("button", { name: "View all 24 palettes" }));
     await user.click(screen.getByRole("radio", { name: /ember/i }));
     await user.click(screen.getByRole("button", { name: "Show fewer palettes" }));
     expect(within(screen.getByRole("group", { name: "Palette" })).getAllByRole("radio")).toHaveLength(7);
@@ -407,5 +407,69 @@ describe("historical ranges", () => {
         .getAllByRole("cell")
         .map((c) => c.textContent),
     ).toEqual(["0", "Not available", "Incomplete"]);
+  });
+});
+
+describe("source attribution", () => {
+  it("doesn't offer a switch to hide account labels, and says they're always shown", () => {
+    setup({ initialStep: "design" });
+    expect(screen.queryByRole("switch", { name: /account labels/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Handles" })).not.toBeInTheDocument();
+    expect(screen.getByText(/usernames always appear on the graphic/i)).toBeInTheDocument();
+  });
+
+  it("re-publishes a legacy v1 link that hid its accounts as an attributed v2 design", () => {
+    const { config } = decodeCardParams(new URLSearchParams("v=1&gitlab=contactkruk&f=heatmap,total&hl="));
+    expect(config.features.platformLabels).toBe(false); // the old embed itself is untouched
+    const { preview } = setup({
+      initialRequest: { gitlab: "contactkruk" },
+      initialResponse: live,
+      initialConfig: config,
+    });
+    expect(within(preview()).getAllByText(/@contactkruk/).length).toBeGreaterThan(0);
+    const search = new URLSearchParams(window.location.search);
+    expect(search.get("v")).toBe("2");
+    expect(search.get("f")).toContain("labels");
+    expect(search.has("hl")).toBe(false);
+  });
+
+  it("labels the data table's reporting period for multi-year designs", async () => {
+    const range = { start: toISODate("2023-11-08"), end: toISODate("2026-11-06") };
+    const both: ContributionsResponse = {
+      dataset: combineSources(
+        [
+          {
+            platform: "github",
+            username: "jenkruk",
+            coverage: range,
+            days: [{ date: toISODate("2024-05-01"), count: 9 }],
+          },
+          {
+            platform: "gitlab",
+            username: "contactkruk",
+            coverage: trailingYear(toISODate("2026-11-06")),
+            days: [{ date: toISODate("2026-11-01"), count: 175 }],
+          },
+        ],
+        range,
+        "live",
+      ),
+      results: [
+        { platform: "github", username: "jenkruk", status: "ok", total: 0 },
+        { platform: "gitlab", username: "contactkruk", status: "ok", total: 175 },
+      ],
+      history: { years: 3, status: "ok" },
+    };
+    const { config } = decodeCardParams(new URLSearchParams("v=2&github=jenkruk&gitlab=contactkruk&yrs=3"));
+    const { user } = setup({
+      initialRequest: { github: "jenkruk", gitlab: "contactkruk" },
+      initialResponse: both,
+      initialConfig: config,
+    });
+    await user.click(screen.getByText("View the data as text and a table"));
+    expect(
+      screen.getByRole("heading", { name: "Summary statistics · Last 12 months · GitHub + GitLab" }),
+    ).toBeVisible();
+    expect(screen.getByRole("table", { name: "Contributions by month · Last 12 months" })).toBeVisible();
   });
 });

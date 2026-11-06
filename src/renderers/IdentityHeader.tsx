@@ -5,6 +5,7 @@ import { bestTextOn } from "@/theme/color";
 import type { ThemeTokens } from "@/theme/palettes";
 import { FONT_STACK, PADDING } from "./primitives";
 import { seriesColor, StatusBadge } from "./sections";
+import { attributionLayout } from "./attribution";
 import { wrapText } from "./text";
 
 /** Avatar images as data: URIs (never external URLs — SVGs used as <img> can't load them). */
@@ -53,18 +54,37 @@ function handleSources(dataset: ContributionDataset, identity: IdentityConfig, s
   return showHandles ? dataset.sources.filter((s) => identity.handles.includes(s.platform)) : [];
 }
 
+/** Where the text column starts (after any avatars) and how the attribution line is laid out. */
+function metaLayout(
+  dataset: ContributionDataset,
+  identity: IdentityConfig & { style: "compact" | "full" },
+  compactCanvas: boolean,
+  showHandles: boolean,
+  width: number,
+) {
+  const handles = handleSources(dataset, identity, showHandles);
+  const g0 = geometry(identity.style, compactCanvas, false, false);
+  const avatarCount = dataset.sources.filter((s) => identity.avatars.includes(s.platform)).length;
+  const avatarsWidth = avatarCount ? g0.avatar + g0.avatar * 0.7 * (avatarCount - 1) : 0;
+  const textX = PADDING + (avatarsWidth ? avatarsWidth + 12 : 0);
+  const rangeLabel = `${formatDate(dataset.range.start)} – ${formatDate(dataset.range.end)}`;
+  const attribution = attributionLayout(handles, rangeLabel, PADDING + width - textX, compactCanvas);
+  return { handles, textX, rangeLabel, attribution, handlesOwnLine: handles.length > 0 && attribution.ownLine };
+}
+
 export function identityHeaderHeight(
   dataset: ContributionDataset,
   identity: IdentityConfig & { style: "compact" | "full" },
   compactCanvas: boolean,
   showHandles: boolean,
+  width: number,
 ): number {
-  const handles = handleSources(dataset, identity, showHandles).length > 0;
+  const { handlesOwnLine } = metaLayout(dataset, identity, compactCanvas, showHandles, width);
   return geometry(
     identity.style,
     compactCanvas,
     !!finalText(identity.title) && identity.style === "full",
-    compactCanvas && handles,
+    handlesOwnLine,
   ).height;
 }
 
@@ -142,10 +162,16 @@ export function IdentityHeader({
   idPrefix,
 }: IdentityHeaderProps) {
   const font = { fontFamily: FONT_STACK };
-  const handles = handleSources(dataset, identity, showHandles);
+  const { handles, attribution, handlesOwnLine, rangeLabel } = metaLayout(
+    dataset,
+    identity,
+    compactCanvas,
+    showHandles,
+    width,
+  );
   const title = finalText(identity.title);
   const hasTitle = identity.style === "full" && !!title;
-  const g = geometry(identity.style, compactCanvas, hasTitle, compactCanvas && handles.length > 0);
+  const g = geometry(identity.style, compactCanvas, hasTitle, handlesOwnLine);
 
   const avatarSources = dataset.sources.filter((s) => identity.avatars.includes(s.platform));
   const overlap = g.avatar * 0.7;
@@ -157,7 +183,6 @@ export function IdentityHeader({
   const name = finalText(identity.name) || "Contribution activity";
   const [nameLine = ""] = wrapText(name, textWidth, g.nameSize, 1);
   const [titleLine = ""] = hasTitle ? wrapText(title, PADDING + width - textX, g.titleSize, 1) : [];
-  const rangeLabel = `${formatDate(dataset.range.start)} – ${formatDate(dataset.range.end)}`;
 
   const nameY = y + (identity.style === "full" ? g.nameSize + 2 : 15);
   const titleY = nameY + 19;
@@ -167,13 +192,13 @@ export function IdentityHeader({
   const handleNodes = handles.map((source, i) => {
     const label = (
       <>
-        <tspan dx={i === 0 && compactCanvas ? 0 : 10} fill={seriesColor(theme, source.platform)}>
+        <tspan dx={i === 0 && handlesOwnLine ? 0 : 10} fill={seriesColor(theme, source.platform)}>
           ●
         </tspan>
         <tspan dx={4} fill={theme.text}>
           {PLATFORMS[source.platform].label}
         </tspan>
-        <tspan dx={4}>@{source.username}</tspan>
+        <tspan dx={4}>@{attribution.display(source)}</tspan>
       </>
     );
     return links && source.profileUrl ? (
@@ -217,9 +242,9 @@ export function IdentityHeader({
       )}
       <text x={textX} y={metaY} fontSize={11} fill={theme.textMuted} {...font}>
         <tspan>{rangeLabel}</tspan>
-        {!compactCanvas && handleNodes}
+        {!handlesOwnLine && handleNodes}
       </text>
-      {compactCanvas && handles.length > 0 && (
+      {handlesOwnLine && (
         <text x={textX} y={metaY + 18} fontSize={11} fill={theme.textMuted} {...font}>
           {handleNodes}
         </text>

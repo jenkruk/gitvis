@@ -138,7 +138,6 @@ describe("switching presets back and forth", () => {
       { type: "setAvatar", platform: "gitlab", enabled: false },
       { type: "setName", name: "Avery" },
       { type: "setTitle", title: "Engineer" },
-      { type: "setHandle", platform: "gitlab", enabled: false },
     ] as const;
     const profile = custom.reduce(configReducer, createDefaultConfig());
     const graphic = configReducer(profile, { type: "applyPreset", preset: "graphic" });

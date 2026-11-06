@@ -9,7 +9,6 @@ function fullyCustomized(): VisualizationConfig {
   const steps: Parameters<typeof configReducer>[1][] = [
     { type: "setPalette", palette: "midnightNeon" },
     { type: "setIdentityStyle", style: "full" },
-    { type: "setHandle", platform: "gitlab", enabled: false },
     { type: "setAvatar", platform: "gitlab", enabled: true },
     { type: "setAvatar", platform: "github", enabled: true },
     { type: "setName", name: "Jen Kruk" },
@@ -39,7 +38,7 @@ describe("Phase 4 URL params", () => {
   it("encode compactly and canonically", () => {
     const query = encodeCardParams({ request: { github: "jenkruk" }, config: fullyCustomized() }).toString();
     expect(query).toContain("palette=midnight-neon");
-    expect(query).toContain("hdr=full&hl=github&av=github%2Cgitlab&name=Jen+Kruk");
+    expect(query).toContain("hdr=full&av=github%2Cgitlab&name=Jen+Kruk");
     expect(query).toContain(
       "bg=gradient&pc=github%3Aff7a59&ord=total%2Cactive%2Cbest%2Cstreak%2Ccurrent&range=90&den=compact&pnl=outlined",
     );
@@ -47,10 +46,10 @@ describe("Phase 4 URL params", () => {
     expect(query).toContain("f=heatmap%2Ctotal%2Cactive%2Cstreak%2Ccurrent%2Cbreakdown%2Ctrends%2Clabels");
   });
 
-  it("leave legacy-equivalent designs with byte-identical URLs (no new params written)", () => {
+  it("leave legacy-equivalent designs with the same params (no new params written; only v is now 2)", () => {
     const query = encodeCardParams({ request: { github: "jenkruk" }, config: createDefaultConfig() }).toString();
     expect(query).toBe(
-      "v=1&github=jenkruk&layout=dashboard&palette=aurora&mode=dark&f=heatmap%2Ctotal%2Cactive%2Cstreak%2Cbreakdown%2Ctrends%2Clabels",
+      "v=2&github=jenkruk&layout=dashboard&palette=aurora&mode=dark&f=heatmap%2Ctotal%2Cactive%2Cstreak%2Cbreakdown%2Ctrends%2Clabels",
     );
   });
 

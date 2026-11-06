@@ -15,9 +15,9 @@ const MODES: ColorMode[] = ["light", "dark"];
 const cases = PALETTES.flatMap((p) => MODES.map((mode) => [p.name, mode, resolveTheme(p.id, mode)] as const));
 
 describe("palettes", () => {
-  it("includes the fifteen curated palettes with unique ids", () => {
-    expect(PALETTES).toHaveLength(15);
-    expect(new Set(PALETTES.map((p) => p.id)).size).toBe(15);
+  it("includes the twenty-four curated palettes with unique ids", () => {
+    expect(PALETTES).toHaveLength(24);
+    expect(new Set(PALETTES.map((p) => p.id)).size).toBe(24);
   });
 
   describe.each(cases)("%s (%s)", (_name, mode, theme) => {

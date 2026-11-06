@@ -48,23 +48,32 @@ Each palette defines **light and dark** variants with these tokens:
 | `rampFrom` → `rampTo`    | Heatmap levels 1–4, interpolated (level 4 ≥ 3:1 on surface) |
 | `series[0]`, `series[1]` | GitHub and GitLab series colors (each ≥ 3:1 on surface)     |
 
-| Palette         | Character              |
-| --------------- | ---------------------- |
-| Aurora          | Mint → blue            |
-| Amethyst        | Violet → pink          |
-| Desert Sunset   | Orange → rose          |
-| Ocean Depths    | Deep blue → cyan       |
-| Forest & Gold   | Forest green with gold |
-| Rose Quartz     | Pink → lavender        |
-| Electric Cobalt | Cobalt → mint          |
-| Ember           | Coral → amber          |
-| Monochrome      | Neutral grays          |
-| GitHub Classic  | Familiar greens        |
-| GitLab Inspired | Orange → purple        |
-| Nordic Frost    | Frost blue → teal      |
-| Solarized       | Solarized-style tones  |
-| Midnight Neon   | Magenta → cyan glow    |
-| Paper & Ink     | Ink on warm paper      |
+| Palette         | Character                                |
+| --------------- | ---------------------------------------- |
+| Aurora          | Mint → blue                              |
+| Amethyst        | Violet → pink                            |
+| Desert Sunset   | Orange → rose                            |
+| Ocean Depths    | Deep blue → cyan                         |
+| Forest & Gold   | Forest green with gold                   |
+| Rose Quartz     | Pink → lavender                          |
+| Electric Cobalt | Cobalt → mint                            |
+| Ember           | Coral → amber                            |
+| Monochrome      | Neutral grays                            |
+| GitHub Classic  | Familiar greens                          |
+| GitLab Inspired | Orange → purple                          |
+| Nordic Frost    | Frost blue → teal                        |
+| Solarized       | Solarized-style tones                    |
+| Midnight Neon   | Magenta → cyan glow                      |
+| Paper & Ink     | Ink on warm paper                        |
+| Obsidian & Gold | Warm black and gold (sophisticated dark) |
+| Velvet Plum     | Plum and raspberry (sophisticated dark)  |
+| Lagoon          | Aqua and coral (fresh)                   |
+| Citrus          | Lime and sunshine (fresh, bold)          |
+| Terracotta      | Clay and sage (warm, earthy)             |
+| Mocha           | Espresso and caramel (warm, earthy)      |
+| Porcelain       | Blue-gray and indigo (elegant light)     |
+| Sage & Linen    | Linen and sage (elegant light)           |
+| Volt            | Electric violet and lime (bold)          |
 
 Contrast thresholds are **enforced by unit tests** (`src/theme/palettes.test.ts`) for every palette × mode. Any new palette must pass them.
 
@@ -104,10 +113,15 @@ Independent of the background: any panel style works with Solid, Gradient or Tra
 
 ## History calendars (`src/renderers/HistoryCalendars.tsx`)
 
-- **Full image:** one calendar per 12-month period, newest first, in one panel. Each period has a title row — dates (12px semibold, `text`) on the left and a summary on the right ("1,234 contributions", or "612 contributions · GitHub only") in `textMuted`. Missing platform history is explained once, in the scope note under the stats, not under each calendar. One legend under the last calendar; one colour scale (quartiles over all shown days) across every year.
-- **No hatching.** Missing coverage is explained in words (titles, notes, tooltips, description, data table), never by patterns.
-- **Phones (`size=compact`):** a "yearly summary" list (dates, total, coverage note) above the usual last-20-weeks heatmap.
-- **Scope note** under the stats whenever they cover less than the calendars.
+- **Full image — year cards:** one card per 12-month period, newest first, stacked with the section gap. Card header: dates (13px semibold, `text`) left and **that year's total** (13px semibold) right on the same row, then the coverage label (11px `textMuted`): "GitHub + GitLab", "GitHub", or "GitHub only · GitLab unavailable". Inner padding = the density's panel padding. One legend in the last card; one colour scale (quartiles over all shown days) across every year.
+- **Panel style:** Filled and Outlined frame each card like every other panel. **Borderless** draws no boxes (and no inner padding) — years are separated by a `border`-coloured hairline in the gap, plus the bold header row.
+- **Reporting period heading:** multi-year graphics put "Last 12 months · GitHub + GitLab" (or "Last 3 years · GitHub") above the stats, and append the period to the breakdown and chart titles ("Platform breakdown · Last 12 months"). Single-year graphics are unchanged.
+- **No hatching.** Missing coverage is explained in words (coverage labels, tooltips, description, data table), never by patterns.
+- **Phones (`size=compact`):** a "yearly summary" list — dates, total, coverage label per year, separated by hairlines — above the usual last-20-weeks heatmap.
+
+## Source attribution
+
+Every published graphic names the accounts behind its data: "● GitHub @jenkruk ● GitLab @contactkruk" on the header's date line (all layouts and both header presets; compact images on their own line). Labels move to their own line when they wouldn't fit beside the dates, and only then are over-long usernames shortened with "…" — the full usernames are always in `<desc>`. Avatars, names and titles stay optional; attribution doesn't (see ARCHITECTURE, URL contract v2).
 
 ## Density
 
@@ -117,7 +131,7 @@ Independent of the background: any panel style works with Solid, Gradient or Tra
 
 `npm run storybook` (dev, port 6006) and `npm run build-storybook`. Stories import production components only (`src/**/*.stories.tsx`, shared data in `src/stories/fixtures.ts`):
 
-- **Graphic/Visualization:** every layout, the 15 × 2 palette gallery, backgrounds over GitHub light/dark, ranges, densities, profile headers (avatar and monogram), custom colors, the compact phone image.
+- **Graphic/Visualization:** every layout, the 24 × 2 palette gallery, year cards in every panel style, long-username attribution, backgrounds over GitHub light/dark, ranges, densities, profile headers (avatar and monogram), custom colors, the compact phone image.
 - **Graphic/Heatmap** and **Graphic/Metric cards:** the section components with palette, mode, width, density and count controls.
 - **Studio/Guided studio:** each step (Connect, Design with data or sample data, Publish) at desktop and phone viewports. Publish stories render the real published URL offline via `renderSampleCard` (production decoder + renderer), so they show a meaningful image instead of a failed request.
 - **Studio/Design controls** (the Design column on the real reducer, including the profile-card preset and a non-curated palette), **Studio/Step navigation** and **Studio/Preview modes**.

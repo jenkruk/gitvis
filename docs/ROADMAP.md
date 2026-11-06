@@ -24,7 +24,7 @@ Phases are ordered by dependency. Each phase ends in a working, tested app.
 - The preview always shows a "Sample data" badge.
 - All palettes pass the contrast tests.
 
-## Phase 2: Connect (live data) 🚧 (in progress)
+## Phase 2: Connect (live data) ✅
 
 _Depends on:_ Phase 1 domain and adapters.
 
@@ -40,7 +40,7 @@ _Depends on:_ Phase 1 domain and adapters.
 
 **Acceptance criteria**
 
-- `contactkruk` (GitLab) loads live ✅. `jenkruk` (GitHub) individually and combined ⏳: needs `GITHUB_TOKEN` in `.env.local`, then confirm the counts match the public profile.
+- ✅ `jenkruk` (GitHub) and `contactkruk` (GitLab) load individually and combined. Verified 2026-11-06: every one of the 365 days matches the anonymous public calendars on both platforms (GitHub 629, GitLab 175, combined 804).
 - Nonexistent and private profiles show accurate messages. GitLab returns the same redirect for both, so it shows one combined "doesn't exist or is private" message. One failing platform doesn't block the other.
 - Without `GITHUB_TOKEN`, GitHub reports "not configured" and GitLab still works.
 - The flow is completable with keyboard only and announced correctly by a screen reader. No horizontal scroll at 320px.

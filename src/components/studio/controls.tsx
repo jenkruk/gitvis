@@ -140,7 +140,7 @@ export function Disclosure({
   defaultOpen = false,
 }: {
   title: string;
-  /** Short current-state hint shown beside the title, e.g. "Dark · Solid". */
+  /** Short current-state hint shown beside the title, e.g. "Gradient · Outlined panels". */
   summary?: string;
   children: ReactNode;
   defaultOpen?: boolean;

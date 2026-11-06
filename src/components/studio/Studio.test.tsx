@@ -222,11 +222,21 @@ describe("design step", () => {
     expect(screen.getByRole("radio", { name: /ember/i })).toBeChecked();
   });
 
+  it("keeps light/dark mode visible next to the palettes, outside the collapsed sections", () => {
+    design();
+    const mode = screen.getByRole("group", { name: "Mode" });
+    expect(mode.closest("details")).toBeNull();
+    expect(within(mode).getByRole("radio", { name: /dark/i })).toBeChecked();
+    // Mode comes right before the palettes it previews.
+    const palette = screen.getByRole("group", { name: "Palette" });
+    expect(mode.compareDocumentPosition(palette) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("groups advanced controls into collapsed sections with a summary of their state", () => {
     design();
     for (const [title, summary] of [
       ["Identity", "Off"],
-      ["Colors & Background", "Dark · Solid"],
+      ["Colors & Background", "Solid"],
       ["Metrics & Charts", /of \d+ shown/],
       ["Display", "1 year · Spacious"],
     ] as const) {

@@ -1,3 +1,4 @@
+import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
 
 /**
@@ -113,5 +114,40 @@ export function Switch({
         <span className="size-4 rounded-full bg-white shadow-sm motion-safe:transition-transform dark:bg-zinc-900" />
       </span>
     </label>
+  );
+}
+
+/**
+ * A collapsed section built on native <details>/<summary>: keyboard (Enter /
+ * Space), expanded state and screen-reader semantics come for free.
+ */
+export function Disclosure({
+  title,
+  summary,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  /** Short current-state hint shown beside the title, e.g. "Dark · Solid". */
+  summary?: string;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}) {
+  return (
+    <details
+      // Uncontrolled: the browser owns the open state, so a section opened before hydration stays open.
+      open={defaultOpen || undefined}
+      className="group rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+    >
+      <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-lg px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:focus-visible:outline-blue-400 [&::-webkit-details-marker]:hidden">
+        <span className="text-sm font-semibold">{title}</span>
+        {summary && <span className="min-w-0 flex-1 truncate text-xs text-zinc-600 dark:text-zinc-400">{summary}</span>}
+        <ChevronDown
+          aria-hidden="true"
+          className="ml-auto size-4 shrink-0 text-zinc-500 group-open:rotate-180 motion-safe:transition-transform"
+        />
+      </summary>
+      <div className="space-y-6 border-t border-zinc-200 px-4 pt-4 pb-5 dark:border-zinc-800">{children}</div>
+    </details>
   );
 }

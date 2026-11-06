@@ -1,12 +1,20 @@
 "use client";
 
-import { AlertCircle, Copy, Download, ImageIcon, Loader2 } from "lucide-react";
+import { AlertCircle, Copy, Download, ImageIcon, Loader2, Pencil } from "lucide-react";
 import { useDeferredValue, useRef, useState } from "react";
 import type { ConnectRequest, PlatformResult } from "@/adapters/connect";
 import type { VisualizationConfig } from "@/config/config";
 import { PLATFORMS } from "@/domain/types";
 import type { CardParams } from "@/publish/card-params";
-import { altText, cardUrl, downloadName, editUrl, readmeSnippet, type SnippetOptions } from "@/publish/snippets";
+import {
+  altText,
+  cardUrl,
+  downloadName,
+  editUrl,
+  effectiveSnippetOptions,
+  readmeSnippet,
+  type SnippetOptions,
+} from "@/publish/snippets";
 import { CardDownloadError, fetchPublishedSvg, saveBlob, svgToPng } from "./download";
 
 export interface PublishPanelProps {
@@ -20,12 +28,19 @@ export interface PublishPanelProps {
   onOptionsChange: (options: SnippetOptions) => void;
   /** Vercel preview deployment: show that published URLs point at production. */
   isPreviewDeployment?: boolean;
+  /** Returns to the design step (settings are kept). */
+  onEdit?: () => void;
 }
 
-const buttonClass =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:focus-visible:outline-blue-400";
-const fieldClass =
-  "w-full min-w-0 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 font-mono text-xs text-zinc-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200";
+const focusRing =
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:focus-visible:outline-blue-400";
+const buttonClass = `inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800 ${focusRing}`;
+const primaryClass = `inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-zinc-900 px-5 text-base font-semibold text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 ${focusRing}`;
+const fieldClass = `w-full min-w-0 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 font-mono text-xs text-zinc-800 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200 ${focusRing}`;
+const optionCard =
+  "flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 p-3 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-blue-600 dark:border-zinc-800";
+
+const MARKDOWN_ID = "publish-markdown";
 
 export function PublishPanel({
   origin,
@@ -35,30 +50,12 @@ export function PublishPanel({
   options,
   onOptionsChange,
   isPreviewDeployment = false,
+  onEdit,
 }: PublishPanelProps) {
-  const [status, setStatus] = useState("");
-  const [busy, setBusy] = useState<"svg" | "png" | null>(null);
-
-  const announce = (message: string) =>
-    // Alternate a trailing no-break space so repeating the same message is announced again.
-    setStatus((previous) => (previous === message ? `${message} ` : message));
-
   return (
-    <section
-      id="publish"
-      aria-labelledby="publish-heading"
-      className="scroll-mt-6 rounded-xl border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-800 dark:bg-zinc-900"
-    >
-      <h2 id="publish-heading" className="text-lg font-semibold tracking-tight">
-        Publish
-      </h2>
-      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-        Paste one snippet into your GitHub profile README. The image updates itself about every 12 hours — no GitHub
-        Actions, accounts or manual updates.
-      </p>
-
+    <div className="space-y-4">
       {isPreviewDeployment && (
-        <p className="mt-3 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+        <p className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
           <AlertCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
           <span>
             This is a preview deployment. Published URLs point to production (<strong>{new URL(origin).host}</strong>),
@@ -74,20 +71,14 @@ export function PublishPanel({
           results={results}
           options={options}
           onOptionsChange={onOptionsChange}
-          busy={busy}
-          setBusy={setBusy}
-          announce={announce}
+          onEdit={onEdit}
         />
       ) : (
-        <p className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">
-          Connect a GitHub or GitLab account above to publish. Sample data can&apos;t be published.
+        <p className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">
+          Connect a GitHub or GitLab account to publish. Sample data can&apos;t be published.
         </p>
       )}
-
-      <p role="status" className="mt-3 min-h-5 text-sm text-zinc-700 dark:text-zinc-300">
-        {status}
-      </p>
-    </section>
+    </div>
   );
 }
 
@@ -97,26 +88,45 @@ function PublishContent({
   results,
   options,
   onOptionsChange,
-  busy,
-  setBusy,
-  announce,
+  onEdit,
 }: {
   params: CardParams;
   origin: string;
   results: PlatformResult[];
   options: SnippetOptions;
   onOptionsChange: (options: SnippetOptions) => void;
-  busy: "svg" | "png" | null;
-  setBusy: (busy: "svg" | "png" | null) => void;
-  announce: (message: string) => void;
+  onEdit?: () => void;
 }) {
+  const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState<"svg" | "png" | null>(null);
+  const details = useRef<HTMLDetailsElement>(null);
   const imageUrl = cardUrl(origin, params);
-  // Defer the preview so rapid design changes don't fire an image request per click.
+  // Defer the preview so rapid option changes don't fire an image request per click.
   const previewUrl = useDeferredValue(imageUrl);
   const snippet = readmeSnippet(origin, params, options);
   const edit = editUrl(origin, params);
   const failed = results.filter((r) => r.status !== "ok");
   const modeLabel = params.config.mode === "dark" ? "Dark" : "Light";
+  const transparent = params.config.background === "transparent";
+  const theme = effectiveSnippetOptions(options, params.config).theme;
+
+  const announce = (message: string) =>
+    // Alternate a trailing space so repeating the same message is announced again.
+    setStatus((previous) => (previous === message ? `${message} ` : message));
+
+  async function copyMarkdown() {
+    try {
+      await navigator.clipboard.writeText(snippet);
+      announce("README Markdown copied. Paste it into your profile README.");
+    } catch {
+      // Reveal and select the snippet so it can be copied by hand.
+      if (details.current) details.current.open = true;
+      const field = document.getElementById(MARKDOWN_ID) as HTMLTextAreaElement | null;
+      field?.focus();
+      field?.select();
+      announce("Couldn't access the clipboard. The README Markdown is selected — press Ctrl+C or ⌘C to copy.");
+    }
+  }
 
   async function download(kind: "svg" | "png") {
     if (busy) return;
@@ -139,22 +149,81 @@ function PublishContent({
   }
 
   return (
-    <div className="mt-4 space-y-6">
+    <div className="space-y-6">
       {failed.length > 0 && (
         <p className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
           <AlertCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
           <span>
             {failed.map((r) => `${PLATFORMS[r.platform].label} @${r.username}`).join(" and ")} couldn&apos;t be loaded.
-            The published image shows an explanatory error until every account loads — retry above or remove that
+            The published image shows an explanatory error until every account loads — retry in Connect or remove that
             username.
           </span>
         </p>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <div className="min-w-0 space-y-5">
-          <fieldset>
+      <PublishedPreview key={previewUrl} src={previewUrl} alt={altText(params.request)} />
+
+      <div className="space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <button type="button" onClick={copyMarkdown} className={primaryClass}>
+            <Copy aria-hidden="true" className="size-5" />
+            Copy README Markdown
+          </button>
+          {(["svg", "png"] as const).map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              onClick={() => download(kind)}
+              aria-busy={busy === kind}
+              className={buttonClass}
+            >
+              {busy === kind ? (
+                <Loader2 aria-hidden="true" className="size-4 motion-safe:animate-spin" />
+              ) : (
+                <Download aria-hidden="true" className="size-4" />
+              )}
+              Download {kind.toUpperCase()}
+            </button>
+          ))}
+          {onEdit && (
+            <button type="button" onClick={onEdit} className={buttonClass}>
+              <Pencil aria-hidden="true" className="size-4" />
+              Edit design
+            </button>
+          )}
+        </div>
+        <p role="status" className="min-h-5 text-sm font-medium text-zinc-800 dark:text-zinc-200">
+          {status}
+        </p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          Paste it into your GitHub profile README. The image refreshes itself about every 12 hours — nothing to
+          maintain.
+        </p>
+      </div>
+
+      <CopyField
+        id="publish-image-url"
+        label="Image URL"
+        buttonLabel="Copy image URL"
+        value={imageUrl}
+        announce={announce}
+      />
+
+      <details ref={details} className="group rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <summary
+          className={`flex min-h-12 cursor-pointer items-center rounded-lg px-4 py-3 text-sm font-semibold ${focusRing}`}
+        >
+          Markdown and embed options
+        </summary>
+        <div className="space-y-5 border-t border-zinc-200 px-4 pt-4 pb-5 dark:border-zinc-800">
+          <fieldset aria-describedby={transparent ? "publish-theme-hint" : undefined}>
             <legend className="text-sm font-semibold">README theme</legend>
+            {transparent && (
+              <p id="publish-theme-hint" className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+                Transparent backgrounds always match the reader&apos;s theme, so text stays readable on light and dark
+                GitHub.
+              </p>
+            )}
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {(
                 [
@@ -169,7 +238,7 @@ function PublishContent({
                 <label
                   key={value}
                   className={`flex cursor-pointer flex-col rounded-lg border p-3 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-blue-600 ${
-                    options.theme === value
+                    theme === value
                       ? "border-zinc-900 ring-1 ring-zinc-900 dark:border-zinc-100 dark:ring-zinc-100"
                       : "border-zinc-200 dark:border-zinc-800"
                   }`}
@@ -178,7 +247,8 @@ function PublishContent({
                     type="radio"
                     name="readme-theme"
                     value={value}
-                    checked={options.theme === value}
+                    checked={theme === value}
+                    disabled={transparent && value === "selected"}
                     onChange={() => onOptionsChange({ ...options, theme: value })}
                     className="sr-only"
                   />
@@ -189,7 +259,7 @@ function PublishContent({
             </div>
           </fieldset>
 
-          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 p-3 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-blue-600 dark:border-zinc-800">
+          <label className={optionCard}>
             <input
               type="checkbox"
               checked={options.responsive}
@@ -205,19 +275,29 @@ function PublishContent({
             </span>
           </label>
 
+          <label className={optionCard}>
+            <input
+              type="checkbox"
+              checked={options.profileLinks ?? false}
+              onChange={(e) => onOptionsChange({ ...options, profileLinks: e.target.checked })}
+              aria-describedby="publish-links-hint"
+              className="mt-0.5 size-5 shrink-0 accent-zinc-900 dark:accent-zinc-100"
+            />
+            <span>
+              <span className="block text-sm font-medium">Profile links under the image</span>
+              <span id="publish-links-hint" className="block text-xs text-zinc-600 dark:text-zinc-400">
+                Adds clickable GitHub and GitLab profile links. Links drawn inside the image can&apos;t be clicked in a
+                README.
+              </span>
+            </span>
+          </label>
+
           <CopyField
-            id="publish-markdown"
+            id={MARKDOWN_ID}
             label="README Markdown"
             buttonLabel="Copy Markdown"
             value={snippet}
             multiline
-            announce={announce}
-          />
-          <CopyField
-            id="publish-image-url"
-            label="Image URL"
-            buttonLabel="Copy image URL"
-            value={imageUrl}
             announce={announce}
           />
           <CopyField
@@ -228,29 +308,8 @@ function PublishContent({
             value={edit}
             announce={announce}
           />
-
-          <div className="flex flex-col gap-2 sm:flex-row">
-            {(["svg", "png"] as const).map((kind) => (
-              <button
-                key={kind}
-                type="button"
-                onClick={() => download(kind)}
-                aria-busy={busy === kind}
-                className={buttonClass}
-              >
-                {busy === kind ? (
-                  <Loader2 aria-hidden="true" className="size-4 motion-safe:animate-spin" />
-                ) : (
-                  <Download aria-hidden="true" className="size-4" />
-                )}
-                Download {kind.toUpperCase()}
-              </button>
-            ))}
-          </div>
         </div>
-
-        <PublishedPreview key={previewUrl} src={previewUrl} alt={altText(params.request)} />
-      </div>
+      </details>
     </div>
   );
 }

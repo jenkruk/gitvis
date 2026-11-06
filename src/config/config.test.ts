@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PlatformContributions } from "@/domain/types";
-import { configReducer, createDefaultConfig, getFeatureVisibility } from "./config";
+import { configReducer, createDefaultConfig, getFeatureVisibility, presetOf } from "./config";
 import { FEATURES } from "./features";
 import { LAYOUTS } from "./layouts";
 
@@ -89,5 +89,42 @@ describe("getFeatureVisibility", () => {
       reason: "needsMultiplePlatforms",
     });
     expect(getFeatureVisibility("platformBreakdown", config, { sources: [gh, gl] })).toEqual({ visible: true });
+  });
+});
+
+describe("starting presets", () => {
+  it("are derived from the identity style, so they never add URL state", () => {
+    const config = createDefaultConfig();
+    expect(presetOf(config)).toBe("graphic");
+    expect(presetOf({ identity: { ...config.identity, style: "compact" } })).toBe("profile");
+  });
+
+  it("profile card turns on the full header and avatars, keeping every other axis", () => {
+    const start = { ...createDefaultConfig(), layout: "dataRich" as const, palette: "ember" as const };
+    const profile = configReducer(start, { type: "applyPreset", preset: "profile" });
+    expect(profile.identity).toMatchObject({ style: "full", avatars: ["github", "gitlab"] });
+    expect({ ...profile, identity: start.identity }).toEqual(start);
+  });
+
+  it("keeps an existing avatar choice and a compact header when already a profile card", () => {
+    const compact = configReducer(
+      configReducer(createDefaultConfig(), { type: "setIdentityStyle", style: "compact" }),
+      { type: "setAvatar", platform: "gitlab", enabled: true },
+    );
+    expect(configReducer(compact, { type: "applyPreset", preset: "profile" })).toBe(compact);
+    const fromGraphic = configReducer(configReducer(compact, { type: "applyPreset", preset: "graphic" }), {
+      type: "applyPreset",
+      preset: "profile",
+    });
+    expect(fromGraphic.identity.avatars).toEqual(["gitlab"]);
+  });
+
+  it("graphic hides the header but remembers name and title", () => {
+    const named = configReducer(configReducer(createDefaultConfig(), { type: "applyPreset", preset: "profile" }), {
+      type: "setName",
+      name: "Avery",
+    });
+    const graphic = configReducer(named, { type: "applyPreset", preset: "graphic" });
+    expect(graphic.identity).toMatchObject({ style: "none", name: "Avery" });
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, CheckCircle2, Loader2, RotateCw, X } from "lucide-react";
+import { AlertCircle, ArrowRight, CheckCircle2, Loader2, RotateCw, X } from "lucide-react";
 import { type FormEvent, useRef, useState } from "react";
 import {
   type ConnectRequest,
@@ -27,9 +27,23 @@ interface ConnectPanelProps {
   initialValues: ConnectRequest;
   onConnect: (request: ConnectRequest) => void;
   onDisconnect: () => void;
+  /** Shown once data is loaded (e.g. after a partial failure, or when revisiting this step). */
+  onContinue?: () => void;
+  continueLabel?: string;
+  /** Lets visitors explore the designer without an account (sample data, never publishable). */
+  onUseSample?: () => void;
 }
 
-export function ConnectPanel({ state, response, initialValues, onConnect, onDisconnect }: ConnectPanelProps) {
+export function ConnectPanel({
+  state,
+  response,
+  initialValues,
+  onConnect,
+  onDisconnect,
+  onContinue,
+  continueLabel = "Continue to design",
+  onUseSample,
+}: ConnectPanelProps) {
   const [values, setValues] = useState<Record<PlatformId, string>>({
     github: initialValues.github ?? "",
     gitlab: initialValues.gitlab ?? "",
@@ -70,17 +84,9 @@ export function ConnectPanel({ state, response, initialValues, onConnect, onDisc
   }
 
   return (
-    <section
-      id="connect"
-      aria-labelledby="connect-heading"
-      className="scroll-mt-6 rounded-xl border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-800 dark:bg-zinc-900"
-    >
-      <h2 id="connect-heading" className="text-lg font-semibold tracking-tight">
-        Connect
-      </h2>
-      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-        Enter one or both usernames — they can differ. GitVis reads public contribution counts only; no sign-in, no
-        repository access.
+    <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-800 dark:bg-zinc-900">
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        Enter one or both usernames. Public contribution counts only — no sign-in.
       </p>
 
       <form noValidate onSubmit={handleSubmit} aria-busy={loading} className="mt-4">
@@ -107,28 +113,53 @@ export function ConnectPanel({ state, response, initialValues, onConnect, onDisc
           </p>
         )}
 
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="mt-5">
           <button
             type="submit"
-            className={`${buttonBase} bg-zinc-900 text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300`}
+            className={`${buttonBase} w-full bg-zinc-900 text-white hover:bg-zinc-700 sm:w-auto dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300`}
           >
             {loading && <Loader2 aria-hidden="true" className="size-4 motion-safe:animate-spin" />}
-            {loading ? "Loading…" : "Load contributions"}
+            {loading ? "Loading…" : "See my contributions"}
           </button>
-          {response && (
+        </div>
+      </form>
+
+      <ConnectionStatus state={state} onRetry={onConnect} />
+
+      {(response || onUseSample) && (
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          {response && onContinue && (
+            <button
+              type="button"
+              onClick={onContinue}
+              className={`${buttonBase} border border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800`}
+            >
+              {continueLabel}
+              <ArrowRight aria-hidden="true" className="size-4" />
+            </button>
+          )}
+          {response ? (
             <button
               type="button"
               onClick={onDisconnect}
               className={`${buttonBase} text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800`}
             >
               <X aria-hidden="true" className="size-4" />
-              Clear and use sample data
+              Clear accounts
             </button>
+          ) : (
+            onUseSample && (
+              <button
+                type="button"
+                onClick={onUseSample}
+                className={`${buttonBase} px-2 text-zinc-700 underline underline-offset-4 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-zinc-50`}
+              >
+                Just exploring? Try it with sample data
+              </button>
+            )
           )}
         </div>
-      </form>
-
-      <ConnectionStatus state={state} onRetry={onConnect} />
+      )}
 
       <details className="group mt-4 text-sm">
         <summary className="cursor-pointer rounded-sm py-3 font-medium text-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-zinc-300">
@@ -149,7 +180,7 @@ export function ConnectPanel({ state, response, initialValues, onConnect, onDisc
           <li>Covers the last 12 months. Results are cached for up to an hour.</li>
         </ul>
       </details>
-    </section>
+    </div>
   );
 }
 

@@ -1,10 +1,28 @@
-import { ChartColumnBig, LayoutDashboard, Moon, PanelTop, Sun } from "lucide-react";
-import type { Dispatch } from "react";
-import { type ConfigAction, getFeatureVisibility, type VisualizationConfig } from "@/config/config";
-import { FEATURE_GROUP_LABELS, FEATURES, type FeatureGroup } from "@/config/features";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChartColumnBig,
+  ChevronDown,
+  IdCard,
+  LayoutDashboard,
+  Moon,
+  PanelTop,
+  SquareActivity,
+  Sun,
+} from "lucide-react";
+import { type Dispatch, useId, useState } from "react";
+import {
+  type ConfigAction,
+  getFeatureVisibility,
+  presetOf,
+  STARTING_PRESETS,
+  type StartingPresetId,
+  type VisualizationConfig,
+} from "@/config/config";
+import { FEATURE_GROUP_LABELS, FEATURES, type FeatureGroup, getFeature, type StatFeatureId } from "@/config/features";
 import { getLayout, LAYOUTS, type LayoutId } from "@/config/layouts";
 import type { ContributionDataset } from "@/domain/types";
-import { type ColorMode, PALETTES, type PaletteId, resolveTheme } from "@/theme/palettes";
+import { type ColorMode, CURATED_PALETTE_IDS, PALETTES, type PaletteId, resolveTheme } from "@/theme/palettes";
 import { ControlGroup, RadioCard, Switch } from "./controls";
 
 interface PickerProps {
@@ -17,6 +35,41 @@ const LAYOUT_ICONS: Record<LayoutId, typeof PanelTop> = {
   dashboard: LayoutDashboard,
   dataRich: ChartColumnBig,
 };
+
+const PRESET_ICONS: Record<StartingPresetId, typeof PanelTop> = {
+  graphic: SquareActivity,
+  profile: IdCard,
+};
+
+/** Contribution graphic vs. developer profile card: a shortcut over the identity settings. */
+export function PresetPicker({ config, dispatch }: PickerProps) {
+  const selected = presetOf(config);
+  return (
+    <ControlGroup legend="Start with">
+      <div className="grid gap-2 sm:grid-cols-2">
+        {STARTING_PRESETS.map((preset) => {
+          const Icon = PRESET_ICONS[preset.id];
+          return (
+            <RadioCard
+              key={preset.id}
+              name="starting-preset"
+              value={preset.id}
+              checked={selected === preset.id}
+              onSelect={() => dispatch({ type: "applyPreset", preset: preset.id })}
+              className="items-start gap-3"
+            >
+              <Icon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-zinc-500 dark:text-zinc-400" />
+              <span>
+                <span className="block text-sm font-medium">{preset.label}</span>
+                <span className="block text-xs text-zinc-600 dark:text-zinc-400">{preset.description}</span>
+              </span>
+            </RadioCard>
+          );
+        })}
+      </div>
+    </ControlGroup>
+  );
+}
 
 export function LayoutPicker({ config, dispatch }: PickerProps) {
   return (
@@ -89,11 +142,20 @@ function PaletteSwatch({ palette, mode }: { palette: PaletteId; mode: ColorMode 
   );
 }
 
+/**
+ * Six curated palettes first; "View all" reveals the rest. The selected
+ * palette is always listed, so an Edit link with any palette shows its choice.
+ */
 export function PalettePicker({ config, dispatch }: PickerProps) {
+  const [showAll, setShowAll] = useState(false);
+  const listId = useId();
+  const visible = showAll
+    ? PALETTES
+    : PALETTES.filter((p) => CURATED_PALETTE_IDS.includes(p.id) || p.id === config.palette);
   return (
     <ControlGroup legend="Palette" description={`Previewed in ${config.mode} mode.`}>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
-        {PALETTES.map((palette) => (
+      <div id={listId} className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
+        {visible.map((palette) => (
           <RadioCard
             key={palette.id}
             name="palette"
@@ -110,6 +172,19 @@ export function PalettePicker({ config, dispatch }: PickerProps) {
           </RadioCard>
         ))}
       </div>
+      <button
+        type="button"
+        aria-expanded={showAll}
+        aria-controls={listId}
+        onClick={() => setShowAll((v) => !v)}
+        className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      >
+        <ChevronDown
+          aria-hidden="true"
+          className={`size-4 motion-safe:transition-transform ${showAll ? "rotate-180" : ""}`}
+        />
+        {showAll ? "Show fewer palettes" : `View all ${PALETTES.length} palettes`}
+      </button>
     </ControlGroup>
   );
 }
@@ -127,23 +202,102 @@ export function FeatureToggles({ config, dispatch, dataset }: PickerProps & { da
 
   return (
     <div className="space-y-6">
-      {GROUP_ORDER.map((group) => (
-        <ControlGroup key={group} legend={FEATURE_GROUP_LABELS[group]}>
-          <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
-            {FEATURES.filter((f) => f.group === group).map((feature) => (
-              <Switch
-                key={feature.id}
-                id={`feature-${feature.id}`}
-                label={feature.label}
-                description={feature.description}
-                checked={config.features[feature.id]}
-                onChange={(enabled) => dispatch({ type: "setFeature", feature: feature.id, enabled })}
-                note={noteFor(getFeatureVisibility(feature.id, config, dataset))}
-              />
-            ))}
-          </div>
-        </ControlGroup>
-      ))}
+      {GROUP_ORDER.map((group) =>
+        group === "stats" ? (
+          <MetricList
+            key={group}
+            config={config}
+            dispatch={dispatch}
+            noteFor={(id) => noteFor(getFeatureVisibility(id, config, dataset))}
+          />
+        ) : (
+          <ControlGroup key={group} legend={FEATURE_GROUP_LABELS[group]}>
+            <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+              {FEATURES.filter((f) => f.group === group).map((feature) => (
+                <Switch
+                  key={feature.id}
+                  id={`feature-${feature.id}`}
+                  label={feature.label}
+                  description={feature.description}
+                  checked={config.features[feature.id]}
+                  onChange={(enabled) => dispatch({ type: "setFeature", feature: feature.id, enabled })}
+                  note={noteFor(getFeatureVisibility(feature.id, config, dataset))}
+                />
+              ))}
+            </div>
+          </ControlGroup>
+        ),
+      )}
     </div>
   );
 }
+
+/**
+ * Statistics: visibility switches in display order, each with Move up / Move down
+ * buttons (keyboard and screen-reader friendly; no drag-only interaction).
+ */
+function MetricList({
+  config,
+  dispatch,
+  noteFor,
+}: PickerProps & { noteFor: (id: StatFeatureId) => string | undefined }) {
+  const [announcement, setAnnouncement] = useState("");
+  const order = config.metricOrder;
+
+  function move(id: StatFeatureId, direction: -1 | 1) {
+    const to = order.indexOf(id) + direction;
+    if (to < 0 || to >= order.length) return;
+    dispatch({ type: "moveMetric", metric: id, direction });
+    setAnnouncement(`${getFeature(id).label} moved to position ${to + 1} of ${order.length}.`);
+  }
+
+  return (
+    <ControlGroup legend={FEATURE_GROUP_LABELS.stats} description="Choose which metrics appear and in what order.">
+      <ol className="divide-y divide-zinc-200 dark:divide-zinc-800">
+        {order.map((id, index) => {
+          const feature = getFeature(id);
+          return (
+            <li key={id} className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <Switch
+                  id={`feature-${id}`}
+                  label={feature.label}
+                  description={feature.description}
+                  checked={config.features[id]}
+                  onChange={(enabled) => dispatch({ type: "setFeature", feature: id, enabled })}
+                  note={noteFor(id)}
+                />
+              </div>
+              <div className="flex shrink-0 gap-1 pt-2">
+                <button
+                  type="button"
+                  onClick={() => move(id, -1)}
+                  disabled={index === 0}
+                  aria-label={`Move ${feature.label} up`}
+                  className={iconButton}
+                >
+                  <ArrowUp aria-hidden="true" className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => move(id, 1)}
+                  disabled={index === order.length - 1}
+                  aria-label={`Move ${feature.label} down`}
+                  className={iconButton}
+                >
+                  <ArrowDown aria-hidden="true" className="size-4" />
+                </button>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+      <p role="status" className="sr-only">
+        {announcement}
+      </p>
+    </ControlGroup>
+  );
+}
+
+const iconButton =
+  "inline-flex size-9 items-center justify-center rounded-md border border-zinc-300 text-zinc-700 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800";

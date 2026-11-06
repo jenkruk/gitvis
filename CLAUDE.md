@@ -13,6 +13,7 @@ Customizable contribution visualizations that combine GitHub + GitLab activity f
 - `npm run test:e2e` — Playwright + axe against a production build and a fake upstream (`e2e/`); never hits real GitHub/GitLab
 - `npm run format` — Prettier (`format:check` to verify only)
 - `npm run build` — production build
+- `npm run storybook` / `npm run build-storybook` — Storybook (production components only; stories next to source as `*.stories.tsx`)
 
 ## Architecture rules
 
@@ -25,6 +26,8 @@ Customizable contribution visualizations that combine GitHub + GitLab activity f
 - Layout, palette, mode, and features are independent; switching one never resets another.
 - Published image URLs are a public contract (`src/publish/card-params.ts`): never change or remove an existing URL code, never derive v1 defaults from current defaults, and add a golden-URL test for anything new. Breaking changes need a new `v`.
 - Route handlers can't import `react-dom/server`; serialize SVG with `src/publish/svg-markup.ts` and keep its React-parity test passing. Renderers must stay hook-free with inline attributes.
+- `src/publish/__snapshots__/legacy/*.svg` are byte-identical renders of pre-Phase-4 URLs. Never update them; a failure means an old embed changed. New URL params must be optional and written only when they differ from the frozen legacy defaults.
+- Avatars are fetched only in `src/server/avatars.ts` (host allowlist, size/type limits) and embedded as `data:` URIs. Never put an external URL in a rendered SVG `<image>`.
 - Contribution snapshots live in the Vercel Runtime Cache via `getCache` (`src/server/cached.ts`), not `"use cache: remote"` (its keys change every deploy). Bump `SNAPSHOT_SCHEMA` when the stored shape changes. Never write failures to the cache.
 - Published URLs must use the production origin from `src/server/origin.ts`; never build them from the request host.
 

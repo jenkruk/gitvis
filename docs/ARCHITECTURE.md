@@ -122,7 +122,11 @@ Consequences: GitLab counts tend to run higher for the same amount of work. Labe
 
 ## State and configuration
 
-`VisualizationConfig` (`src/config/config.ts`) holds layout, feature flags, palette, and mode. It is plain, serializable data, independent of the dataset. It is updated by a pure `configReducer` (unit-tested) through `useReducer` in the studio. No global state library is needed yet. If the Connect → Customize → Publish flow needs cross-route state, we'll introduce Zustand or URL state then.
+`VisualizationConfig` (`src/config/config.ts`) holds layout, feature flags, palette, mode, identity (`style`, `handles`, `avatars`, `name`, `title`), background, platform colors, metric order, range and density. It is plain, serializable data, independent of the dataset. It is updated by a pure `configReducer` (unit-tested) through `useReducer` in the studio. No global state library is needed: the guided steps are one client component (`Studio`) holding the reducer above all three step panels, so navigating never loses state.
+
+- **URL state:** the query string is the Edit link (unchanged v1 contract); the hash holds the current step. Steps are pushed onto history, so Back/Forward work.
+- **Starting presets** (`STARTING_PRESETS`, `presetOf`, the `applyPreset` action) are derived from `identity.style` — _Contribution graphic_ = no header, _Developer profile card_ = full header (+ avatars if none were chosen). They change nothing else and add no URL parameter, so every published URL renders exactly as before.
+- **Curated palettes:** `CURATED_PALETTE_IDS` lists the six shown first; the selected palette is always listed too.
 
 Feature visibility is computed, never stored: `getFeatureVisibility(featureId, layout, dataset)` returns whether the feature is rendered and why not (layout doesn't support it, or it needs two platforms). Toggles keep their values across layout switches.
 
@@ -172,10 +176,29 @@ ConnectForm (client) ──GET /api/contributions?github=&gitlab=──▶ route
 | `f`                | comma list of **enabled** features: `heatmap` `total` `active` `streak` `best` `breakdown` `trends` `labels`                          | the frozen v1 default set |
 | `size`             | `full` · `compact` (400px reflowed mobile image; optional, added within v1)                                                           | `full`                    |
 
+**Phase 4 params** (optional, added within v1; absent = the original rendering):
+
+| Param   | Values                                                                                               | Missing        |
+| ------- | ---------------------------------------------------------------------------------------------------- | -------------- |
+| `hdr`   | `none` · `compact` · `full`                                                                          | `none`         |
+| `hl`    | handles shown: comma list of `github`, `gitlab` (may be empty)                                       | both           |
+| `av`    | avatars shown: comma list of `github`, `gitlab`                                                      | none           |
+| `name`  | display name, ≤ 40 characters after sanitizing                                                       | none           |
+| `title` | professional title, ≤ 60 characters after sanitizing                                                 | none           |
+| `bg`    | `solid` · `gradient` · `transparent`                                                                 | `solid`        |
+| `pc`    | platform colors, `github:ff7a59,gitlab:123456`                                                       | palette series |
+| `ord`   | stat order: `total` `active` `streak` `best` `current`; a partial list is completed in default order | default order  |
+| `range` | `30` · `90` · `365`                                                                                  | `365`          |
+| `den`   | `spacious` · `compact`                                                                               | `spacious`     |
+
+New palette codes: `github-classic` · `gitlab-inspired` · `nordic-frost` · `solarized` · `midnight-neon` · `paper-ink`. New feature code: `current` (current streak; off unless listed in `f`, so old URLs never gain it).
+
 - **URL codes are a frozen public contract** (`src/publish/card-params.ts`), mapped explicitly to internal ids, so renaming code never breaks old URLs. Golden-URL tests pin this down.
-- **Explicit enabled-list semantics:** a feature added later is _off_ for existing URLs, so old embeds never change appearance. Encoders always write every param, so changing defaults never alters published images.
+- **Explicit enabled-list semantics:** a feature added later is _off_ for existing URLs, so old embeds never change appearance. Encoders always write the original params (`layout`, `palette`, `mode`, `f`), so changing defaults never alters published images. Phase 4 params are written only when they differ from the **frozen legacy defaults** above, so an unpersonalized config still produces exactly the URL it did before.
+- **Legacy snapshot guard:** `src/publish/legacy-render.test.tsx` renders seven pre-Phase-4 URLs (live and sample data) and compares them byte-for-byte with SVGs recorded before Phase 4 (`src/publish/__snapshots__/legacy/`). Never update those snapshots; a diff means an old embed changed.
 - **Evolution:** unknown params are ignored, so new optional params (such as future custom colors, reserved as `colors`) can be added within v1. A breaking change bumps `v`, and the decoder keeps a branch for each published version.
-- **Validation:** the card endpoint is strict and renders an explanatory error card for an unsupported `v`, invalid usernames, unknown codes, or a query over 512 characters. The studio is lenient: an Edit link with a bad value falls back to defaults rather than failing.
+- **Validation:** the card endpoint is strict and renders an explanatory error card for an unsupported `v`, invalid usernames, unknown codes, or a query over 2,048 characters (`MAX_QUERY_LENGTH`; the worst-case personalized URL, with a 60-character non-Latin title, is tested to fit).
+- **Text params** (`name`, `title`) are NFC-normalized and stripped of control, private-use, unassigned and bidi-override characters (ZWJ/ZWNJ are kept for emoji and scripts that need them). Whitespace is collapsed. React's attribute/text escaping (mirrored by `svg-markup.ts`) handles markup characters. The studio is lenient: an Edit link with a bad value falls back to defaults rather than failing.
 - The studio uses the **same query string** (`/?v=1&github=…`) as its Edit configuration link and keeps it in sync while you design, so a reload restores everything.
 
 ### Rendering
@@ -241,7 +264,7 @@ All rows except the deployment row are exercised against a real production serve
 
 ### Abuse protection
 
-- **Input limits:** strict validation, a 512-character query cap, and bounded render cost (the dataset is ≤ 366 days; layouts are fixed size).
+- **Input limits:** strict validation, a 2,048-character query cap, and bounded render cost (the dataset is ≤ 366 days; layouts are fixed size).
 - **Upstream budget** (per instance): at most 300 upstream fetches per minute, so a flood of unique usernames can't drain the shared GitHub quota.
 - **In-app per-IP limits** (in memory, per instance): `/api/card` 600/min (camo shares IPs), `/api/contributions` 30/min. The key is `x-real-ip`, which Vercel sets from the connecting address.
 
@@ -270,6 +293,17 @@ A candidate equal to the preview's own hostname (`VERCEL_URL` or `VERCEL_BRANCH_
 
 Card errors return **HTTP 200 with a readable error SVG** (plus `X-GitVis-Status: <code>`), because GitHub shows a broken-image icon for non-2xx responses and README owners need to see what's wrong. Messages come only from the fixed, user-safe adapter and validation strings. Unexpected exceptions become a generic "Something went wrong" card; details are logged server-side and never rendered. If **any** requested platform fails, the card shows an error rather than a silently partial (misleadingly low) total.
 
+### Avatars (Phase 4)
+
+`src/server/avatars.ts` fetches avatars **server-side** and embeds them in the SVG as `data:` URIs:
+
+- GitHub: `https://avatars.githubusercontent.com/<user>?s=96`. GitLab: the public `/api/v4/users?username=` lookup, then its `avatar_url` (gravatar `s=96`, otherwise `width=96`).
+- **Host allowlist** (`avatars.githubusercontent.com`, `secure.gravatar.com`, `www.gravatar.com`, `gitlab.com`), at most 2 allowlisted redirects, PNG/JPEG/GIF/WebP only, ≤ 64 KB, 3s timeout. Any failure returns `null` → monogram. Never throws.
+- Cached in the Runtime Cache under `v1:avatar:<platform>:<user>` for 24h (misses for 1h), shares the upstream budget, and de-duplicates concurrent fetches.
+- Only fetched when the URL asks for a header **and** avatars (`hdr` ≠ `none`, `av` set). Card CSP: `default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox`, so an SVG opened directly can't load anything external either.
+- The studio previews through `/api/avatar?platform&username` (60/min/IP, CDN-cached 24h). The client never contacts GitHub/GitLab directly.
+- **Privacy:** avatars are already public on both platforms and are only shown when the user opts in. Readers' browsers never contact GitHub, GitLab or Gravatar because of a GitVis image.
+
 ### Markdown and downloads
 
 - Markdown: `[![alt](cardUrl)](editUrl)`, or an HTML `<picture>` when theme matching and/or the mobile image is on (the default).
@@ -279,6 +313,8 @@ Card errors return **HTTP 200 with a readable error SVG** (plus `X-GitVis-Status
   - Stat cards in 2 columns, the last 20 weeks of heatmap (cells ≈ GitHub's 10px on a phone), stacked charts, and wrapped text.
   - `size` is an optional v1 parameter. It's absent from full-size URLs, so every previously published URL is unchanged.
 - Profile links (`<a>`) are rendered in published SVGs, where they work when the file is opened directly, but not in the studio's `role="img"` preview, where nested links are unreachable by assistive tech (axe `nested-interactive`).
+- **Profile links** (optional): a line of Markdown links under the image (`[GitHub @user](…) · [GitLab @user](…)`), because links inside an SVG don't work through GitHub's `<img>`.
+- **Transparent background** forces theme matching (`effectiveSnippetOptions`), so the light variant is never shown on a dark page.
 - SVG download fetches the published card. PNG rasterizes that same SVG on a `<canvas>` at 2× (no dependency).
 
 ## Security

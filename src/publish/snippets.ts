@@ -31,6 +31,23 @@ export interface SnippetOptions {
   theme: ReadmeTheme;
   /** Serve the reflowed compact image on narrow screens (phones). */
   responsive: boolean;
+  /**
+   * Add real Markdown profile links under the image. Links drawn inside an SVG
+   * don't work when GitHub shows it as an <img>; these do.
+   */
+  profileLinks?: boolean;
+}
+
+/** Transparent graphics must follow the reader's theme, or light text would sit on a light page (and vice versa). */
+export function effectiveSnippetOptions(options: SnippetOptions, config: VisualizationConfig): SnippetOptions {
+  return config.background === "transparent" ? { ...options, theme: "auto" } : options;
+}
+
+/** "[GitHub @user](https://github.com/user) · [GitLab @user](…)" for connected platforms. */
+export function profileLinksLine(request: ConnectRequest): string {
+  return PLATFORM_IDS.filter((p) => request[p])
+    .map((p) => `[${PLATFORMS[p].label} @${request[p]}](${PLATFORMS[p].profileUrl(request[p]!)})`)
+    .join(" · ");
 }
 
 /** Below this viewport width readers get the compact image (GitHub's mobile layout). */
@@ -42,7 +59,13 @@ export const NARROW_MEDIA = "(max-width: 600px)";
  * matching <source> wins, so narrow-screen sources come first. Always links
  * to the Edit configuration URL.
  */
-export function readmeSnippet(origin: string, params: CardParams, { theme, responsive }: SnippetOptions): string {
+export function readmeSnippet(origin: string, params: CardParams, options: SnippetOptions): string {
+  const image = imageSnippet(origin, params, effectiveSnippetOptions(options, params.config));
+  // A blank line ends an HTML block in GitHub Markdown, so the links line renders as Markdown.
+  return options.profileLinks ? `${image}\n\n${profileLinksLine(params.request)}` : image;
+}
+
+function imageSnippet(origin: string, params: CardParams, { theme, responsive }: SnippetOptions): string {
   const alt = altText(params.request);
   const edit = editUrl(origin, params);
   if (theme === "selected" && !responsive) return `[![${alt}](${cardUrl(origin, params)})](${edit})`;

@@ -1,10 +1,27 @@
 import { formatDate } from "@/domain/dates";
-import type { FeatureId } from "@/config/features";
+import { type FeatureId, STAT_FEATURE_IDS, type StatFeatureId } from "@/config/features";
 import type { ContributionMetrics } from "@/metrics/metrics";
 import { formatNumber, formatPercent } from "./primitives";
 
-export type StatFeatureId = Extract<FeatureId, "totalContributions" | "activeDays" | "longestStreak" | "bestDay">;
-export const STAT_FEATURES: readonly StatFeatureId[] = ["totalContributions", "activeDays", "longestStreak", "bestDay"];
+export type { StatFeatureId } from "@/config/features";
+/** Default metric order (also the frozen order for URLs without `ord`). */
+export const STAT_FEATURES: readonly StatFeatureId[] = STAT_FEATURE_IDS;
+
+export function isStatFeature(id: FeatureId): id is StatFeatureId {
+  return (STAT_FEATURES as readonly FeatureId[]).includes(id);
+}
+
+/** Visible metrics in the user's chosen order (unknown/missing ids fall back to the default order). */
+export function orderedStats(
+  order: readonly StatFeatureId[],
+  isVisible: (id: StatFeatureId) => boolean,
+): StatFeatureId[] {
+  const sequence = [
+    ...order.filter((id) => STAT_FEATURES.includes(id)),
+    ...STAT_FEATURES.filter((id) => !order.includes(id)),
+  ];
+  return [...new Set(sequence)].filter(isVisible);
+}
 
 export interface StatItem {
   id: StatFeatureId;
@@ -55,6 +72,16 @@ export function buildStatItem(id: StatFeatureId, m: ContributionMetrics): StatIt
         label: "Best day",
         detail: b ? formatDate(b.date, "long") : "No activity yet",
         inline: b ? `best day ${formatNumber(b.count)} (${formatDate(b.date)})` : "no best day yet",
+      };
+    }
+    case "currentStreak": {
+      const n = m.currentStreak;
+      return {
+        id,
+        value: `${formatNumber(n)} ${plural(n, "day", "days")}`,
+        label: "Current streak",
+        detail: n > 0 ? "Still going" : "No active streak",
+        inline: `${formatNumber(n)}-day current streak`,
       };
     }
   }

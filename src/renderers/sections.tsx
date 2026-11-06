@@ -28,6 +28,7 @@ export function Header({
   showPlatformLabels,
   compact = false,
   links = true,
+  handles = PLATFORM_IDS,
 }: {
   dataset: ContributionDataset;
   theme: ThemeTokens;
@@ -37,8 +38,11 @@ export function Header({
   compact?: boolean;
   /** Profile <a> links; off inside role="img" previews, where links are unreachable by assistive tech. */
   links?: boolean;
+  /** Platforms whose @handle is shown (default: all connected). */
+  handles?: readonly PlatformId[];
 }) {
-  const { range, sources } = dataset;
+  const { range } = dataset;
+  const sources = dataset.sources.filter((s) => handles.includes(s.platform));
   const rangeLabel = `${formatDate(range.start)} – ${formatDate(range.end)}`;
   const font = { fontFamily: FONT_STACK };
   const labels =
@@ -147,9 +151,14 @@ function cardHeight(detailed: boolean): number {
 }
 
 /** Height of the stat-card grid; `columns` caps cards per row (compact images use 2). */
-export function statCardsHeight(detailed: boolean, count = 1, columns = Infinity): number {
+export function statCardsHeight(
+  detailed: boolean,
+  count = 1,
+  columns = Infinity,
+  height = cardHeight(detailed),
+): number {
   const rows = Math.ceil(count / Math.min(columns, Math.max(count, 1)));
-  return rows * cardHeight(detailed) + (rows - 1) * STAT_GAP;
+  return rows * height + (rows - 1) * STAT_GAP;
 }
 
 export function StatCards({
@@ -159,6 +168,7 @@ export function StatCards({
   width,
   detailed,
   columns = Infinity,
+  cardHeight: height = cardHeight(detailed),
 }: {
   items: StatItem[];
   theme: ThemeTokens;
@@ -166,10 +176,13 @@ export function StatCards({
   width: number;
   detailed: boolean;
   columns?: number;
+  /** Shorter in the compact density; text baselines move up accordingly. */
+  cardHeight?: number;
 }) {
   const perRow = Math.min(columns, items.length);
   const cardWidth = (width - STAT_GAP * (perRow - 1)) / perRow;
-  const height = cardHeight(detailed);
+  const dense = height < cardHeight(detailed);
+  const [labelY, valueY, detailY] = dense ? [18, 42, 60] : [22, 50, 70];
   const font = { fontFamily: FONT_STACK };
 
   return (
@@ -182,14 +195,14 @@ export function StatCards({
         return (
           <g key={item.id}>
             <Panel x={x} y={cardY} width={cardWidth} height={height} theme={theme} />
-            <text x={x + 16} y={cardY + 22} fontSize={11} fontWeight={500} fill={theme.textMuted} {...font}>
+            <text x={x + 16} y={cardY + labelY} fontSize={11} fontWeight={500} fill={theme.textMuted} {...font}>
               {item.label}
             </text>
-            <text x={x + 16} y={cardY + 50} fontSize={22} fontWeight={700} fill={theme.text} {...font}>
+            <text x={x + 16} y={cardY + valueY} fontSize={22} fontWeight={700} fill={theme.text} {...font}>
               {item.value}
             </text>
             {detailed && (
-              <text x={x + 16} y={cardY + 70} fontSize={10} fill={theme.textMuted} {...font}>
+              <text x={x + 16} y={cardY + detailY} fontSize={10} fill={theme.textMuted} {...font}>
                 {item.detail}
               </text>
             )}
@@ -264,14 +277,18 @@ export function PlatformBreakdown({
   theme,
   y,
   width,
+  height = BREAKDOWN_HEIGHT,
 }: {
   metrics: ContributionMetrics;
   theme: ThemeTokens;
   y: number;
   width: number;
+  height?: number;
 }) {
   const inner = width - 32;
-  const barY = y + 32;
+  const dense = height < BREAKDOWN_HEIGHT;
+  const [titleY, barOffset, legendY] = dense ? [18, 26, 50] : [22, 32, 62];
+  const barY = y + barOffset;
   const font = { fontFamily: FONT_STACK };
   const segments = metrics.platformTotals.map(({ platform, share }, i, all) => ({
     platform,
@@ -281,8 +298,8 @@ export function PlatformBreakdown({
 
   return (
     <g>
-      <Panel x={PADDING} y={y} width={width} height={BREAKDOWN_HEIGHT} theme={theme} />
-      <text x={PADDING + 16} y={y + 22} fontSize={11} fontWeight={500} fill={theme.textMuted} {...font}>
+      <Panel x={PADDING} y={y} width={width} height={height} theme={theme} />
+      <text x={PADDING + 16} y={y + titleY} fontSize={11} fontWeight={500} fill={theme.textMuted} {...font}>
         Platform breakdown
       </text>
       <rect x={PADDING + 16} y={barY} width={inner} height={10} rx={5} fill={theme.heatmapEmpty} />
@@ -293,7 +310,7 @@ export function PlatformBreakdown({
         <text
           key={platform}
           x={PADDING + 16 + i * Math.min(220, inner / 2)}
-          y={y + 62}
+          y={y + legendY}
           fontSize={11}
           fill={theme.textMuted}
           {...font}
@@ -317,8 +334,8 @@ export const TRENDS_HEIGHT = 170;
 const TRENDS_GAP = 16;
 
 /** Side by side normally; stacked full-width in compact images. */
-export function trendsHeight(stacked: boolean): number {
-  return stacked ? TRENDS_HEIGHT * 2 + TRENDS_GAP : TRENDS_HEIGHT;
+export function trendsHeight(stacked: boolean, panelHeight = TRENDS_HEIGHT): number {
+  return stacked ? panelHeight * 2 + TRENDS_GAP : panelHeight;
 }
 
 export function TrendCharts({
@@ -328,6 +345,7 @@ export function TrendCharts({
   y,
   width,
   stacked = false,
+  panelHeight = TRENDS_HEIGHT,
 }: {
   metrics: ContributionMetrics;
   dataset: ContributionDataset;
@@ -335,17 +353,19 @@ export function TrendCharts({
   y: number;
   width: number;
   stacked?: boolean;
+  panelHeight?: number;
 }) {
   const panelWidth = stacked ? width : (width - TRENDS_GAP) / 2;
   return (
     <g>
-      <WeeklyTrend weeks={metrics.weekly} theme={theme} x={PADDING} y={y} width={panelWidth} />
+      <WeeklyTrend weeks={metrics.weekly} theme={theme} x={PADDING} y={y} width={panelWidth} height={panelHeight} />
       <MonthlyComparison
         months={metrics.monthly}
         platforms={dataset.sources.map((s) => s.platform)}
         theme={theme}
         x={stacked ? PADDING : PADDING + panelWidth + TRENDS_GAP}
-        y={stacked ? y + TRENDS_HEIGHT + TRENDS_GAP : y}
+        y={stacked ? y + panelHeight + TRENDS_GAP : y}
+        height={panelHeight}
         width={panelWidth}
       />
     </g>
@@ -357,6 +377,7 @@ interface ChartProps {
   x: number;
   y: number;
   width: number;
+  height: number;
 }
 
 const CHART = { top: 40, bottom: 26, side: 16 };
@@ -370,10 +391,10 @@ function ChartTitle({ theme, x, y, children }: { theme: ThemeTokens; x: number; 
 }
 
 /** Weekly totals as an area + line. Partial edge weeks are excluded so they don't read as dips. */
-function WeeklyTrend({ weeks, theme, x, y, width }: ChartProps & { weeks: SeriesPoint[] }) {
+function WeeklyTrend({ weeks, theme, x, y, width, height }: ChartProps & { weeks: SeriesPoint[] }) {
   const full = weeks.filter((w) => w.dayCount === 7);
   const plotW = width - CHART.side * 2;
-  const plotH = TRENDS_HEIGHT - CHART.top - CHART.bottom;
+  const plotH = height - CHART.top - CHART.bottom;
   const left = x + CHART.side;
   const baseline = y + CHART.top + plotH;
   const max = Math.max(1, ...full.map((w) => w.total));
@@ -386,7 +407,7 @@ function WeeklyTrend({ weeks, theme, x, y, width }: ChartProps & { weeks: Series
 
   return (
     <g>
-      <Panel x={x} y={y} width={width} height={TRENDS_HEIGHT} theme={theme} />
+      <Panel x={x} y={y} width={width} height={height} theme={theme} />
       <ChartTitle theme={theme} x={x} y={y}>
         Weekly contributions
       </ChartTitle>
@@ -433,9 +454,10 @@ function MonthlyComparison({
   x,
   y,
   width,
+  height,
 }: ChartProps & { months: SeriesPoint[]; platforms: PlatformId[] }) {
   const plotW = width - CHART.side * 2;
-  const plotH = TRENDS_HEIGHT - CHART.top - CHART.bottom;
+  const plotH = height - CHART.top - CHART.bottom;
   const left = x + CHART.side;
   const baseline = y + CHART.top + plotH;
   const max = Math.max(1, ...months.map((m) => m.total));
@@ -445,7 +467,7 @@ function MonthlyComparison({
 
   return (
     <g>
-      <Panel x={x} y={y} width={width} height={TRENDS_HEIGHT} theme={theme} />
+      <Panel x={x} y={y} width={width} height={height} theme={theme} />
       <ChartTitle theme={theme} x={x} y={y}>
         Monthly by platform
       </ChartTitle>

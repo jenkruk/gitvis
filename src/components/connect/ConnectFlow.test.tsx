@@ -47,7 +47,7 @@ function setup(props: Partial<Parameters<typeof Studio>[0]> = {}) {
   render(<Studio sampleDataset={createSampleDataset()} origin="https://gitvis.test" {...props} />);
   const github = () => screen.getByRole("textbox", { name: /github username/i });
   const gitlab = () => screen.getByRole("textbox", { name: /gitlab username/i });
-  const submit = () => screen.getByRole("button", { name: /load contributions|loading/i });
+  const submit = () => screen.getByRole("button", { name: /see my contributions|loading/i });
   const preview = () => screen.getByRole("img", { name: "Contribution activity" });
   return { user, github, gitlab, submit, preview };
 }
@@ -80,7 +80,7 @@ describe("Connect flow", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("loads live data, shows per-platform results and offers retry for transient failures", async () => {
+  it("loads live data, stays on Connect after a partial failure, and offers retry", async () => {
     fetchMock.mockResolvedValue(jsonResponse(loaded));
     const { user, github, gitlab, preview } = setup();
     await user.type(github(), "jenkruk");
@@ -89,7 +89,7 @@ describe("Connect flow", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/contributions?github=jenkruk&gitlab=contactkruk", expect.anything());
     expect(await screen.findByText(/GitLab @contactkruk: 175 contributions/, { selector: "span" })).toBeVisible();
     expect(screen.getByText(/GitHub @jenkruk: GitHub is rate-limiting/, { selector: "span" })).toBeVisible();
-    expect(preview()).not.toHaveAccessibleDescription(/sample data/i);
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Connect your accounts");
     // The address bar becomes the full Edit link (usernames + design).
     const search = new URLSearchParams(window.location.search);
     expect([search.get("v"), search.get("github"), search.get("gitlab"), search.get("layout")]).toEqual([
@@ -102,9 +102,21 @@ describe("Connect flow", () => {
     fetchMock.mockResolvedValue(jsonResponse({ ...loaded, results: [loaded.results[1]] }));
     await user.click(screen.getByRole("button", { name: "Retry GitHub" }));
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    // A successful retry moves on to Design with the live data.
+    expect(await screen.findByRole("heading", { name: /design your graphic/i })).toHaveFocus();
+    expect(preview()).not.toHaveAccessibleDescription(/sample data/i);
   });
 
-  it("announces progress politely and marks the preview busy while loading", async () => {
+  it("can continue with the platforms that did load", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(loaded));
+    const { user, gitlab, preview } = setup();
+    await user.type(gitlab(), "contactkruk{Enter}");
+    await user.click(await screen.findByRole("button", { name: "Continue with available data" }));
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Design your graphic");
+    expect(preview()).not.toHaveAccessibleDescription(/sample data/i);
+  });
+
+  it("announces progress politely and marks the form busy while loading", async () => {
     let resolve!: (r: Response) => void;
     fetchMock.mockReturnValue(new Promise((r) => (resolve = r)));
     const { user, gitlab, submit } = setup();
@@ -112,10 +124,7 @@ describe("Connect flow", () => {
     await user.click(submit());
 
     expect(screen.getByText("Loading contributions…")).toHaveAttribute("role", "status");
-    expect(screen.getByRole("img", { name: "Contribution activity" }).closest("[aria-busy]")).toHaveAttribute(
-      "aria-busy",
-      "true",
-    );
+    expect(submit().closest("form")).toHaveAttribute("aria-busy", "true");
 
     await user.click(submit()); // duplicate submit is ignored, not blocked by disabling
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -136,16 +145,19 @@ describe("Connect flow", () => {
     expect(await screen.findByText(/175 contributions/, { selector: "span" })).toBeInTheDocument();
   });
 
-  it("renders server-loaded data without refetching, and can return to sample data", async () => {
+  it("renders server-loaded data without refetching, and can clear the accounts", async () => {
     const { user, preview } = setup({ initialRequest: { gitlab: "contactkruk" }, initialResponse: loaded });
 
-    expect(screen.getByRole("textbox", { name: /gitlab username/i })).toHaveValue("contactkruk");
     expect(preview()).not.toHaveAccessibleDescription(/sample data/i);
     expect(fetchMock).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: /clear and use sample data/i }));
-    expect(preview()).toHaveAccessibleDescription(/sample data/i);
+    await user.click(screen.getByRole("button", { name: "Change accounts" }));
+    expect(screen.getByRole("textbox", { name: /gitlab username/i })).toHaveValue("contactkruk");
+    await user.click(screen.getByRole("button", { name: "Clear accounts" }));
     expect(window.location.search).toBe("");
+    expect(
+      within(screen.getByRole("navigation", { name: "Progress" })).getByRole("button", { name: /publish/i }),
+    ).toBeDisabled();
   });
 
   it("explains an empty year instead of showing an unexplained blank graphic", () => {
@@ -154,16 +166,17 @@ describe("Connect flow", () => {
       results: [{ platform: "gitlab", username: "contactkruk", status: "ok", total: 0 }],
     };
     setup({ initialRequest: { gitlab: "contactkruk" }, initialResponse: empty });
-    expect(screen.getByText(/no contributions in the last 12 months for the connected accounts/i)).toBeVisible();
+    expect(screen.getByText(/no contributions in the last 12 months for gitlab @contactkruk/i)).toBeVisible();
   });
 
   it("keeps design choices when new data loads", async () => {
     fetchMock.mockResolvedValue(jsonResponse(loaded));
-    const { user, gitlab, submit } = setup();
+    const { user, gitlab, submit } = setup({ initialStep: "design" });
     await user.click(screen.getByRole("radio", { name: /minimal/i }));
+    await user.click(screen.getByRole("button", { name: "Connect your accounts" }));
     await user.type(gitlab(), "contactkruk");
     await user.click(submit());
-    await screen.findByText(/175 contributions/, { selector: "span" });
+    await user.click(await screen.findByRole("button", { name: "Continue with available data" }));
 
     expect(screen.getByRole("radio", { name: /minimal/i })).toBeChecked();
     expect(

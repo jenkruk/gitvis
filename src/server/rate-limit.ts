@@ -55,6 +55,7 @@ const MINUTE = 60_000;
 export const CARD_LIMIT_PER_MINUTE = 600;
 export const cardLimiter = new FixedWindowLimiter(CARD_LIMIT_PER_MINUTE, MINUTE);
 export const contributionsLimiter = new FixedWindowLimiter(30, MINUTE);
+export const avatarLimiter = new FixedWindowLimiter(60, MINUTE);
 /** Caps real upstream fetches (cache misses) so a flood of unique usernames can't drain the GitHub quota. */
 export const upstreamBudget = new FixedWindowLimiter(300, MINUTE);
 

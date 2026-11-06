@@ -144,3 +144,30 @@ describe("ETags", () => {
     expect(etagMatches('"other"', etag)).toBe(false);
   });
 });
+
+describe("renderCard avatars", () => {
+  const AVATAR = "data:image/png;base64,iVBORw0KGgo=";
+
+  it("loads and embeds avatars only when the header shows them", async () => {
+    const loadAvatars = vi.fn(async () => ({ github: AVATAR }));
+    const withAvatars = await renderCard(
+      new URLSearchParams("v=1&github=jenkruk&hdr=compact&av=github"),
+      loaders(),
+      loadAvatars,
+    );
+    expect(loadAvatars).toHaveBeenCalledWith({ github: "jenkruk" }, ["github"]);
+    expect(withAvatars.svg).toContain(`href="${AVATAR}"`);
+
+    loadAvatars.mockClear();
+    await renderCard(new URLSearchParams("v=1&github=jenkruk&av=github"), loaders(), loadAvatars); // hdr=none
+    expect(loadAvatars).not.toHaveBeenCalled();
+  });
+
+  it("falls back to a monogram if avatar loading fails", async () => {
+    const card = await renderCard(new URLSearchParams("v=1&github=jenkruk&hdr=full&av=github"), loaders(), async () => {
+      throw new Error("boom");
+    });
+    expect(card.status).toBe("ok");
+    expect(card.svg).toMatch(/<text[^>]*>J<\/text>/);
+  });
+});

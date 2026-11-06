@@ -7,14 +7,32 @@
  * Breaking changes require a new `v` with its own decoder branch.
  */
 import { type ConnectRequest, validateConnectRequest } from "@/adapters/connect";
-import type { VisualizationConfig } from "@/config/config";
-import { FEATURE_IDS, type FeatureFlags, type FeatureId } from "@/config/features";
+import {
+  type BackgroundStyle,
+  type DateRangeDays,
+  type Density,
+  finalText,
+  type IdentityStyle,
+  NAME_MAX_LENGTH,
+  sanitizeText,
+  TITLE_MAX_LENGTH,
+  type VisualizationConfig,
+} from "@/config/config";
+import {
+  FEATURE_IDS,
+  type FeatureFlags,
+  type FeatureId,
+  STAT_FEATURE_IDS,
+  type StatFeatureId,
+} from "@/config/features";
+import { PLATFORM_IDS, type PlatformId } from "@/domain/types";
 import type { LayoutId } from "@/config/layouts";
 import type { CardSize } from "@/renderers/primitives";
 import type { ColorMode, PaletteId } from "@/theme/palettes";
 
 export const CARD_PARAMS_VERSION = "1";
-export const MAX_QUERY_LENGTH = 512;
+/** Raised from 512 in Phase 4: worst-case percent-encoded Unicode name + title is ~1,600 chars. Camo hex-encodes URLs (~2×); still far below browser/CDN limits. */
+export const MAX_QUERY_LENGTH = 2048;
 
 const LAYOUT_CODES: Record<LayoutId, string> = {
   minimal: "minimal",
@@ -32,6 +50,13 @@ const PALETTE_CODES: Record<PaletteId, string> = {
   electricCobalt: "electric-cobalt",
   ember: "ember",
   monochrome: "monochrome",
+  // Phase 4 additions
+  githubClassic: "github-classic",
+  gitlabInspired: "gitlab-inspired",
+  nordicFrost: "nordic-frost",
+  solarized: "solarized",
+  midnightNeon: "midnight-neon",
+  paperInk: "paper-ink",
 };
 
 const MODE_CODES: Record<ColorMode, string> = { light: "light", dark: "dark" };
@@ -48,6 +73,31 @@ const FEATURE_CODES: Record<FeatureId, string> = {
   platformBreakdown: "breakdown",
   activityTrends: "trends",
   platformLabels: "labels",
+  currentStreak: "current", // Phase 4: off for every earlier URL (explicit enabled-list semantics)
+};
+
+/*
+ * Phase 4 optional params. ABSENT = the pre-Phase-4 rendering, frozen forever:
+ *   hdr=none · hl=github,gitlab · av=(none) · name/title empty · bg=solid · pc=(palette) ·
+ *   ord=total,active,streak,best,current · range=365 · den=spacious
+ * Encoders write them only when they differ, so legacy-equivalent designs keep their exact URLs.
+ */
+const IDENTITY_CODES: Record<IdentityStyle, string> = { none: "none", compact: "compact", full: "full" };
+const BACKGROUND_CODES: Record<BackgroundStyle, string> = {
+  solid: "solid",
+  gradient: "gradient",
+  transparent: "transparent",
+};
+const DENSITY_CODES: Record<Density, string> = { spacious: "spacious", compact: "compact" };
+const RANGE_CODES: Record<`${DateRangeDays}`, string> = { "30": "30", "90": "90", "365": "365" };
+const PLATFORM_CODES: Record<PlatformId, string> = { github: "github", gitlab: "gitlab" };
+const LEGACY = {
+  identity: "none" as IdentityStyle,
+  handles: [...PLATFORM_IDS] as PlatformId[],
+  background: "solid" as BackgroundStyle,
+  metricOrder: [...STAT_FEATURE_IDS] as StatFeatureId[],
+  range: 365 as DateRangeDays,
+  density: "spacious" as Density,
 };
 
 /** Frozen v1 defaults — deliberately NOT derived from createDefaultConfig(), which may evolve. */
@@ -79,6 +129,19 @@ const PALETTE_BY_CODE = invert(PALETTE_CODES);
 const MODE_BY_CODE = invert(MODE_CODES);
 const SIZE_BY_CODE = invert(SIZE_CODES);
 const FEATURE_BY_CODE = invert(FEATURE_CODES);
+const IDENTITY_BY_CODE = invert(IDENTITY_CODES);
+const BACKGROUND_BY_CODE = invert(BACKGROUND_CODES);
+const DENSITY_BY_CODE = invert(DENSITY_CODES);
+const RANGE_BY_CODE = invert(RANGE_CODES);
+const PLATFORM_BY_CODE = invert(PLATFORM_CODES);
+const STAT_CODES = Object.fromEntries(STAT_FEATURE_IDS.map((id) => [id, FEATURE_CODES[id]])) as Record<
+  StatFeatureId,
+  string
+>;
+const STAT_BY_CODE = invert(STAT_CODES);
+const HEX6 = /^[0-9a-f]{6}$/i;
+
+const sameList = <T>(a: readonly T[], b: readonly T[]) => a.length === b.length && a.every((x, i) => x === b[i]);
 
 export interface CardParams {
   request: ConnectRequest;
@@ -124,6 +187,26 @@ export function encodeCardParams({ request, config, size }: CardParams): URLSear
   );
   // "full" is the implicit default of every URL published before `size` existed; only write the variant.
   if (size === "compact") params.set("size", SIZE_CODES.compact);
+
+  // Phase 4 params: only when different from the frozen legacy default.
+  const { identity } = config;
+  if (identity.style !== LEGACY.identity) params.set("hdr", IDENTITY_CODES[identity.style]);
+  if (!sameList(identity.handles, LEGACY.handles))
+    params.set("hl", identity.handles.map((p) => PLATFORM_CODES[p]).join(","));
+  if (identity.avatars.length) params.set("av", identity.avatars.map((p) => PLATFORM_CODES[p]).join(","));
+  if (finalText(identity.name)) params.set("name", finalText(identity.name));
+  if (finalText(identity.title)) params.set("title", finalText(identity.title));
+  if (config.background !== LEGACY.background) params.set("bg", BACKGROUND_CODES[config.background]);
+  const colors = PLATFORM_IDS.flatMap((p) => {
+    const hex = config.platformColors[p];
+    return hex ? [`${PLATFORM_CODES[p]}:${hex.replace("#", "").toLowerCase()}`] : [];
+  });
+  if (colors.length) params.set("pc", colors.join(","));
+  if (!sameList(config.metricOrder, LEGACY.metricOrder)) {
+    params.set("ord", config.metricOrder.map((id) => STAT_CODES[id]).join(","));
+  }
+  if (config.range !== LEGACY.range) params.set("range", RANGE_CODES[`${config.range}`]);
+  if (config.density !== LEGACY.density) params.set("den", DENSITY_CODES[config.density]);
   return params;
 }
 
@@ -179,7 +262,66 @@ export function decodeCardParams(search: URLSearchParams): DecodedCardParams {
   }
 
   const size = pick("size", SIZE_BY_CODE, "full" as CardSize);
-  const config = { layout, palette, mode, features: flagsFrom(enabled) };
+
+  // ---- Phase 4 optional params (absent = legacy rendering) ----
+  const list = <T>(param: string, table: Map<string, T>, fallback: T[]): T[] => {
+    const raw = search.get(param);
+    if (raw === null) return fallback;
+    const out: T[] = [];
+    for (const code of raw
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean)
+      .slice(0, 8)) {
+      const value = table.get(code);
+      if (value === undefined) issues.push({ param, message: `Unknown ${param} value “${truncate(code)}”.` });
+      else if (!out.includes(value)) out.push(value);
+    }
+    return out;
+  };
+  const text = (param: string, max: number): string => {
+    const raw = search.get(param);
+    if (raw === null) return "";
+    const clean = sanitizeText(raw, max);
+    if ([...raw.trim()].length > max) issues.push({ param, message: `The ${param} is longer than ${max} characters.` });
+    return clean;
+  };
+
+  const style = pick("hdr", IDENTITY_BY_CODE, LEGACY.identity);
+  const handles = PLATFORM_IDS.filter((p) => list("hl", PLATFORM_BY_CODE, LEGACY.handles).includes(p));
+  const avatars = PLATFORM_IDS.filter((p) => list("av", PLATFORM_BY_CODE, []).includes(p));
+  const name = text("name", NAME_MAX_LENGTH);
+  const title = text("title", TITLE_MAX_LENGTH);
+  const background = pick("bg", BACKGROUND_BY_CODE, LEGACY.background);
+  const range = Number(pick("range", RANGE_BY_CODE, `${LEGACY.range}`)) as DateRangeDays;
+  const density = pick("den", DENSITY_BY_CODE, LEGACY.density);
+
+  const platformColors: Partial<Record<PlatformId, string>> = {};
+  const rawColors = search.get("pc");
+  if (rawColors !== null) {
+    for (const entry of rawColors.split(",").filter(Boolean).slice(0, 4)) {
+      const [code, hex] = entry.split(":");
+      const platform = code ? PLATFORM_BY_CODE.get(code) : undefined;
+      if (platform && hex && HEX6.test(hex)) platformColors[platform] = `#${hex.toLowerCase()}`;
+      else issues.push({ param: "pc", message: `Invalid platform color “${truncate(entry)}”.` });
+    }
+  }
+
+  const ordered = list("ord", STAT_BY_CODE, LEGACY.metricOrder);
+  const metricOrder = [...ordered, ...STAT_FEATURE_IDS.filter((id) => !ordered.includes(id))];
+
+  const config: VisualizationConfig = {
+    layout,
+    palette,
+    mode,
+    features: flagsFrom(enabled),
+    identity: { style, handles, avatars, name, title },
+    background,
+    platformColors,
+    metricOrder,
+    range,
+    density,
+  };
   return size === "full" ? { request, config, issues } : { request, config, issues, size };
 }
 

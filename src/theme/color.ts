@@ -57,3 +57,23 @@ export function contrastRatio(a: string, b: string): number {
   const [hi, lo] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x) as [number, number];
   return (hi + 0.05) / (lo + 0.05);
 }
+
+/**
+ * Returns `color` nudged toward black or white (whichever gains contrast) until it
+ * reaches `minRatio` against `background`. Unchanged when already sufficient, so
+ * custom colors are respected wherever they're accessible.
+ */
+export function ensureContrast(color: string, background: string, minRatio: number): string {
+  if (contrastRatio(color, background) >= minRatio) return toHex(parseHex(color));
+  const target = relativeLuminance(background) > 0.4 ? "#000000" : "#ffffff";
+  for (let step = 1; step <= 20; step++) {
+    const candidate = mix(color, target, step * 0.05);
+    if (contrastRatio(candidate, background) >= minRatio) return candidate;
+  }
+  return target;
+}
+
+/** Black or white, whichever reads better on `background` (for text on solid color chips). */
+export function bestTextOn(background: string): string {
+  return contrastRatio("#000000", background) >= contrastRatio("#ffffff", background) ? "#000000" : "#ffffff";
+}

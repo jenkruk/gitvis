@@ -53,6 +53,13 @@ export const FEATURES = [
     defaultEnabled: false,
   },
   {
+    id: "currentStreak",
+    label: "Current streak",
+    description: "Consecutive active days up to the end of the range.",
+    group: "stats",
+    defaultEnabled: false,
+  },
+  {
     id: "platformBreakdown",
     label: "GitHub / GitLab breakdown",
     description: "Each platform's share of the combined total.",
@@ -94,3 +101,13 @@ export function getFeature(id: FeatureId): FeatureDefinition {
 export function defaultFeatureFlags(): FeatureFlags {
   return Object.fromEntries(FEATURES.map((f) => [f.id, f.defaultEnabled])) as FeatureFlags;
 }
+
+/** Metrics that render as stat cards / inline stats. Default order; append new metrics at the end. */
+export const STAT_FEATURE_IDS = [
+  "totalContributions",
+  "activeDays",
+  "longestStreak",
+  "bestDay",
+  "currentStreak",
+] as const satisfies readonly FeatureId[];
+export type StatFeatureId = (typeof STAT_FEATURE_IDS)[number];

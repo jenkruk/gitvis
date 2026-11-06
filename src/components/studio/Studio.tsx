@@ -1,14 +1,16 @@
 "use client";
 
 import { Info, Loader2, RotateCcw } from "lucide-react";
-import { type ReactNode, useMemo, useReducer } from "react";
+import { type ReactNode, useEffect, useMemo, useReducer } from "react";
 import type { ConnectRequest, ContributionsResponse } from "@/adapters/connect";
 import { ConnectPanel } from "@/components/connect/ConnectPanel";
 import { useContributions } from "@/components/connect/useContributions";
-import { configReducer, createDefaultConfig } from "@/config/config";
+import { PublishPanel } from "@/components/publish/PublishPanel";
+import { configReducer, createDefaultConfig, type VisualizationConfig } from "@/config/config";
 import { getLayout } from "@/config/layouts";
 import type { ContributionDataset } from "@/domain/types";
 import { computeMetrics } from "@/metrics/metrics";
+import { studioSearch } from "@/publish/snippets";
 import { Visualization } from "@/renderers/Visualization";
 import { getPalette } from "@/theme/palettes";
 import { FeatureToggles, LayoutPicker, ModePicker, PalettePicker } from "./pickers";
@@ -19,11 +21,30 @@ export interface StudioProps {
   /** From the URL, pre-loaded on the server so shared links render with data. */
   initialRequest?: ConnectRequest | null;
   initialResponse?: ContributionsResponse | null;
+  /** Design restored from an Edit link; defaults otherwise. */
+  initialConfig?: VisualizationConfig;
+  /** Absolute origin used in published URLs, e.g. https://gitvis.app */
+  origin: string;
 }
 
-export function Studio({ sampleDataset, initialRequest = null, initialResponse = null }: StudioProps) {
-  const [config, dispatch] = useReducer(configReducer, undefined, createDefaultConfig);
+export function Studio({
+  sampleDataset,
+  initialRequest = null,
+  initialResponse = null,
+  initialConfig,
+  origin,
+}: StudioProps) {
+  const [config, dispatch] = useReducer(configReducer, initialConfig, (c) => c ?? createDefaultConfig());
   const connection = useContributions({ request: initialRequest, response: initialResponse });
+
+  // Keep the address bar equal to the Edit link, so a reload or shared URL restores everything.
+  useEffect(() => {
+    const search = studioSearch(connection.request, config);
+    const next = `${window.location.pathname}${search ? `?${search}` : ""}${window.location.hash}`;
+    if (next !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
+      window.history.replaceState(null, "", next);
+    }
+  }, [connection.request, config]);
   const dataset = connection.response?.dataset ?? sampleDataset;
   const metrics = useMemo(() => computeMetrics(dataset), [dataset]);
   const loading = connection.state.phase === "loading";
@@ -103,6 +124,13 @@ export function Studio({ sampleDataset, initialRequest = null, initialResponse =
           <FeatureToggles config={config} dispatch={dispatch} dataset={dataset} />
         </section>
       </div>
+
+      <PublishPanel
+        origin={origin}
+        request={connection.response?.dataset ? connection.request : null}
+        results={connection.response?.results ?? []}
+        config={config}
+      />
     </div>
   );
 }

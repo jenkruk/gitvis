@@ -14,19 +14,15 @@ export interface InitialConnection {
   response: ContributionsResponse | null;
 }
 
-/** Mirrors the connected usernames into the URL so reloads and shared links reconnect. */
-function syncUrl(request: ConnectRequest | null) {
-  const query = request ? connectSearchParams(request).toString() : "";
-  window.history.replaceState(
-    null,
-    "",
-    `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`,
-  );
+interface Connected {
+  request: ConnectRequest;
+  response: ContributionsResponse;
 }
 
 /**
  * Client-side loading for the Connect flow. Keeps the last successful
- * response while a new request is in flight so the preview never blanks.
+ * response (and the request that produced it) while a new request is in
+ * flight, so the preview and publish links never blank or drift.
  */
 export function useContributions(initial: InitialConnection) {
   const [state, setState] = useState<ConnectionState>(() =>
@@ -34,7 +30,9 @@ export function useContributions(initial: InitialConnection) {
       ? { phase: "loaded", request: initial.request, response: initial.response }
       : { phase: "idle" },
   );
-  const [response, setResponse] = useState<ContributionsResponse | null>(initial.response);
+  const [connected, setConnected] = useState<Connected | null>(() =>
+    initial.request && initial.response ? { request: initial.request, response: initial.response } : null,
+  );
   const inFlight = useRef<AbortController | null>(null);
 
   useEffect(() => () => inFlight.current?.abort(), []);
@@ -47,6 +45,10 @@ export function useContributions(initial: InitialConnection) {
 
     try {
       const res = await fetch(`/api/contributions?${connectSearchParams(request)}`, { signal: controller.signal });
+      if (res.status === 429) {
+        setState({ phase: "failed", request, message: "Too many requests. Please wait a minute and try again." });
+        return;
+      }
       const body: unknown = await res.json();
       if (!res.ok) {
         const message = (body as { error?: string }).error ?? "The request was rejected.";
@@ -54,9 +56,8 @@ export function useContributions(initial: InitialConnection) {
         return;
       }
       const data = body as ContributionsResponse;
-      setResponse(data);
+      setConnected({ request, response: data });
       setState({ phase: "loaded", request, response: data });
-      syncUrl(request);
     } catch {
       if (controller.signal.aborted) return;
       setState({
@@ -69,10 +70,16 @@ export function useContributions(initial: InitialConnection) {
 
   const disconnect = useCallback(() => {
     inFlight.current?.abort();
-    setResponse(null);
+    setConnected(null);
     setState({ phase: "idle" });
-    syncUrl(null);
   }, []);
 
-  return { state, response, connect, disconnect };
+  return {
+    state,
+    response: connected?.response ?? null,
+    /** The request behind the data currently shown (not an in-flight one). */
+    request: connected?.request ?? null,
+    connect,
+    disconnect,
+  };
 }

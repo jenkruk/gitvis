@@ -49,7 +49,14 @@ Nine curated palettes, each with light and dark variants: Aurora, Amethyst, Dese
 
 ### Publishing
 
-README Markdown, SVG download, PNG download, a stable shareable URL, and a live embed endpoint.
+The user's goal is to **paste one Markdown snippet into a GitHub README** and never touch it again.
+
+- **Live image URL** (`/api/card?v=1&…`). The URL holds the whole design: usernames, layout, palette, mode, and features. It renders current data, refreshed about every 12 hours, with no GitHub Actions, accounts, database, or manual updates.
+- **Copy Markdown** in one click. It can match the reader's GitHub light or dark theme using a `<picture>` element.
+- **Published-image preview**: the actual image GitHub will fetch, shown before copying.
+- **Edit configuration link**: reopens the studio with every choice restored. The README image links there too.
+- **Downloads**: SVG and PNG, both generated from the published image.
+- **Stability promise**: a URL generated today renders the same design in future versions. Version bumps are only for breaking changes, and old versions keep working.
 
 ## Honesty principles
 

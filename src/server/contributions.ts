@@ -2,11 +2,12 @@ import "server-only";
 import type { ConnectRequest, ContributionsResponse, PlatformResult } from "@/adapters/connect";
 import { type AdapterResult, isTransientError } from "@/adapters/types";
 import { combineSources } from "@/domain/combine";
-import { type DateRange, diffDays, type ISODate, isWithinRange, trailingYear } from "@/domain/dates";
+import { diffDays, type ISODate, isWithinRange, trailingYear } from "@/domain/dates";
 import { PLATFORM_IDS, type PlatformContributions } from "@/domain/types";
 
 export interface ContributionLoaders {
-  github: (username: string, range: DateRange) => Promise<AdapterResult>;
+  /** Each loader returns the platform's trailing year as of its (possibly cached) fetch. */
+  github: (username: string) => Promise<AdapterResult>;
   gitlab: (username: string) => Promise<AdapterResult>;
   /** Today's date in UTC. Injected for deterministic tests. */
   today: () => ISODate;
@@ -21,7 +22,6 @@ export async function loadContributions(
   loaders: ContributionLoaders,
 ): Promise<ContributionsResponse> {
   const today = loaders.today();
-  const queryRange = trailingYear(today);
 
   const requested = PLATFORM_IDS.flatMap((platform) => {
     const username = request[platform];
@@ -29,7 +29,7 @@ export async function loadContributions(
   });
   const outcomes = await Promise.all(
     requested.map(({ platform, username }) =>
-      platform === "github" ? loaders.github(username, queryRange) : loaders.gitlab(username),
+      platform === "github" ? loaders.github(username) : loaders.gitlab(username),
     ),
   );
 

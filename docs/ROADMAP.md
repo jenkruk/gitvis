@@ -48,24 +48,34 @@ _Depends on:_ Phase 1 domain and adapters.
 
 **Deferred from Phase 2:** GitLab GraphQL `contributionCalendar`. `calendar.json` already provides the same daily counts without a token. Adopt the GraphQL field when it leaves Experiment status or when we need its timezone metadata, and verify the minimum token scope at that time.
 
-## Phase 3: Publish
+## Phase 3: Publish ✅
 
 _Depends on:_ Phase 2.
 
 **Tasks**
 
-- Config ⇄ URL query serialization (versioned, compact, tolerant of unknown or invalid values; round-trip tests).
-- `GET /api/card` SVG endpoint using `renderToStaticMarkup` and cache headers.
-- Publish panel: preview, copy Markdown, copy URL, download SVG, download PNG (canvas rasterization), with copy-success feedback that is announced to screen readers.
-- Error SVGs: the embed renders a readable error card instead of a broken image.
-- **Preview modes:** desktop, tablet, and mobile widths, plus GitHub light and dark README surfaces (preview container only).
-- **Playwright E2E with `@axe-core/playwright`:** connect → customize → publish, a keyboard-only path, and an axe scan of each state (empty, loading, partial error, loaded) at mobile and desktop sizes. Runs in CI and fails on any serious or critical violation.
+- [x] Docs: URL contract, caching layers, abuse protection, error policy.
+- [x] Versioned config ⇄ URL encoding (`src/publish/card-params.ts`): frozen v1 codes, strict and lenient decoding, golden-URL compatibility tests.
+- [x] Per-username, date-independent upstream cache with a 12h revalidate. Failed refreshes keep serving the last good data.
+- [x] Dependency-free SVG serializer with a byte-parity test against `renderToStaticMarkup`.
+- [x] `GET /api/card`: validated params, error cards, ETag/304, `Cache-Control: no-cache` for camo, `CDN-Cache-Control` for the edge, rate limits, and an upstream budget.
+- [x] Studio: decode the full config from the URL (Edit link), keep the URL in sync, keep settings across reconnects.
+- [x] Publish panel: live published-image preview, Copy Markdown (single image or theme-matching `<picture>`), copy image and edit URLs, SVG and PNG downloads, accessible status messages.
+- [x] Verify real `jenkruk` / `contactkruk` embeds.
 
 **Acceptance criteria**
 
-- An embed URL pasted into a GitHub README renders and updates within the cache window.
-- SVG and PNG downloads match the preview.
-- The E2E suite and axe checks pass in CI.
+- One Markdown snippet in a README renders current data and refreshes about every 12 hours with no user action. Verified locally against live data. Verifying inside a real GitHub README needs a deployment (Phase 3.1).
+- GitHub-only, GitLab-only and combined URLs render. Invalid or partial-failure URLs render explanatory error cards, never misleading partial totals.
+- Golden URLs from v1 keep decoding to the same design.
+- SVG and PNG downloads match the published image.
+- No credentials or internal errors appear in SVGs, responses or bundles.
+
+## Phase 3.1: Publish hardening
+
+- Playwright E2E with `@axe-core/playwright`: connect → customize → publish, a keyboard-only path, and an axe scan of each state (empty, loading, partial error, loaded, published) at mobile and desktop sizes. Runs in CI and fails on serious or critical violations.
+- Preview modes: desktop, tablet and mobile widths, plus GitHub light and dark README surfaces (preview container only).
+- Verify an embed inside a real GitHub README after the first deployment (requires approval to deploy), including how camo's caching behaves in practice.
 
 ## Phase 4: Color studio and design-system depth
 

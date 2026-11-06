@@ -44,11 +44,11 @@ afterEach(() => vi.unstubAllGlobals());
 
 function setup(props: Partial<Parameters<typeof Studio>[0]> = {}) {
   const user = userEvent.setup();
-  render(<Studio sampleDataset={createSampleDataset()} {...props} />);
+  render(<Studio sampleDataset={createSampleDataset()} origin="https://gitvis.test" {...props} />);
   const github = () => screen.getByRole("textbox", { name: /github username/i });
   const gitlab = () => screen.getByRole("textbox", { name: /gitlab username/i });
   const submit = () => screen.getByRole("button", { name: /load contributions|loading/i });
-  const preview = () => screen.getByRole("img", { name: /contribution activity/i });
+  const preview = () => screen.getByRole("img", { name: "Contribution activity" });
   return { user, github, gitlab, submit, preview };
 }
 
@@ -90,7 +90,14 @@ describe("Connect flow", () => {
     expect(await screen.findByText(/GitLab @contactkruk: 175 contributions/, { selector: "span" })).toBeVisible();
     expect(screen.getByText(/GitHub @jenkruk: GitHub is rate-limiting/, { selector: "span" })).toBeVisible();
     expect(preview()).not.toHaveAccessibleDescription(/sample data/i);
-    expect(window.location.search).toBe("?github=jenkruk&gitlab=contactkruk");
+    // The address bar becomes the full Edit link (usernames + design).
+    const search = new URLSearchParams(window.location.search);
+    expect([search.get("v"), search.get("github"), search.get("gitlab"), search.get("layout")]).toEqual([
+      "1",
+      "jenkruk",
+      "contactkruk",
+      "dashboard",
+    ]);
 
     fetchMock.mockResolvedValue(jsonResponse({ ...loaded, results: [loaded.results[1]] }));
     await user.click(screen.getByRole("button", { name: "Retry GitHub" }));
@@ -105,7 +112,7 @@ describe("Connect flow", () => {
     await user.click(submit());
 
     expect(screen.getByText("Loading contributions…")).toHaveAttribute("role", "status");
-    expect(screen.getByRole("img", { name: /contribution activity/i }).closest("[aria-busy]")).toHaveAttribute(
+    expect(screen.getByRole("img", { name: "Contribution activity" }).closest("[aria-busy]")).toHaveAttribute(
       "aria-busy",
       "true",
     );
@@ -159,6 +166,9 @@ describe("Connect flow", () => {
     await screen.findByText(/175 contributions/, { selector: "span" });
 
     expect(screen.getByRole("radio", { name: /minimal/i })).toBeChecked();
-    expect(within(screen.getByRole("img", { name: /contribution activity/i })).getByText(/@contactkruk/)).toBeTruthy();
+    expect(
+      within(screen.getByRole("img", { name: "Contribution activity" })).getAllByText(/@contactkruk/).length,
+    ).toBeGreaterThan(0);
+    expect(new URLSearchParams(window.location.search).get("layout")).toBe("minimal");
   });
 });

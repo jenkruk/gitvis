@@ -26,6 +26,7 @@ When a feature is enabled but the current layout doesn't support it, the setting
 - **Weekly trend:** an area plus line chart of weekly totals, with a baseline and min/max labels.
 - **Monthly comparison:** stacked bars per month, one segment per platform, with a legend.
 - **Sample badge:** a pill in the header reading "Sample data". It is always shown when `provenance === "sample"`.
+- **Error card** (published images only): same frame and palette as the graphic, with a title, a one-line user-safe message, and a hint on how to fix it. It has its own `<title>`/`<desc>`, so a broken README embed still explains itself.
 
 ## Typography
 

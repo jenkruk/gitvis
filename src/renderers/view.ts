@@ -1,6 +1,6 @@
 import type { VisualizationConfig } from "@/config/config";
 import { sliceToRange, sliceToRecentDays } from "@/domain/combine";
-import { formatDate, type DateRange } from "@/domain/dates";
+import { type DateRange, diffDays, formatDate } from "@/domain/dates";
 import {
   coveredSpan,
   historyRange,
@@ -23,8 +23,13 @@ export interface PreparedView {
   metricsView: ContributionDataset;
   /** One entry per 12-month period with any data, newest first; empty for a single period. */
   periods: PeriodSummary[];
-  /** Set when stats cover less than the calendars (e.g. GitLab has no history). */
-  scopeNote?: string;
+  /**
+   * Multi-year only: the reporting period of every summary statistic, as a short
+   * heading — "Last 12 months · GitHub + GitLab", "Last 3 years · GitHub".
+   */
+  statsLabel?: string;
+  /** The period part alone ("Last 12 months"), appended to chart and breakdown titles. */
+  statsPeriod?: string;
   /** Set when more years were requested than the data can show. */
   historyNote?: string;
 }
@@ -46,14 +51,10 @@ export function prepareView(
     shownPeriods > 1 ? periodSummaries(view).filter((p) => periodHasData(view, p.range)) : ([] as PeriodSummary[]);
 
   const prepared: PreparedView = { view, metricsView, periods };
-  if (metricsView !== view) {
-    const partial = view.sources
-      .filter((s) => s.coverage !== undefined && (s.coverage === null || s.coverage.start > view.range.start))
-      .map((s) => PLATFORMS[s.platform].label);
-    // The single on-image explanation of missing history; calendar titles just say "· GitHub only".
-    prepared.scopeNote = `Stats cover ${rangeLabel(metricsView.range)}, when every platform has data.${
-      partial.length ? ` ${partial.join(" and ")} history isn't available for earlier years.` : ""
-    }`;
+  // Several calendars are shown: say exactly which period and accounts the summary numbers cover.
+  if (periods.length > 1) {
+    prepared.statsPeriod = periodName(metricsView.range, view.range.end);
+    prepared.statsLabel = `${prepared.statsPeriod} · ${platformsLabel(metricsView)}`;
   }
   const missing = config.years - (periods.length || 1);
   if (config.years > 1 && missing > 0) prepared.historyNote = historyNoteFor(dataset, missing);
@@ -86,14 +87,32 @@ export function describePeriod(period: PeriodSummary): string {
   return `${label}: ${noun(period.total)} (${only} only${suffix}).`;
 }
 
-/** Short right-hand summary for a period's calendar title. */
-export function periodHeadline(period: PeriodSummary): string {
-  const noun = (n: number) => `${formatNumber(n)} ${n === 1 ? "contribution" : "contributions"}`;
-  const known = period.platforms.filter((p) => p.status === "complete");
-  if (known.length === 0) return "No data available";
-  if (period.complete) return noun(period.total);
-  const only = known.map((p) => PLATFORMS[p.platform].label).join(" and ");
-  return `${noun(period.total)} · ${only} only`;
+/** "Last 12 months" / "Last 3 years" for spans ending today in whole 12-month periods; dates otherwise. */
+export function periodName(range: DateRange, end: DateRange["end"]): string {
+  const days = diffDays(range.start, range.end) + 1;
+  if (range.end !== end || days % 365 !== 0) return rangeLabel(range);
+  const years = days / 365;
+  return years === 1 ? "Last 12 months" : `Last ${years} years`;
+}
+
+/** "GitHub + GitLab" / "GitHub": the accounts a set of numbers comes from. */
+export function platformsLabel(dataset: ContributionDataset): string {
+  return dataset.sources.map((s) => PLATFORMS[s.platform].label).join(" + ");
+}
+
+/** A period's total, e.g. "965 contributions". */
+export function periodTotal(period: PeriodSummary): string {
+  if (!period.platforms.some((p) => p.status === "complete")) return "No data";
+  return `${formatNumber(period.total)} ${period.total === 1 ? "contribution" : "contributions"}`;
+}
+
+/** Which accounts a period's total covers: "GitHub + GitLab", "GitHub", or "GitHub only · GitLab unavailable". */
+export function periodCoverage(period: PeriodSummary): string {
+  const known = period.platforms.filter((p) => p.status === "complete").map((p) => PLATFORMS[p.platform].label);
+  const missing = period.platforms.filter((p) => p.status === "unavailable").map((p) => PLATFORMS[p.platform].label);
+  if (known.length === 0) return `${missing.join(" + ")} unavailable`;
+  if (missing.length === 0) return known.join(" + ");
+  return `${known.join(" + ")} only · ${missing.join(" + ")} unavailable`;
 }
 
 export { rangeLabel };

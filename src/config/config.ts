@@ -1,5 +1,5 @@
 import type { HistoryYears } from "@/domain/history";
-import type { ContributionDataset, PlatformId } from "@/domain/types";
+import { type ContributionDataset, PLATFORM_IDS, type PlatformId } from "@/domain/types";
 import type { ColorMode, PaletteId, PanelStyle } from "@/theme/palettes";
 import {
   defaultFeatureFlags,
@@ -90,6 +90,21 @@ export function presetOf(config: Pick<VisualizationConfig, "identity">): Startin
   return config.identity.style === "none" ? "graphic" : "profile";
 }
 
+/**
+ * Source attribution: every connected account's platform and username are
+ * shown whenever its contributions are. Applied to every v2 URL and every
+ * studio design; legacy v1 URLs are decoded as-is so old embeds never change.
+ */
+export function withAttribution(config: VisualizationConfig): VisualizationConfig {
+  const allHandles = PLATFORM_IDS.every((p) => config.identity.handles.includes(p));
+  if (config.features.platformLabels && allHandles) return config;
+  return {
+    ...config,
+    features: { ...config.features, platformLabels: true },
+    identity: { ...config.identity, handles: [...PLATFORM_IDS] },
+  };
+}
+
 export function defaultIdentity(): IdentityConfig {
   return { style: "none", handles: ["github", "gitlab"], avatars: [], name: "", title: "" };
 }
@@ -139,7 +154,6 @@ export type ConfigAction =
   | { type: "setPalette"; palette: PaletteId }
   | { type: "setMode"; mode: ColorMode }
   | { type: "setIdentityStyle"; style: IdentityStyle }
-  | { type: "setHandle"; platform: PlatformId; enabled: boolean }
   | { type: "setAvatar"; platform: PlatformId; enabled: boolean }
   | { type: "setName"; name: string }
   | { type: "setTitle"; title: string }
@@ -175,6 +189,8 @@ export function configReducer(state: VisualizationConfig, action: ConfigAction):
     case "setLayout":
       return state.layout === action.layout ? state : { ...state, layout: action.layout };
     case "setFeature":
+      // Source attribution can't be switched off (see withAttribution).
+      if (!action.enabled && getFeature(action.feature).alwaysOn) return state;
       return state.features[action.feature] === action.enabled
         ? state
         : { ...state, features: { ...state.features, [action.feature]: action.enabled } };
@@ -184,8 +200,6 @@ export function configReducer(state: VisualizationConfig, action: ConfigAction):
       return state.mode === action.mode ? state : { ...state, mode: action.mode };
     case "setIdentityStyle":
       return state.identity.style === action.style ? state : identity({ style: action.style });
-    case "setHandle":
-      return identity({ handles: toggle(state.identity.handles, action.platform, action.enabled) });
     case "setAvatar":
       return identity({ avatars: toggle(state.identity.avatars, action.platform, action.enabled) });
     case "setName":

@@ -14,6 +14,11 @@ export interface FeatureDefinition {
   defaultEnabled: boolean;
   /** Data condition required for the feature to be meaningful. */
   requires?: "multiplePlatforms";
+  /**
+   * Always on for new designs (URL v2+): not offered as a toggle. Only legacy
+   * v1 URLs can carry it disabled, and they render exactly as they always did.
+   */
+  alwaysOn?: boolean;
 }
 
 export const FEATURES = [
@@ -76,10 +81,11 @@ export const FEATURES = [
   },
   {
     id: "platformLabels",
-    label: "Platform labels & links",
-    description: "Show usernames and profile links for each platform.",
+    label: "Account labels & links",
+    description: "The platform and username behind every contribution shown (source attribution).",
     group: "context",
     defaultEnabled: true,
+    alwaysOn: true,
   },
 ] as const satisfies readonly FeatureDefinition[];
 

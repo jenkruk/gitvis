@@ -162,7 +162,13 @@ ConnectForm (client) ──GET /api/contributions?github=&gitlab=──▶ route
 
 ## Publish: export and embedding (Phase 3)
 
-### URL contract (v1)
+### URL contract (v1 and v2)
+
+**v2 (current encoder) = v1's parameters + mandatory source attribution.** Under v1, account labels could be removed (`f` without `labels`, or `hl=`). Forcing them on at render time would have changed existing READMEs, so attribution became a new version, as the contract requires for breaking changes:
+
+- `v=1` (or no `v`) decodes and renders **exactly as before**, including URLs that hid their accounts. Legacy SVG snapshots and v1 golden tests pin this.
+- `v=2` decodes the same parameters, then applies `withAttribution`: account labels on and every connected account shown; `labels`/`hl` can't remove them. The encoder writes `v=2` and never writes `hl`. A default design's URL differs from v1 only in its version.
+- The studio applies `withAttribution` to every design (including legacy Edit links), so re-publishing an old embed produces an attributed v2 URL; the old embed itself is never changed.
 
 ```
 /api/card?v=1&github=jenkruk&gitlab=contactkruk&layout=dashboard&palette=aurora&mode=dark&f=heatmap,total,active,streak,breakdown,trends,labels
@@ -309,7 +315,8 @@ Card errors return **HTTP 200 with a readable error SVG** (plus `X-GitVis-Status
 
 **One derivation for every view** (`src/renderers/view.ts`, `prepareView`): the years slice (`historyRange`, 365-day periods ending today), the legacy 30/90-day slice, and `metricsView` — the span **every** connected platform covers (`coveredSpan`). Stats, breakdown, trends, the monthly table and the description use `metricsView`; calendars use the full view. The graphic, studio preview and data table all call it, so their numbers can't drift.
 
-- **Combined accounts, 2–3 years:** calendars show GitHub-only history for earlier periods, each titled "… · GitHub only". Missing GitLab history is explained once, in the scope note under the stats ("Stats cover … when every platform has data. GitLab history isn't available for earlier years.") — real-data screenshots showed a per-calendar note was redundant clutter. Cell tooltips say "(GitHub only; GitLab not available)"; the description and data table give per-period detail. No hatching.
+- **Combined accounts, 2–3 years:** each period is its own card whose header pairs the dates with that period's total and a coverage label ("GitHub + GitLab" / "GitHub only · GitLab unavailable"). Summary statistics carry a reporting-period heading — **"Last 12 months · GitHub + GitLab"** — also appended to breakdown and chart titles, and stated in `<desc>` ("Summary statistics: Last 12 months, GitHub + GitLab.") and the data table's headings. Cell tooltips say "(GitHub only; GitLab not available)". No hatching.
+- **GitHub-only accounts:** "Last 3 years · GitHub" (complete data, full-span stats).
 - **Per-period summaries** (`periodSummaries`): a platform's total is reported only if it covers the **whole** period; otherwise "unavailable". A combined total exists only when every platform is complete (the data table shows "Not available" / "Incomplete").
 - **GitHub-only accounts:** full-span stats (complete data).
 - **GitLab-only accounts:** the studio disables 2 and 3 years with the reason; a hand-made `yrs` URL renders 12 months plus "The earlier years aren't available: GitLab publishes only the last 12 months."
@@ -327,7 +334,7 @@ Card errors return **HTTP 200 with a readable error SVG** (plus `X-GitVis-Status
 
 `pnl` sets how stat cards, the heatmap container, the platform breakdown and chart panels are drawn: **filled** (`surface` + `border`, the original), **outlined** (border only) or **borderless** (nothing; section spacing separates them). Every panel goes through the `Panel` primitive, so the style is applied consistently.
 
-Unfilled panels put their content directly on whatever is behind them, so `applyPanelStyle` re-checks text and muted text (4.5:1), and accent, series and the top heatmap level (3:1), against the **actual backdrops** from `panelBackdrops`: the canvas color (solid), both gradient stops (gradient), or GitHub's page colors for the matching mode (transparent). Filled panels return the theme untouched, so `pnl` absent = byte-identical legacy output. Contrast is tested for all 15 palettes × 2 modes × 3 backgrounds × 2 unfilled styles, including a worst-case custom series color.
+Unfilled panels put their content directly on whatever is behind them, so `applyPanelStyle` re-checks text and muted text (4.5:1), and accent, series and the top heatmap level (3:1), against the **actual backdrops** from `panelBackdrops`: the canvas color (solid), both gradient stops (gradient), or GitHub's page colors for the matching mode (transparent). Filled panels return the theme untouched, so `pnl` absent = byte-identical legacy output. Contrast is tested for all 24 palettes × 2 modes × 3 backgrounds × 2 unfilled styles, including a worst-case custom series color.
 
 ### Avatars (Phase 4)
 

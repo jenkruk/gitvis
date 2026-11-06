@@ -6,7 +6,7 @@ import { applyPanelStyle, gradientEnd, panelBackdrops, resolveTheme } from "@/th
 import { type AvatarImages, IdentityHeader, identityHeaderHeight } from "./IdentityHeader";
 import { LAYOUT_SECTIONS, SPACING } from "./layouts";
 import { CANVAS_WIDTHS, type CardSize, contentWidthFor, formatNumber, PADDING, stackSections } from "./primitives";
-import { Header, headerHeight } from "./sections";
+import { Header, headerAttribution, headerHeight } from "./sections";
 import { describePeriod, type PreparedView, prepareView } from "./view";
 
 export interface VisualizationProps {
@@ -27,10 +27,10 @@ export interface VisualizationProps {
 /** Multi-year additions to the text alternative (empty for a single period, so legacy text is unchanged). */
 export function describeHistory({
   periods,
-  scopeNote,
+  statsLabel,
   historyNote,
-}: Pick<PreparedView, "periods" | "scopeNote" | "historyNote">): string {
-  const parts = scopeNote ? [scopeNote] : [];
+}: Pick<PreparedView, "periods" | "statsLabel" | "historyNote">): string {
+  const parts = statsLabel ? [`Summary statistics: ${statsLabel.replace(" · ", ", ")}.`] : [];
   if (periods.length > 1) parts.push(`By 12-month period, newest first: ${periods.map(describePeriod).join(" ")}`);
   if (historyNote) parts.push(historyNote);
   return parts.join(" ");
@@ -97,7 +97,7 @@ export function Visualization({
 }: VisualizationProps) {
   const prepared = prepareView(fullDataset, config);
   // `dataset` = what the calendars and header show; metrics only cover what every platform reports.
-  const { view: dataset, metricsView, periods, scopeNote, historyNote } = prepared;
+  const { view: dataset, metricsView, periods, statsLabel, statsPeriod, historyNote } = prepared;
   const metrics = provided ?? computeMetrics(metricsView);
   const custom = config.platformColors;
   const base = resolveTheme(
@@ -116,7 +116,8 @@ export function Visualization({
     dataset: metricsView,
     calendar: dataset,
     periods,
-    scopeNote,
+    statsLabel,
+    statsPeriod,
     historyNote,
     metrics,
     theme,
@@ -128,8 +129,18 @@ export function Visualization({
 
   const header =
     identity.style === "none"
-      ? headerHeight(compactCanvas, showPlatformLabels && identity.handles.length > 0)
-      : identityHeaderHeight(dataset, { ...identity, style: identity.style }, compactCanvas, showPlatformLabels);
+      ? headerHeight(
+          compactCanvas,
+          showPlatformLabels && identity.handles.length > 0,
+          headerAttribution(dataset, identity.handles, contentWidthFor(size), compactCanvas).ownLine,
+        )
+      : identityHeaderHeight(
+          dataset,
+          { ...identity, style: identity.style },
+          compactCanvas,
+          showPlatformLabels,
+          contentWidthFor(size),
+        );
   const top = PADDING + header + spacing.sectionGap;
   const { nodes, bottom } = stackSections(sections, top, spacing.sectionGap);
   const height = Math.ceil(bottom + PADDING - (sections.length === 0 ? spacing.sectionGap : 0));

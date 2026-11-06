@@ -18,10 +18,9 @@ test.describe("published multi-year card", () => {
     expect(res.status()).toBe(200);
     expect(status).toBe("ok");
     expect(svg.match(/>More</g)).toHaveLength(1); // one legend for all calendars
-    expect(svg.match(/contributions · GitHub only</g)).toHaveLength(2);
-    const visible = svg.replace(/<desc[\s\S]*?<\/desc>/, "");
-    expect(visible.match(/GitLab history isn&#x27;t available for earlier years\./g)).toHaveLength(1); // said once
-    expect(svg).toContain("Stats cover");
+    expect(svg.match(/>GitHub only · GitLab unavailable</g)).toHaveLength(2); // the two older year cards
+    expect(svg).toContain(">GitHub + GitLab<"); // the newest card
+    expect(svg).toContain(">Last 12 months · GitHub + GitLab<"); // the summary statistics' period
     expect(desc).toContain("By 12-month period, newest first");
     expect(svg).not.toMatch(/<pattern/); // no hatching
   });
@@ -41,7 +40,7 @@ test.describe("published multi-year card", () => {
     const { svg } = await getCard(request, `github=${user}&gitlab=${user}&yrs=3&size=compact`);
     expect(svg).toMatch(/^<svg[^>]+width="400"/);
     expect(svg).toContain("Last 20 weeks");
-    expect(svg).toContain("GitHub only");
+    expect(svg).toContain("GitHub only · GitLab unavailable");
   });
 
   test("legacy 30/90/365-day URLs render as before, and can't be mixed with yrs", async ({ request }) => {
@@ -117,5 +116,19 @@ test.describe("phones (375px)", () => {
     await expect(graphic.getByText("Last 20 weeks")).toBeAttached();
     await expectAccessible(page, "3-year history on a phone");
     await expectNoHorizontalScroll(page);
+  });
+});
+
+test.describe("source attribution (v2)", () => {
+  test("a v2 URL can't hide the accounts, while the same v1 URL renders exactly as before", async ({ request }) => {
+    const user = uniqueUser("attr");
+    await upstream(request, user, { count: 2 });
+    const hidden = `github=${user}&f=heatmap,total&hl=`;
+    const v1 = await getCard(request, `v=1&${hidden}`);
+    const v2 = await getCard(request, `v=2&${hidden}`);
+    const visible = (svg: string) => svg.replace(/<desc[\s\S]*?<\/desc>/, "");
+    expect(visible(v1.svg)).not.toContain(`@${user}`); // the legacy embed is untouched
+    expect(visible(v2.svg)).toContain(`@${user}`);
+    expect(v2.desc).toContain(`GitHub @${user}`);
   });
 });

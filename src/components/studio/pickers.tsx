@@ -204,6 +204,10 @@ export function PalettePicker({ config, dispatch }: PickerProps) {
 
 const GROUP_ORDER: FeatureGroup[] = ["visuals", "stats", "context"];
 
+/** Registry-driven: always-on features (source attribution) aren't offered as switches. */
+const toggleable = (group: FeatureGroup) =>
+  FEATURES.filter((f) => f.group === group && !("alwaysOn" in f && f.alwaysOn));
+
 export function FeatureToggles({ config, dispatch, dataset }: PickerProps & { dataset: ContributionDataset }) {
   const layoutLabel = getLayout(config.layout).label;
   const noteFor = (visibility: ReturnType<typeof getFeatureVisibility>) => {
@@ -224,21 +228,23 @@ export function FeatureToggles({ config, dispatch, dataset }: PickerProps & { da
             noteFor={(id) => noteFor(getFeatureVisibility(id, config, dataset))}
           />
         ) : (
-          <ControlGroup key={group} legend={FEATURE_GROUP_LABELS[group]}>
-            <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
-              {FEATURES.filter((f) => f.group === group).map((feature) => (
-                <Switch
-                  key={feature.id}
-                  id={`feature-${feature.id}`}
-                  label={feature.label}
-                  description={feature.description}
-                  checked={config.features[feature.id]}
-                  onChange={(enabled) => dispatch({ type: "setFeature", feature: feature.id, enabled })}
-                  note={noteFor(getFeatureVisibility(feature.id, config, dataset))}
-                />
-              ))}
-            </div>
-          </ControlGroup>
+          toggleable(group).length > 0 && (
+            <ControlGroup key={group} legend={FEATURE_GROUP_LABELS[group]}>
+              <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                {toggleable(group).map((feature) => (
+                  <Switch
+                    key={feature.id}
+                    id={`feature-${feature.id}`}
+                    label={feature.label}
+                    description={feature.description}
+                    checked={config.features[feature.id]}
+                    onChange={(enabled) => dispatch({ type: "setFeature", feature: feature.id, enabled })}
+                    note={noteFor(getFeatureVisibility(feature.id, config, dataset))}
+                  />
+                ))}
+              </div>
+            </ControlGroup>
+          )
         ),
       )}
     </div>

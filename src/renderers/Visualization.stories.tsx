@@ -78,7 +78,7 @@ export const AllLayouts: Story = {
   ),
 };
 
-/** All 15 palettes in light and dark (minimal layout keeps the gallery compact). */
+/** All 24 palettes in light and dark (minimal layout keeps the gallery compact). */
 export const PaletteGallery: Story = {
   render: (args: VisualizationProps) => (
     <div className="grid gap-4 md:grid-cols-2">
@@ -217,4 +217,39 @@ export const HistoryPhone: Story = {
 export const HistoryGitLabOnly: Story = {
   name: "History · GitLab only (explains the 12-month limit)",
   args: { dataset: gitlabOnlyDataset, config: threeYears },
+};
+
+/** Each 12-month period in its own card; the frame follows the panel style (Borderless: hairlines, no boxes). */
+export const HistoryYearCards: Story = {
+  name: "History · year cards in every panel style",
+  render: (args: VisualizationProps) => (
+    <div className="grid gap-6">
+      {(["filled", "outlined", "borderless"] as const).map((panel) => (
+        <figure key={panel} className="m-0">
+          <figcaption className="mb-1 text-sm">{panel}</figcaption>
+          <Visualization
+            {...args}
+            idPrefix={`cards-${panel}`}
+            dataset={history}
+            config={configWith({ type: "setYears", years: 3 }, { type: "setPanel", panel })}
+          />
+        </figure>
+      ))}
+    </div>
+  ),
+};
+
+/** Mandatory source attribution: a very long username moves to its own line and is shortened; <desc> keeps it whole. */
+export const AttributionLongUsername: Story = {
+  name: "Attribution · long username",
+  args: {
+    dataset: {
+      ...sampleDataset,
+      sources: sampleDataset.sources.map((s) =>
+        s.platform === "gitlab"
+          ? { ...s, username: "a-very-long-gitlab-username-for-a-team-account-with-a-suffix" }
+          : s,
+      ),
+    },
+  },
 };

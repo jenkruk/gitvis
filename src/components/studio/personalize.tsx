@@ -54,23 +54,7 @@ export function IdentityPicker({ config, dispatch }: Props) {
         ))}
       </div>
 
-      <fieldset className="mt-4">
-        <legend className="text-sm font-medium">Handles</legend>
-        <p className={hint}>Shown when “Platform labels &amp; links” is on in Metrics &amp; Charts.</p>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          {PLATFORM_IDS.map((p) => (
-            <label key={p} className={checkboxLabel}>
-              <input
-                type="checkbox"
-                className="size-5 accent-zinc-900 dark:accent-zinc-100"
-                checked={identity.handles.includes(p)}
-                onChange={(e) => dispatch({ type: "setHandle", platform: p, enabled: e.target.checked })}
-              />
-              {PLATFORMS[p].label}
-            </label>
-          ))}
-        </div>
-      </fieldset>
+      <p className={`mt-4 ${hint}`}>Your GitHub and GitLab usernames always appear on the graphic.</p>
 
       <fieldset className="mt-4" aria-describedby="identity-avatars-hint">
         <legend className="text-sm font-medium">Avatars</legend>

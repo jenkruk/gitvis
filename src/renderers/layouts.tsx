@@ -7,7 +7,14 @@ import type { CombinedDay, ContributionDataset } from "@/domain/types";
 import type { ContributionMetrics } from "@/metrics/metrics";
 import type { ThemeTokens } from "@/theme/palettes";
 import { Heatmap, measureHeatmap } from "./Heatmap";
-import { HistoryCalendars, measureHistoryCalendars, measureYearlySummary, YearlySummary } from "./HistoryCalendars";
+import {
+  historyScale,
+  isBorderless,
+  measureYearlySummary,
+  YearCard,
+  yearCardHeight,
+  YearlySummary,
+} from "./HistoryCalendars";
 import {
   type CardSize,
   COMPACT_HEATMAP_WEEKS,
@@ -52,8 +59,10 @@ export interface LayoutContext {
   calendar?: ContributionDataset;
   /** 12-month periods to draw as separate calendars (multi-year only). */
   periods?: PeriodSummary[];
-  /** Explains that stats cover less than the calendars. */
-  scopeNote?: string;
+  /** Multi-year only: the summary statistics' reporting period, e.g. "Last 12 months · GitHub + GitLab". */
+  statsLabel?: string;
+  /** The period alone ("Last 12 months"), appended to breakdown and chart titles. */
+  statsPeriod?: string;
   /** Explains that fewer years are shown than requested. */
   historyNote?: string;
   metrics: ContributionMetrics;
@@ -117,16 +126,58 @@ function note(ctx: LayoutContext, key: string, text: string | undefined): Sectio
   };
 }
 
-/** Full-width images: one calendar per 12-month period, newest first, with yearly summaries. */
-function historyBody(ctx: LayoutContext, x: number, innerWidth: number) {
-  const periods = ctx.periods ?? [];
-  const calendar = calendarOf(ctx);
+/** Multi-year only: a concise heading naming the period and accounts behind every summary statistic. */
+function statsHeading(ctx: LayoutContext): Section | null {
+  if (!ctx.statsLabel) return null;
   return {
-    height: measureHistoryCalendars(periods, calendar, innerWidth),
-    render: (y: number) => (
-      <HistoryCalendars periods={periods} view={calendar} theme={ctx.theme} x={x} y={y} width={innerWidth} />
+    key: "stats-heading",
+    height: 16,
+    render: (y) => (
+      <text x={PADDING} y={y + 12} fontSize={12} fontWeight={600} fill={ctx.theme.text} fontFamily={FONT_STACK}>
+        {ctx.statsLabel}
+      </text>
     ),
   };
+}
+
+/**
+ * Full-width images: one card per 12-month period, newest first, each with its
+ * own header and the panel style's frame (Borderless: hairline separators).
+ */
+function yearCards(ctx: LayoutContext): Section[] {
+  const periods = ctx.periods ?? [];
+  const calendar = calendarOf(ctx);
+  const scale = historyScale(calendar);
+  const borderless = isBorderless(ctx.theme);
+  const padding = borderless ? 0 : ctx.spacing.panelPadding;
+  return periods.map((period, i) => {
+    const last = i === periods.length - 1;
+    return {
+      key: `year-${period.range.end}`,
+      height: yearCardHeight(calendar, period, width(ctx), padding, last),
+      render: (y) => (
+        <YearCard
+          view={calendar}
+          period={period}
+          theme={ctx.theme}
+          x={PADDING}
+          y={y}
+          width={width(ctx)}
+          padding={padding}
+          showLegend={last}
+          scale={scale}
+          separator={borderless && i > 0 ? ctx.spacing.sectionGap / 2 : undefined}
+        />
+      ),
+    };
+  });
+}
+
+/** The heatmap: year cards for multi-year full images, the single (or recent-weeks) calendar otherwise. */
+function heatmapSections(ctx: LayoutContext): (Section | null)[] {
+  if (!ctx.isVisible("heatmap")) return [];
+  if (isHistory(ctx) && !isCompact(ctx)) return yearCards(ctx);
+  return [yearlySummary(ctx, true), heatmapPanel(ctx)];
 }
 
 /** Phones: yearly summaries (text) above the readable recent-weeks heatmap. */
@@ -140,7 +191,13 @@ function yearlySummary(ctx: LayoutContext, framed: boolean): Section | null {
     render: (y) => (
       <>
         {framed && <Panel x={PADDING} y={y} width={width(ctx)} height={height} theme={ctx.theme} />}
-        <YearlySummary periods={ctx.periods!} theme={ctx.theme} x={PADDING + pad} y={y + pad} />
+        <YearlySummary
+          periods={ctx.periods!}
+          theme={ctx.theme}
+          x={PADDING + pad}
+          y={y + pad}
+          width={width(ctx) - pad * 2}
+        />
       </>
     ),
   };
@@ -149,20 +206,6 @@ function yearlySummary(ctx: LayoutContext, framed: boolean): Section | null {
 function heatmapPanel(ctx: LayoutContext): Section {
   const { theme } = ctx;
   const PANEL_PADDING = ctx.spacing.panelPadding;
-  if (isHistory(ctx) && !isCompact(ctx)) {
-    const body = historyBody(ctx, PADDING + PANEL_PADDING, width(ctx) - PANEL_PADDING * 2);
-    const panelHeight = body.height + PANEL_PADDING * 2;
-    return {
-      key: "heatmap",
-      height: panelHeight,
-      render: (y) => (
-        <>
-          <Panel x={PADDING} y={y} width={width(ctx)} height={panelHeight} theme={theme} />
-          {body.render(y + PANEL_PADDING)}
-        </>
-      ),
-    };
-  }
   const days = heatmapDays(ctx);
   const innerWidth = width(ctx) - PANEL_PADDING * 2;
   const caption = showCaption(ctx, days) ? CAPTION_HEIGHT : 0;
@@ -222,6 +265,7 @@ function breakdown(ctx: LayoutContext): Section | null {
         y={y}
         width={width(ctx)}
         height={ctx.spacing.breakdown}
+        period={ctx.statsPeriod}
       />
     ),
   };
@@ -244,38 +288,36 @@ export const LAYOUT_SECTIONS: Record<LayoutId, (ctx: LayoutContext) => Section[]
     const days = heatmapDays(ctx);
     const caption = showCaption(ctx, days) ? CAPTION_HEIGHT : 0;
     const { height } = measureHeatmap(days, width(ctx));
-    const history = isHistory(ctx) && !isCompact(ctx) ? historyBody(ctx, PADDING, width(ctx)) : null;
+    const history = isHistory(ctx) && !isCompact(ctx);
     return compact([
+      items.length > 0 && statsHeading(ctx),
       items.length > 0 && {
         key: "inline-stats",
         height: inlineStatsHeight(items, width(ctx)),
         render: (y) => <InlineStats items={items} theme={ctx.theme} y={y} width={width(ctx)} />,
       },
-      items.length > 0 && note(ctx, "scope-note", ctx.scopeNote),
       ctx.isVisible("heatmap") && yearlySummary(ctx, false),
+      ...(ctx.isVisible("heatmap") && history ? yearCards(ctx) : []),
       ctx.isVisible("heatmap") &&
-        (history
-          ? { key: "heatmap", height: history.height, render: history.render }
-          : {
-              key: "heatmap",
-              height: height + caption,
-              render: (y) => (
-                <>
-                  {caption > 0 && <Caption ctx={ctx} x={PADDING} y={y} />}
-                  <Heatmap days={days} theme={ctx.theme} x={PADDING} y={y + caption} width={width(ctx)} />
-                </>
-              ),
-            }),
+        !history && {
+          key: "heatmap",
+          height: height + caption,
+          render: (y) => (
+            <>
+              {caption > 0 && <Caption ctx={ctx} x={PADDING} y={y} />}
+              <Heatmap days={days} theme={ctx.theme} x={PADDING} y={y + caption} width={width(ctx)} />
+            </>
+          ),
+        },
       ctx.isVisible("heatmap") && note(ctx, "history-note", ctx.historyNote),
     ]);
   },
 
   dashboard: (ctx) =>
     compact([
+      statsHeading(ctx),
       statCards(ctx, false),
-      note(ctx, "scope-note", ctx.scopeNote),
-      ctx.isVisible("heatmap") && yearlySummary(ctx, true),
-      ctx.isVisible("heatmap") && heatmapPanel(ctx),
+      ...heatmapSections(ctx),
       ctx.isVisible("heatmap") && note(ctx, "history-note", ctx.historyNote),
       breakdown(ctx),
       footnote(ctx),
@@ -283,10 +325,9 @@ export const LAYOUT_SECTIONS: Record<LayoutId, (ctx: LayoutContext) => Section[]
 
   dataRich: (ctx) =>
     compact([
+      statsHeading(ctx),
       statCards(ctx, true),
-      note(ctx, "scope-note", ctx.scopeNote),
-      ctx.isVisible("heatmap") && yearlySummary(ctx, true),
-      ctx.isVisible("heatmap") && heatmapPanel(ctx),
+      ...heatmapSections(ctx),
       ctx.isVisible("heatmap") && note(ctx, "history-note", ctx.historyNote),
       breakdown(ctx),
       ctx.isVisible("activityTrends") && {
@@ -301,6 +342,7 @@ export const LAYOUT_SECTIONS: Record<LayoutId, (ctx: LayoutContext) => Section[]
             width={width(ctx)}
             stacked={isCompact(ctx)}
             panelHeight={ctx.spacing.trends}
+            period={ctx.statsPeriod}
           />
         ),
       },

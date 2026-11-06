@@ -64,19 +64,17 @@ describe("profile identity", () => {
     expect(desc(svg)).toMatch(/^Contribution activity for Jen Kruk, Senior Frontend Engineer\. /);
   });
 
-  it("compact identity omits the title and shows only selected handles", () => {
+  it("compact identity omits the title but always attributes every account", () => {
     const svg = render(
       with_(
         { type: "setIdentityStyle", style: "compact" },
         { type: "setName", name: "Jen" },
         { type: "setTitle", title: "Hidden in compact" },
-        { type: "setHandle", platform: "gitlab", enabled: false },
       ),
     );
-    // The visible header hides the GitLab handle; the <desc> still names both accounts whose data is shown.
     const visible = svg.replace(/<desc[^>]*>[^<]*<\/desc>/, "");
     expect(visible).toContain("@jenkruk");
-    expect(visible).not.toContain("@contactkruk");
+    expect(visible).toContain("@contactkruk");
     expect(desc(svg)).toContain("GitLab @contactkruk");
     expect(svg).not.toContain("Hidden in compact");
   });

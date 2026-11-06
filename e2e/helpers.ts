@@ -44,7 +44,8 @@ export async function freshWindow(marginMs = 2_500) {
 }
 
 export async function getCard(request: APIRequestContext, query: string, headers: Record<string, string> = {}) {
-  const res = await request.get(`/api/card?v=1&${query}`, {
+  // Queries without an explicit version are legacy v1 cards (as most existing tests assume).
+  const res = await request.get(`/api/card?${query.startsWith("v=") ? query : `v=1&${query}`}`, {
     headers: { "x-forwarded-for": `198.51.100.${Math.floor(Math.random() * 250)}`, ...headers },
   });
   const svg = await res.text();

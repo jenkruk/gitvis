@@ -1,102 +1,108 @@
 import { isWithinRange } from "@/domain/dates";
 import type { PeriodSummary } from "@/domain/history";
-import type { ContributionDataset } from "@/domain/types";
+import type { ContributionDataset, PlatformId } from "@/domain/types";
 import type { ThemeTokens } from "@/theme/palettes";
 import { Heatmap, measureHeatmap } from "./Heatmap";
 import { heatmapThresholds } from "./heatmap-model";
-import { FONT_STACK } from "./primitives";
-import { periodHeadline, rangeLabel } from "./view";
+import { FONT_STACK, Panel } from "./primitives";
+import { periodCoverage, periodTotal, rangeLabel } from "./view";
 
 /*
- * Multi-year history: one calendar per 12-month period, newest first, each with
- * a one-line title (dates + yearly summary, e.g. "965 contributions · GitHub only").
- * Missing platform history is explained ONCE, in the scope note under the stats —
- * repeating it per calendar added clutter without information (verified on
- * real-data screenshots). Tooltips, the description and the data table keep the
- * per-period detail. No hatching: words carry coverage.
+ * Multi-year history: one card per 12-month period, newest first. Each card has
+ * its own header — dates and that period's total on one line, the accounts it
+ * covers ("GitHub + GitLab", "GitHub only · GitLab unavailable") below — so it's
+ * obvious which total belongs to which calendar. Cards follow the panel style:
+ * Filled/Outlined draw the panel; Borderless draws no box and is separated by a
+ * hairline instead. No hatching: words carry coverage.
  */
 
-const TITLE_HEIGHT = 18;
-const PERIOD_GAP = 14;
+const HEADER_HEIGHT = 40;
+
+/** Shared across every year so a dark cell means the same in each calendar. */
+export function historyScale(view: ContributionDataset): [number, number, number] {
+  return heatmapThresholds(view.days.map((d) => d.total));
+}
 
 function daysOf(view: ContributionDataset, period: PeriodSummary) {
   return view.days.filter((d) => isWithinRange(d.date, period.range));
 }
 
-function periodHeight(view: ContributionDataset, period: PeriodSummary, width: number, last: boolean): number {
-  return TITLE_HEIGHT + measureHeatmap(daysOf(view, period), width, last).height;
+export const isBorderless = (theme: ThemeTokens) => theme.panelFill === "none" && theme.panelStroke === "none";
+
+/** Height of one year card; `padding` is the card's inner padding (0 for borderless). */
+export function yearCardHeight(
+  view: ContributionDataset,
+  period: PeriodSummary,
+  width: number,
+  padding: number,
+  showLegend: boolean,
+): number {
+  return padding * 2 + HEADER_HEIGHT + measureHeatmap(daysOf(view, period), width - padding * 2, showLegend).height;
 }
 
-export function measureHistoryCalendars(periods: PeriodSummary[], view: ContributionDataset, width: number): number {
-  return periods.reduce((height, period, i) => {
-    const last = i === periods.length - 1;
-    return height + periodHeight(view, period, width, last) + (last ? 0 : PERIOD_GAP);
-  }, 0);
-}
-
-export function HistoryCalendars({
-  periods,
+export function YearCard({
   view,
+  period,
   theme,
   x,
   y,
   width,
+  padding,
+  showLegend,
+  scale,
+  separator,
 }: {
-  periods: PeriodSummary[];
   view: ContributionDataset;
+  period: PeriodSummary;
   theme: ThemeTokens;
   x: number;
   y: number;
   width: number;
+  padding: number;
+  showLegend: boolean;
+  scale: readonly [number, number, number];
+  /** Borderless only: a hairline this many px above the card, between years. */
+  separator?: number;
 }) {
-  // One color scale across every year, so a dark cell means the same in each calendar.
-  const scale = heatmapThresholds(view.days.map((d) => d.total));
-  const platforms = view.sources.map((s) => s.platform);
-  const tops = periods.reduce<number[]>(
-    (acc, _period, i) =>
-      i === 0 ? [y] : [...acc, acc[i - 1]! + periodHeight(view, periods[i - 1]!, width, false) + PERIOD_GAP],
-    [],
-  );
+  const inner = width - padding * 2;
+  const left = x + padding;
+  const top = y + padding;
+  const height = yearCardHeight(view, period, width, padding, showLegend);
+  const platforms: PlatformId[] = view.sources.map((s) => s.platform);
+  const strong = { fontFamily: FONT_STACK, fontSize: 13, fontWeight: 600, fill: theme.text };
   return (
     <g>
-      {periods.map((period, i) => {
-        const titleY = tops[i]!;
-        return (
-          <g key={period.range.end}>
-            <text x={x} y={titleY + 12} fontSize={12} fontWeight={600} fill={theme.text} fontFamily={FONT_STACK}>
-              {rangeLabel(period.range)}
-            </text>
-            <text
-              x={x + width}
-              y={titleY + 12}
-              textAnchor="end"
-              fontSize={12}
-              fill={theme.textMuted}
-              fontFamily={FONT_STACK}
-            >
-              {periodHeadline(period)}
-            </text>
-            <Heatmap
-              days={daysOf(view, period)}
-              theme={theme}
-              x={x}
-              y={titleY + TITLE_HEIGHT}
-              width={width}
-              showLegend={i === periods.length - 1}
-              scale={scale}
-              platforms={platforms}
-            />
-          </g>
-        );
-      })}
+      <Panel x={x} y={y} width={width} height={height} theme={theme} />
+      {separator !== undefined && (
+        <line x1={x} x2={x + width} y1={y - separator} y2={y - separator} stroke={theme.border} />
+      )}
+      <text x={left} y={top + 14} {...strong}>
+        {rangeLabel(period.range)}
+      </text>
+      <text x={left + inner} y={top + 14} textAnchor="end" {...strong}>
+        {periodTotal(period)}
+      </text>
+      <text x={left} y={top + 32} fontSize={11} fill={theme.textMuted} fontFamily={FONT_STACK}>
+        {periodCoverage(period)}
+      </text>
+      <Heatmap
+        days={daysOf(view, period)}
+        theme={theme}
+        x={left}
+        y={top + HEADER_HEIGHT}
+        width={inner}
+        showLegend={showLegend}
+        scale={scale}
+        platforms={platforms}
+      />
     </g>
   );
 }
 
 /* Phones: a readable list of yearly summaries instead of three shrunken calendars. */
 
-const SUMMARY_ROW = 34;
-const SUMMARY_GAP = 8;
+const SUMMARY_ROW = 52;
+const SUMMARY_GAP = 12;
 
 export function measureYearlySummary(periods: PeriodSummary[]): number {
   return periods.length * SUMMARY_ROW + Math.max(0, periods.length - 1) * SUMMARY_GAP;
@@ -107,25 +113,35 @@ export function YearlySummary({
   theme,
   x,
   y,
+  width,
 }: {
   periods: PeriodSummary[];
   theme: ThemeTokens;
   x: number;
   y: number;
+  width: number;
 }) {
   return (
     <g>
       {periods.map((period, i) => {
         const top = y + i * (SUMMARY_ROW + SUMMARY_GAP);
         return (
-          <text key={period.range.end} fontFamily={FONT_STACK} fontSize={12}>
-            <tspan x={x} y={top + 12} fontWeight={600} fill={theme.text}>
-              {rangeLabel(period.range)}
-            </tspan>
-            <tspan x={x} y={top + 29} fill={theme.textMuted}>
-              {periodHeadline(period)}
-            </tspan>
-          </text>
+          <g key={period.range.end}>
+            {i > 0 && (
+              <line x1={x} x2={x + width} y1={top - SUMMARY_GAP / 2} y2={top - SUMMARY_GAP / 2} stroke={theme.border} />
+            )}
+            <text fontFamily={FONT_STACK}>
+              <tspan x={x} y={top + 13} fontSize={12} fontWeight={600} fill={theme.text}>
+                {rangeLabel(period.range)}
+              </tspan>
+              <tspan x={x} y={top + 31} fontSize={12} fontWeight={600} fill={theme.text}>
+                {periodTotal(period)}
+              </tspan>
+              <tspan x={x} y={top + 47} fontSize={11} fill={theme.textMuted}>
+                {periodCoverage(period)}
+              </tspan>
+            </text>
+          </g>
         );
       })}
     </g>

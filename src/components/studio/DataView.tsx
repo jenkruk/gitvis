@@ -41,7 +41,15 @@ export function DataView({ prepared, metrics }: { prepared: PreparedView; metric
 
         {prepared.periods.length > 1 && <PeriodTable prepared={prepared} />}
 
-        <dl className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2">
+        {prepared.statsLabel && (
+          <h4 id="data-summary-heading" className="font-medium">
+            Summary statistics · {prepared.statsLabel}
+          </h4>
+        )}
+        <dl
+          aria-labelledby={prepared.statsLabel ? "data-summary-heading" : undefined}
+          className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2"
+        >
           {stats.map(([term, value]) => (
             <div key={term} className="flex justify-between gap-3 border-b border-zinc-100 py-1 dark:border-zinc-800">
               <dt className="text-zinc-600 dark:text-zinc-400">{term}</dt>
@@ -59,7 +67,7 @@ export function DataView({ prepared, metrics }: { prepared: PreparedView; metric
         >
           <table className="w-full min-w-[20rem] border-collapse text-left tabular-nums">
             <caption id="data-monthly-caption" className="mb-2 text-left font-medium">
-              Contributions by month
+              {prepared.statsPeriod ? `Contributions by month · ${prepared.statsPeriod}` : "Contributions by month"}
             </caption>
             <thead>
               <tr className="border-b border-zinc-200 dark:border-zinc-800">

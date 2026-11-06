@@ -142,6 +142,13 @@ Deployment verification moved to Phase 3.2.
 - [x] Studio copy trimmed (redundant group descriptions removed, shorter layout and header descriptions)
 - [x] Historical ranges: 1/2/3 years (`yrs`), one calendar per 12-month period with yearly summaries; GitHub history via per-year cached GraphQL, GitLab's public 12 months only; coverage-aware metrics, descriptions and data table; phone summaries; GitLab-only accounts limited to 1 year with an explanation; 30/90/365-day URLs preserved
 
+## Visual refinement milestone ✅
+
+- [x] Multi-year year cards: each 12-month period framed per panel style (Borderless: hairline separators), header pairs dates with that year's total, coverage labels
+- [x] Nine new palettes (24 total; six featured, "View all 24"), all contrast-tested across modes, backgrounds and panel styles
+- [x] Reporting-period labels for summary statistics ("Last 12 months · GitHub + GitLab"), in the graphic, `<desc>` and data table
+- [x] Mandatory source attribution via URL contract v2; v1 URLs unchanged; long usernames wrap/shorten so attribution always fits
+
 ## Phase 4.3: Design-system depth
 
 **Tasks**

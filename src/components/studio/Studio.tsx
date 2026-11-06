@@ -7,7 +7,7 @@ import { ConnectPanel } from "@/components/connect/ConnectPanel";
 import { useContributions } from "@/components/connect/useContributions";
 import { PublishPanel } from "@/components/publish/PublishPanel";
 import { isStepId, STEP_IDS, STEP_LABELS, type StepId, StepNav } from "@/components/shell/StepNav";
-import { configReducer, createDefaultConfig, type VisualizationConfig } from "@/config/config";
+import { configReducer, createDefaultConfig, type VisualizationConfig, withAttribution } from "@/config/config";
 import { getLayout } from "@/config/layouts";
 import { MAX_HISTORY_YEARS } from "@/domain/history";
 import { type ContributionDataset, PLATFORMS } from "@/domain/types";
@@ -61,7 +61,10 @@ export function Studio({
   initialStep,
   renderCard,
 }: StudioProps) {
-  const [config, dispatch] = useReducer(configReducer, initialConfig, (c) => c ?? createDefaultConfig());
+  // Every studio design attributes its sources, even when opened from a legacy v1 link without labels.
+  const [config, dispatch] = useReducer(configReducer, initialConfig, (c) =>
+    withAttribution(c ?? createDefaultConfig()),
+  );
   const connection = useContributions({ request: initialRequest, response: initialResponse });
   const [previewDevice, setPreviewDevice] = useState<PreviewDevice>("desktop");
   const [publishOptions, setPublishOptions] = useState<SnippetOptions>({ theme: "selected", responsive: true });

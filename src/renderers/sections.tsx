@@ -4,6 +4,7 @@ import type { ContributionMetrics, SeriesPoint } from "@/metrics/metrics";
 import type { ThemeTokens } from "@/theme/palettes";
 import { FONT_STACK, formatNumber, formatPercent, PADDING, Panel } from "./primitives";
 import type { StatItem } from "./stats";
+import { type AttributionLayout, attributionLayout } from "./attribution";
 import { maxCharsFor, wrapText } from "./text";
 
 /** Platform → series color, stable regardless of which platforms are connected. */
@@ -15,9 +16,28 @@ export function seriesColor(theme: ThemeTokens, platform: PlatformId): string {
 
 export const HEADER_HEIGHT = 40;
 
-/** Compact images put platform labels on their own line so nothing overflows. */
-export function headerHeight(compact: boolean, showPlatformLabels: boolean): number {
-  return compact && showPlatformLabels ? 58 : HEADER_HEIGHT;
+/**
+ * Compact images put platform labels on their own line so nothing overflows; full
+ * images do too when the labels wouldn't fit beside the date range (`overflow`).
+ */
+export function headerHeight(compact: boolean, showPlatformLabels: boolean, overflow = false): number {
+  return (compact || overflow) && showPlatformLabels ? 58 : HEADER_HEIGHT;
+}
+
+/** The standard header's attribution layout (shared by Header and the canvas height calculation). */
+export function headerAttribution(
+  dataset: ContributionDataset,
+  handles: readonly PlatformId[],
+  width: number,
+  compact: boolean,
+): AttributionLayout {
+  const sources = dataset.sources.filter((s) => handles.includes(s.platform));
+  return attributionLayout(
+    sources,
+    `${formatDate(dataset.range.start)} – ${formatDate(dataset.range.end)}`,
+    width,
+    compact,
+  );
 }
 
 export function Header({
@@ -45,18 +65,20 @@ export function Header({
   const sources = dataset.sources.filter((s) => handles.includes(s.platform));
   const rangeLabel = `${formatDate(range.start)} – ${formatDate(range.end)}`;
   const font = { fontFamily: FONT_STACK };
+  const attribution = headerAttribution(dataset, handles, width, compact);
+  const ownLine = attribution.ownLine;
   const labels =
     showPlatformLabels &&
     sources.map((source, i) => {
       const label = (
         <>
-          <tspan dx={compact && i === 0 ? 0 : 10} fill={seriesColor(theme, source.platform)}>
+          <tspan dx={ownLine && i === 0 ? 0 : 10} fill={seriesColor(theme, source.platform)}>
             ●
           </tspan>
           <tspan dx={4} fill={theme.text}>
             {PLATFORMS[source.platform].label}
           </tspan>
-          <tspan dx={4}>@{source.username}</tspan>
+          <tspan dx={4}>@{attribution.display(source)}</tspan>
         </>
       );
       return links && source.profileUrl ? (
@@ -75,9 +97,9 @@ export function Header({
       </text>
       <text x={PADDING} y={y + 34} fontSize={11} fill={theme.textMuted} {...font}>
         <tspan>{rangeLabel}</tspan>
-        {!compact && labels}
+        {!ownLine && labels}
       </text>
-      {compact && labels && (
+      {ownLine && labels && (
         <text x={PADDING} y={y + 52} fontSize={11} fill={theme.textMuted} {...font}>
           {labels}
         </text>
@@ -278,12 +300,15 @@ export function PlatformBreakdown({
   y,
   width,
   height = BREAKDOWN_HEIGHT,
+  period,
 }: {
   metrics: ContributionMetrics;
   theme: ThemeTokens;
   y: number;
   width: number;
   height?: number;
+  /** Multi-year only: the reporting period, appended to the title. */
+  period?: string;
 }) {
   const inner = width - 32;
   const dense = height < BREAKDOWN_HEIGHT;
@@ -300,7 +325,7 @@ export function PlatformBreakdown({
     <g>
       <Panel x={PADDING} y={y} width={width} height={height} theme={theme} />
       <text x={PADDING + 16} y={y + titleY} fontSize={11} fontWeight={500} fill={theme.textMuted} {...font}>
-        Platform breakdown
+        {period ? `Platform breakdown · ${period}` : "Platform breakdown"}
       </text>
       <rect x={PADDING + 16} y={barY} width={inner} height={10} rx={5} fill={theme.heatmapEmpty} />
       {segments.map(({ platform, x, width: w }) =>
@@ -346,6 +371,7 @@ export function TrendCharts({
   width,
   stacked = false,
   panelHeight = TRENDS_HEIGHT,
+  period,
 }: {
   metrics: ContributionMetrics;
   dataset: ContributionDataset;
@@ -354,11 +380,21 @@ export function TrendCharts({
   width: number;
   stacked?: boolean;
   panelHeight?: number;
+  /** Multi-year only: the reporting period, appended to each chart title. */
+  period?: string;
 }) {
   const panelWidth = stacked ? width : (width - TRENDS_GAP) / 2;
   return (
     <g>
-      <WeeklyTrend weeks={metrics.weekly} theme={theme} x={PADDING} y={y} width={panelWidth} height={panelHeight} />
+      <WeeklyTrend
+        weeks={metrics.weekly}
+        theme={theme}
+        x={PADDING}
+        y={y}
+        width={panelWidth}
+        height={panelHeight}
+        period={period}
+      />
       <MonthlyComparison
         months={metrics.monthly}
         platforms={dataset.sources.map((s) => s.platform)}
@@ -367,6 +403,7 @@ export function TrendCharts({
         y={stacked ? y + panelHeight + TRENDS_GAP : y}
         height={panelHeight}
         width={panelWidth}
+        period={period}
       />
     </g>
   );
@@ -378,6 +415,7 @@ interface ChartProps {
   y: number;
   width: number;
   height: number;
+  period?: string;
 }
 
 const CHART = { top: 40, bottom: 26, side: 16 };
@@ -391,7 +429,7 @@ function ChartTitle({ theme, x, y, children }: { theme: ThemeTokens; x: number; 
 }
 
 /** Weekly totals as an area + line. Partial edge weeks are excluded so they don't read as dips. */
-function WeeklyTrend({ weeks, theme, x, y, width, height }: ChartProps & { weeks: SeriesPoint[] }) {
+function WeeklyTrend({ weeks, theme, x, y, width, height, period }: ChartProps & { weeks: SeriesPoint[] }) {
   const full = weeks.filter((w) => w.dayCount === 7);
   const plotW = width - CHART.side * 2;
   const plotH = height - CHART.top - CHART.bottom;
@@ -409,7 +447,7 @@ function WeeklyTrend({ weeks, theme, x, y, width, height }: ChartProps & { weeks
     <g>
       <Panel x={x} y={y} width={width} height={height} theme={theme} />
       <ChartTitle theme={theme} x={x} y={y}>
-        Weekly contributions
+        {period ? `Weekly contributions · ${period}` : "Weekly contributions"}
       </ChartTitle>
       <text x={x + width - CHART.side} y={y + 22} textAnchor="end" {...font}>
         peak {formatNumber(max)}/week
@@ -455,6 +493,7 @@ function MonthlyComparison({
   y,
   width,
   height,
+  period,
 }: ChartProps & { months: SeriesPoint[]; platforms: PlatformId[] }) {
   const plotW = width - CHART.side * 2;
   const plotH = height - CHART.top - CHART.bottom;
@@ -469,7 +508,7 @@ function MonthlyComparison({
     <g>
       <Panel x={x} y={y} width={width} height={height} theme={theme} />
       <ChartTitle theme={theme} x={x} y={y}>
-        Monthly by platform
+        {period ? `Monthly by platform · ${period}` : "Monthly by platform"}
       </ChartTitle>
       <text x={x + width - CHART.side} y={y + 22} textAnchor="end" {...font}>
         {platforms.map((p, i) => (

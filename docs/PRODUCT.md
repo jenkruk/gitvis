@@ -52,13 +52,14 @@ Features live in a registry (`src/config/features.ts`). Adding one is a data cha
 ### Profile identity (all optional)
 
 - **Header presets:** None (the original header), Compact identity (small avatars, name, handles) and Full profile (large avatars, name, professional title, handles).
-- Each part is independent: show the GitHub handle, the GitLab handle, both or neither; show one avatar, both or none; add a display name (≤ 40 characters) and a professional title (≤ 60).
+- Each part is independent: show one avatar, both or none; add a display name (≤ 40 characters) and a professional title (≤ 60).
+- **Source attribution is always on:** every published graphic names the platform and username of each account whose contributions it shows ("GitHub @jenkruk · GitLab @contactkruk"), in every layout and header style. This is attribution, not identity verification — no sign-in. Images published before this rule keep rendering as they were.
 - **Avatars are embedded in the image** as data, never linked, so the graphic never depends on an external image loading inside GitHub's proxy. If an avatar can't be fetched, a monogram in the platform color takes its place.
 - **Profile links** can be added under the image in the README snippet (SVG links don't work inside GitHub's `<img>`).
 
 ### Color studio
 
-Fifteen curated palettes, each with light and dark variants: Aurora, Amethyst, Desert Sunset, Ocean Depths, Forest & Gold, Rose Quartz, Electric Cobalt, Ember, Monochrome, GitHub Classic, GitLab Inspired, Nordic Frost, Solarized, Midnight Neon, Paper & Ink. Palettes coordinate background, surface, border, text, accent, chart series, and a 5-step heatmap ramp. Automated tests enforce contrast.
+Twenty-four curated palettes, each with light and dark variants: Aurora, Amethyst, Desert Sunset, Ocean Depths, Forest & Gold, Rose Quartz, Electric Cobalt, Ember, Monochrome, GitHub Classic, GitLab Inspired, Nordic Frost, Solarized, Midnight Neon, Paper & Ink, Obsidian & Gold, Velvet Plum, Lagoon, Citrus, Terracotta, Mocha, Porcelain, Sage & Linen, Volt. Six are featured; "View all 24" shows the rest. Palettes coordinate background, surface, border, text, accent, chart series, and a 5-step heatmap ramp. Automated tests enforce contrast.
 
 - **Panels:** Filled, Outlined or Borderless cards and chart panels, independent of the background. Colors are re-checked for contrast against whatever is actually behind them.
 - **Background:** Solid, Gradient (a subtle diagonal tint) or Transparent (blends into the README). Transparent images always use theme matching, so text stays readable on GitHub light and dark.
@@ -84,7 +85,7 @@ The user's goal is to **paste one Markdown snippet into a GitHub README** and ne
 
 ## V1 scope
 
-**In scope:** GitHub and GitLab.com public calendars, the three layouts, the feature registry, fifteen palettes with light and dark variants, optional profile identity, backgrounds, custom platform colors, panel styles, 1–3 years of history (GitHub; GitLab's 12 months), density, metric ordering, live preview, SVG/PNG/Markdown export, a stable embed URL with caching, accessibility (WCAG 2.2 AA for the app UI; text alternatives inside SVGs), and responsive design.
+**In scope:** GitHub and GitLab.com public calendars, the three layouts, the feature registry, twenty-four palettes with light and dark variants, optional profile identity, backgrounds, custom platform colors, panel styles, 1–3 years of history (GitHub; GitLab's 12 months), density, metric ordering, live preview, SVG/PNG/Markdown export, a stable embed URL with caching, accessibility (WCAG 2.2 AA for the app UI; text alternatives inside SVGs), and responsive design.
 
 **Out of scope for V1:** accounts and authentication, a database, payments, self-hosted GitLab instances, Bitbucket (the schema allows for it), private-repository access via OAuth, and animated SVGs.
 

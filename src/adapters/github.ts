@@ -1,6 +1,6 @@
 import { normalizeDailyCounts } from "@/domain/combine";
 import { PLATFORMS } from "@/domain/types";
-import type { AdapterResult } from "./types";
+import { type AdapterResult, displayUsername } from "./types";
 
 /**
  * Requires a server-side token (GitHub GraphQL rejects anonymous requests).
@@ -45,7 +45,7 @@ export function normalizeGitHubContributions(username: string, response: GitHubC
   if (response.errors?.some((e) => e.type === "NOT_FOUND") || response.data?.user === null) {
     return {
       ok: false,
-      error: { platform: "github", kind: "not_found", message: `No GitHub user named "${username}".` },
+      error: { platform: "github", kind: "not_found", message: `No GitHub user named "${displayUsername(username)}".` },
     };
   }
   if (response.errors?.some((e) => e.type === "RATE_LIMITED")) {

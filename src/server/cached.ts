@@ -1,78 +1,97 @@
 import "server-only";
 import { cacheLife } from "next/cache";
+import { GITLAB_ORIGIN } from "@/adapters/gitlab";
 import { type AdapterError, adapterError, type AdapterResult, isTransientError } from "@/adapters/types";
 import { todayInTimeZone, trailingYear } from "@/domain/dates";
 import type { PlatformId } from "@/domain/types";
 import type { ContributionLoaders } from "./contributions";
-import { fetchGitHubContributions } from "./github";
+import { epochOf, type FreshnessPolicy, loadWithFreshness, policyFromEnv, type SnapshotOutcome } from "./freshness";
+import { fetchGitHubContributions, GITHUB_GRAPHQL_URL } from "./github";
 import { fetchGitLabContributions } from "./gitlab";
 import { upstreamBudget } from "./rate-limit";
 
 /*
- * One remote cache entry per platform + username, shared by the studio and
- * every embed. "use cache: remote" because serverless instances don't share
- * memory and both upstreams are rate-limited.
- *
- * - Data refreshes every 12h (target: README images update once or twice a day).
- * - Stale data is served while refreshing; entries expire after 7 days.
- * - Transient failures THROW so they are never cached: a failed background
- *   refresh keeps serving the last good data instead of an error.
- * - Not-found answers are cached for an hour so new/renamed accounts recover.
+ * Snapshot cache: one immutable entry per (platform, username, epoch), stored
+ * with "use cache: remote" so all instances share it where the platform
+ * provides a shared remote handler. The freshness / last-known-good policy is
+ * in ./freshness.ts and does NOT rely on the handler's revalidation semantics:
+ * entries are only ever created and expired, never refreshed in place.
  */
-const CONTRIBUTIONS_PROFILE = { stale: 3_600, revalidate: 43_200, expire: 604_800 };
-const MARKER = "gitvis-uncacheable:";
+
+/** Failed fetches are cached for seconds only, so the next request retries upstream. */
+const FAILURE_LIFE = { stale: 0, revalidate: 1, expire: 2 };
+
+/** Snapshots (and "nothing stored" answers for past epochs) live until data is too old to serve. */
+function snapshotLife(policy: FreshnessPolicy) {
+  const seconds = Math.ceil(policy.maxStaleMs / 1000);
+  return { stale: 60, revalidate: seconds, expire: seconds + Math.ceil(policy.ttlMs / 1000) };
+}
 
 function isUncacheable(error: AdapterError): boolean {
   return isTransientError(error.kind) || error.kind === "not_configured";
 }
 
-function uncacheable(error: AdapterError): Error {
-  return new Error(MARKER + JSON.stringify(error));
+/** Upstream endpoints. Overrides exist only so E2E tests can point at a local fake upstream. */
+function upstreamUrls() {
+  const override = (value: string | undefined) => (value && /^https?:\/\//.test(value) ? value : undefined);
+  return {
+    github: override(process.env.GITVIS_GITHUB_GRAPHQL_URL) ?? GITHUB_GRAPHQL_URL,
+    gitlab: override(process.env.GITVIS_GITLAB_ORIGIN) ?? GITLAB_ORIGIN,
+  };
 }
 
-function busy(platform: PlatformId): AdapterError {
-  return { platform, kind: "rate_limited", message: "GitVis is busy right now. Please try again in a minute." };
-}
-
-async function cachedGitHub(username: string): Promise<AdapterResult> {
+async function snapshot(platform: PlatformId, username: string, epoch: number): Promise<SnapshotOutcome> {
   "use cache: remote";
-  if (!upstreamBudget.take()) throw uncacheable(busy("github"));
-  // Range computed inside the cache scope so the key is the username alone (no daily rollover).
-  const range = trailingYear(todayInTimeZone("UTC"));
-  const result = await fetchGitHubContributions(username, range, process.env.GITHUB_TOKEN);
-  if (!result.ok && isUncacheable(result.error)) throw uncacheable(result.error);
-  if (result.ok) cacheLife(CONTRIBUTIONS_PROFILE);
-  else cacheLife("hours");
-  return result;
-}
+  const policy = policyFromEnv();
 
-async function cachedGitLab(username: string): Promise<AdapterResult> {
-  "use cache: remote";
-  if (!upstreamBudget.take()) throw uncacheable(busy("gitlab"));
-  const result = await fetchGitLabContributions(username);
-  if (!result.ok && isUncacheable(result.error)) throw uncacheable(result.error);
-  if (result.ok) cacheLife(CONTRIBUTIONS_PROFILE);
-  else cacheLife("hours");
-  return result;
-}
-
-/** Turns a thrown (uncached) failure back into a result; anything unexpected becomes a generic error. */
-export function recoverLoaderError(platform: PlatformId, error: unknown): AdapterResult {
-  const message = error instanceof Error ? error.message : "";
-  if (message.startsWith(MARKER)) {
-    try {
-      const parsed = JSON.parse(message.slice(MARKER.length)) as AdapterError;
-      return { ok: false, error: parsed };
-    } catch {
-      // fall through to the generic error
-    }
+  // Past epochs are lookup-only: fetching now would mislabel new data as old. A past epoch
+  // can never gain a snapshot later, so caching "missing" is safe and makes fallback scans cheap.
+  if (epoch !== epochOf(Date.now(), policy)) {
+    cacheLife(snapshotLife(policy));
+    return { kind: "missing" };
   }
+
+  if (!upstreamBudget.take()) {
+    cacheLife(FAILURE_LIFE);
+    return {
+      kind: "failed",
+      error: { platform, kind: "rate_limited", message: "GitVis is busy right now. Please try again in a minute." },
+    };
+  }
+
+  const urls = upstreamUrls();
+  const result =
+    platform === "github"
+      ? await fetchGitHubContributions(username, trailingYear(todayInTimeZone("UTC")), process.env.GITHUB_TOKEN, {
+          url: urls.github,
+        })
+      : await fetchGitLabContributions(username, { url: urls.gitlab });
+
+  if (!result.ok && isUncacheable(result.error)) {
+    cacheLife(FAILURE_LIFE);
+    return { kind: "failed", error: result.error };
+  }
+  cacheLife(snapshotLife(policy));
+  return { kind: "snapshot", snapshot: { result, fetchedAt: new Date().toISOString() } };
+}
+
+/** Unexpected exceptions (bugs, cache-store outages) become a generic, user-safe error. */
+export function recoverLoaderError(platform: PlatformId, error: unknown): AdapterResult {
   console.error(`[gitvis] unexpected ${platform} loader failure`, error);
   return adapterError(platform, "upstream", "Couldn't load contributions right now. Please try again.");
 }
 
+function load(platform: PlatformId, username: string): Promise<AdapterResult> {
+  return loadWithFreshness(
+    (epoch) => snapshot(platform, username, epoch),
+    (error) => recoverLoaderError(platform, error),
+    policyFromEnv(),
+    platform,
+  );
+}
+
 export const serverLoaders: ContributionLoaders = {
-  github: (username) => cachedGitHub(username).catch((e: unknown) => recoverLoaderError("github", e)),
-  gitlab: (username) => cachedGitLab(username).catch((e: unknown) => recoverLoaderError("gitlab", e)),
+  github: (username) => load("github", username),
+  gitlab: (username) => load("gitlab", username),
   today: () => todayInTimeZone("UTC"),
 };

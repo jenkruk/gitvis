@@ -6,6 +6,7 @@ import { combineSources } from "@/domain/combine";
 import { toISODate } from "@/domain/dates";
 import { createSampleDataset } from "@/fixtures/sample-dataset";
 import { PALETTE_IDS } from "@/theme/palettes";
+import { CANVAS_WIDTHS, COMPACT_HEATMAP_WEEKS, contentWidthFor } from "./primitives";
 import { Visualization } from "./Visualization";
 
 const sample = createSampleDataset();
@@ -66,6 +67,47 @@ describe("Visualization (static SVG)", () => {
   it("never calls contributions commits", () => {
     for (const layout of LAYOUT_IDS)
       expect(render(withLayout(layout))).not.toMatch(/\bcommits?\b(?! *\.)(?!.*not commits)/i);
+  });
+
+  describe("compact (mobile) variant", () => {
+    const renderCompact = (layout: VisualizationConfig["layout"]) =>
+      renderToStaticMarkup(
+        <Visualization
+          dataset={sample}
+          config={{ ...withLayout(layout), features: { ...withLayout(layout).features, bestDay: true } }}
+          size="compact"
+        />,
+      );
+
+    const compactWidth = CANVAS_WIDTHS.compact;
+
+    it.each(LAYOUT_IDS)("reflows %s to the compact width without drawing outside the canvas", (layout) => {
+      const svg = renderCompact(layout);
+      expect(svg).toMatch(new RegExp(`^<svg[^>]+width="${compactWidth}"`));
+      // Every positioned rect stays within the canvas.
+      for (const [, x, w] of svg.matchAll(/<rect x="([\d.]+)" y="[\d.-]+" width="([\d.]+)"/g)) {
+        expect(Number(x) + Number(w)).toBeLessThanOrEqual(compactWidth);
+      }
+    });
+
+    it("shows the most recent weeks with readable cells and says so", () => {
+      const svg = renderCompact("dashboard");
+      expect(svg).toContain(`Last ${COMPACT_HEATMAP_WEEKS} weeks`);
+      const cellSize = Number(/<rect x="[\d.]+" y="[\d.]+" width="(\d+)" height="\1" rx="2"/.exec(svg)![1]);
+      // ≈ GitHub's own 10px calendar cells once a phone scales the image into a ~360px column.
+      expect(cellSize * (360 / compactWidth)).toBeGreaterThanOrEqual(9.5);
+    });
+
+    it("stacks stat cards two per row and trend charts vertically", () => {
+      const svg = renderCompact("dataRich");
+      const cardWidth = (contentWidthFor("compact") - 12) / 2;
+      const cardRows = new Set(
+        [...svg.matchAll(new RegExp(`<rect x="[\\d.]+" y="([\\d.]+)" width="${cardWidth}"`, "g"))].map((m) => m[1]),
+      );
+      expect(cardRows.size).toBe(2);
+      expect(svg).toContain("Weekly contributions");
+      expect(svg).toContain("Monthly by platform");
+    });
   });
 
   it("is deterministic", () => {

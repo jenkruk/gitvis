@@ -7,6 +7,18 @@ export const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvet
 export const CANVAS_WIDTH = 840;
 export const PADDING = 24;
 export const CONTENT_WIDTH = CANVAS_WIDTH - PADDING * 2;
+
+/**
+ * "full" is the 840px README graphic. "compact" (400px) is a reflowed variant
+ * for narrow screens — served via <picture> media queries, so phones get a
+ * readable layout instead of a shrunken desktop graphic.
+ */
+export type CardSize = "full" | "compact";
+export const CANVAS_WIDTHS: Record<CardSize, number> = { full: CANVAS_WIDTH, compact: 400 };
+export const contentWidthFor = (size: CardSize) => CANVAS_WIDTHS[size] - PADDING * 2;
+
+/** Weeks of heatmap shown in compact images (keeps cells ≥ 11px, ≈10px on a phone). */
+export const COMPACT_HEATMAP_WEEKS = 20;
 export const SECTION_GAP = 16;
 
 const numberFormat = new Intl.NumberFormat("en-US");

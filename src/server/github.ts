@@ -11,7 +11,10 @@ export const GITHUB_GRAPHQL_URL = "https://api.github.com/graphql";
 
 export interface FetchOptions {
   fetchImpl?: typeof fetch;
+  /** Kept short: the first view in a new freshness window waits on this fetch (image proxies time out). */
   timeoutMs?: number;
+  /** Upstream endpoint override (tests only; see upstreamUrls in cached.ts). */
+  url?: string;
 }
 
 /**
@@ -23,13 +26,13 @@ export async function fetchGitHubContributions(
   username: string,
   range: DateRange,
   token: string | undefined,
-  { fetchImpl = fetch, timeoutMs = 8_000 }: FetchOptions = {},
+  { fetchImpl = fetch, timeoutMs = 5_000, url = GITHUB_GRAPHQL_URL }: FetchOptions = {},
 ): Promise<AdapterResult> {
   if (!token) return adapterError("github", "not_configured", "GitHub lookups aren't set up on this server yet.");
 
   let response: Response;
   try {
-    response = await fetchImpl(GITHUB_GRAPHQL_URL, {
+    response = await fetchImpl(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,

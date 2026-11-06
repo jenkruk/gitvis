@@ -26,9 +26,9 @@ export async function GET(request: NextRequest) {
 
   const response = await loadContributions(validation.request, serverLoaders);
   // Only let CDNs cache stable answers; failures should be retryable immediately.
-  const stable = response.results.every((r) => r.status === "ok" || r.status === "not_found");
+  const stable = response.results.every((r) => (r.status === "ok" && !r.stale) || r.status === "not_found");
 
   return Response.json(response, {
-    headers: { "Cache-Control": stable ? "public, s-maxage=900, stale-while-revalidate=3600" : "no-store" },
+    headers: { "Cache-Control": stable ? "public, s-maxage=900, stale-while-revalidate=300" : "no-store" },
   });
 }

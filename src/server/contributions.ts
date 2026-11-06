@@ -3,7 +3,7 @@ import type { ConnectRequest, ContributionsResponse, PlatformResult } from "@/ad
 import { type AdapterResult, isTransientError } from "@/adapters/types";
 import { combineSources } from "@/domain/combine";
 import { diffDays, type ISODate, isWithinRange, trailingYear } from "@/domain/dates";
-import { PLATFORM_IDS, type PlatformContributions } from "@/domain/types";
+import { type ContributionDataset, PLATFORM_IDS, type PlatformContributions } from "@/domain/types";
 
 export interface ContributionLoaders {
   /** Each loader returns the platform's trailing year as of its (possibly cached) fetch. */
@@ -35,7 +35,7 @@ export async function loadContributions(
 
   const sources = outcomes.flatMap((o) => (o.ok ? [o.data] : []));
   const range = trailingYear(resolveEndDate(today, sources));
-  const dataset = sources.length > 0 ? combineSources(sources, range, "live") : null;
+  const dataset = sources.length > 0 ? { ...combineSources(sources, range, "live"), ...freshnessOf(sources) } : null;
 
   const results: PlatformResult[] = outcomes.map((outcome, i) => {
     const { platform, username } = requested[i]!;
@@ -44,10 +44,18 @@ export async function loadContributions(
       return { platform, username, status: kind, message, retryable: isTransientError(kind) };
     }
     const total = outcome.data.days.reduce((sum, d) => (isWithinRange(d.date, range) ? sum + d.count : sum), 0);
-    return { platform, username, status: "ok", total, privateCount: outcome.data.privateCount };
+    const { privateCount, stale, fetchedAt } = outcome.data;
+    return { platform, username, status: "ok", total, privateCount, stale, fetchedAt };
   });
 
   return { dataset, results };
+}
+
+/** Dataset freshness = its oldest source; stale if any source is last-known-good. */
+function freshnessOf(sources: PlatformContributions[]): Pick<ContributionDataset, "freshness"> {
+  const times = sources.flatMap((s) => s.fetchedAt ?? []).sort();
+  if (times.length === 0) return {};
+  return { freshness: { asOf: times[0]!, stale: sources.some((s) => s.stale === true) } };
 }
 
 /**

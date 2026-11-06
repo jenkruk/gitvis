@@ -89,6 +89,18 @@ describe("card params: v1 compatibility (golden URLs)", () => {
     expect(decode(query)).toEqual({ request: expect.any(Object), config, issues: [] });
   });
 
+  it("treats the optional size param as a non-breaking addition", () => {
+    // URLs published before `size` existed decode with no size (= full) and no issues.
+    expect(decode("v=1&github=jenkruk").size).toBeUndefined();
+    expect(decode("v=1&github=jenkruk&size=full")).toMatchObject({ issues: [] });
+    expect(decode("v=1&github=jenkruk&size=compact")).toMatchObject({ size: "compact", issues: [] });
+    expect(decode("v=1&github=jenkruk&size=huge").issues).toEqual([{ param: "size", message: "Unknown size “huge”." }]);
+    // Encoders only write the variant, so full-size URLs stay byte-identical to before.
+    const config = createDefaultConfig();
+    expect(encodeCardParams({ request: { github: "jenkruk" }, config }).has("size")).toBe(false);
+    expect(encodeCardParams({ request: { github: "jenkruk" }, config, size: "compact" }).get("size")).toBe("compact");
+  });
+
   it("ignores unknown parameters (room for future optional params such as colors)", () => {
     expect(decode("v=1&github=jenkruk&colors=abc&utm_source=readme").issues).toEqual([]);
   });

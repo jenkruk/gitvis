@@ -10,6 +10,7 @@ import { type ConnectRequest, validateConnectRequest } from "@/adapters/connect"
 import type { VisualizationConfig } from "@/config/config";
 import { FEATURE_IDS, type FeatureFlags, type FeatureId } from "@/config/features";
 import type { LayoutId } from "@/config/layouts";
+import type { CardSize } from "@/renderers/primitives";
 import type { ColorMode, PaletteId } from "@/theme/palettes";
 
 export const CARD_PARAMS_VERSION = "1";
@@ -34,6 +35,9 @@ const PALETTE_CODES: Record<PaletteId, string> = {
 };
 
 const MODE_CODES: Record<ColorMode, string> = { light: "light", dark: "dark" };
+
+/** Added in v1 as an optional param (absent = "full"), so older URLs are unaffected. */
+const SIZE_CODES: Record<CardSize, string> = { full: "full", compact: "compact" };
 
 const FEATURE_CODES: Record<FeatureId, string> = {
   heatmap: "heatmap",
@@ -73,11 +77,14 @@ function invert<K extends string>(table: Record<K, string>): Map<string, K> {
 const LAYOUT_BY_CODE = invert(LAYOUT_CODES);
 const PALETTE_BY_CODE = invert(PALETTE_CODES);
 const MODE_BY_CODE = invert(MODE_CODES);
+const SIZE_BY_CODE = invert(SIZE_CODES);
 const FEATURE_BY_CODE = invert(FEATURE_CODES);
 
 export interface CardParams {
   request: ConnectRequest;
   config: VisualizationConfig;
+  /** Image variant. Omitted = "full" (the implicit v1 default); only "compact" is written. */
+  size?: CardSize;
 }
 
 export interface ParamIssue {
@@ -92,6 +99,8 @@ export interface DecodedCardParams {
   config: VisualizationConfig;
   /** Empty when the URL is fully valid. */
   issues: ParamIssue[];
+  /** Present only when the URL asks for a non-default image variant. */
+  size?: CardSize;
 }
 
 function flagsFrom(enabled: Iterable<FeatureId>): FeatureFlags {
@@ -100,7 +109,7 @@ function flagsFrom(enabled: Iterable<FeatureId>): FeatureFlags {
 }
 
 /** Encodes every parameter explicitly so future default changes never alter published images. */
-export function encodeCardParams({ request, config }: CardParams): URLSearchParams {
+export function encodeCardParams({ request, config, size }: CardParams): URLSearchParams {
   const params = new URLSearchParams({ v: CARD_PARAMS_VERSION });
   if (request.github) params.set("github", request.github);
   if (request.gitlab) params.set("gitlab", request.gitlab);
@@ -113,6 +122,8 @@ export function encodeCardParams({ request, config }: CardParams): URLSearchPara
       .map((id) => FEATURE_CODES[id])
       .join(","),
   );
+  // "full" is the implicit default of every URL published before `size` existed; only write the variant.
+  if (size === "compact") params.set("size", SIZE_CODES.compact);
   return params;
 }
 
@@ -167,7 +178,9 @@ export function decodeCardParams(search: URLSearchParams): DecodedCardParams {
     }
   }
 
-  return { request, config: { layout, palette, mode, features: flagsFrom(enabled) }, issues };
+  const size = pick("size", SIZE_BY_CODE, "full" as CardSize);
+  const config = { layout, palette, mode, features: flagsFrom(enabled) };
+  return size === "full" ? { request, config, issues } : { request, config, issues, size };
 }
 
 function truncate(value: string, max = 24): string {

@@ -1,5 +1,6 @@
 import type { ConnectRequest } from "@/adapters/connect";
 import { createDefaultConfig, type VisualizationConfig } from "@/config/config";
+import type { CardSize } from "@/renderers/primitives";
 import type { ColorMode } from "@/theme/palettes";
 import { PLATFORM_IDS, PLATFORMS } from "@/domain/types";
 import { type CardParams, encodeCardParams } from "./card-params";
@@ -22,26 +23,49 @@ export function altText(request: ConnectRequest): string {
   return `GitVis contribution activity for ${accounts.join(" and ")}`;
 }
 
-function withMode(params: CardParams, mode: ColorMode): CardParams {
-  return { ...params, config: { ...params.config, mode } };
+function variant(params: CardParams, mode?: ColorMode, size?: CardSize): CardParams {
+  return { ...params, config: mode ? { ...params.config, mode } : params.config, ...(size ? { size } : {}) };
 }
 
+export interface SnippetOptions {
+  theme: ReadmeTheme;
+  /** Serve the reflowed compact image on narrow screens (phones). */
+  responsive: boolean;
+}
+
+/** Below this viewport width readers get the compact image (GitHub's mobile layout). */
+export const NARROW_MEDIA = "(max-width: 600px)";
+
 /**
- * The README snippet. "selected" is a plain Markdown image; "auto" uses a
- * <picture> with prefers-color-scheme sources so the graphic follows the
- * reader's GitHub theme. Both link to the Edit configuration URL.
+ * The README snippet. Without options it is a plain linked Markdown image.
+ * Theme matching and/or a mobile image need an HTML <picture>; the first
+ * matching <source> wins, so narrow-screen sources come first. Always links
+ * to the Edit configuration URL.
  */
-export function readmeSnippet(origin: string, params: CardParams, theme: ReadmeTheme): string {
+export function readmeSnippet(origin: string, params: CardParams, { theme, responsive }: SnippetOptions): string {
   const alt = altText(params.request);
   const edit = editUrl(origin, params);
-  if (theme === "selected") return `[![${alt}](${cardUrl(origin, params)})](${edit})`;
+  if (theme === "selected" && !responsive) return `[![${alt}](${cardUrl(origin, params)})](${edit})`;
+
+  const sources: [media: string, params: CardParams][] = [];
+  if (responsive) {
+    if (theme === "auto") {
+      sources.push([`${NARROW_MEDIA} and (prefers-color-scheme: dark)`, variant(params, "dark", "compact")]);
+      sources.push([`${NARROW_MEDIA} and (prefers-color-scheme: light)`, variant(params, "light", "compact")]);
+    } else {
+      sources.push([NARROW_MEDIA, variant(params, undefined, "compact")]);
+    }
+  }
+  if (theme === "auto") {
+    sources.push(["(prefers-color-scheme: dark)", variant(params, "dark")]);
+    sources.push(["(prefers-color-scheme: light)", variant(params, "light")]);
+  }
 
   const attr = escapeMarkup;
   return [
     `<a href="${attr(edit)}">`,
     "  <picture>",
-    `    <source media="(prefers-color-scheme: dark)" srcset="${attr(cardUrl(origin, withMode(params, "dark")))}">`,
-    `    <source media="(prefers-color-scheme: light)" srcset="${attr(cardUrl(origin, withMode(params, "light")))}">`,
+    ...sources.map(([media, p]) => `    <source media="${media}" srcset="${attr(cardUrl(origin, p))}">`),
     `    <img alt="${attr(alt)}" src="${attr(cardUrl(origin, params))}">`,
     "  </picture>",
     "</a>",

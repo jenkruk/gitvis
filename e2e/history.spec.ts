@@ -18,7 +18,9 @@ test.describe("published multi-year card", () => {
     expect(res.status()).toBe(200);
     expect(status).toBe("ok");
     expect(svg.match(/>More</g)).toHaveLength(1); // one legend for all calendars
-    expect(svg.match(/GitLab history isn&#x27;t available for this period\./g)).toHaveLength(2);
+    expect(svg.match(/contributions · GitHub only</g)).toHaveLength(2);
+    const visible = svg.replace(/<desc[\s\S]*?<\/desc>/, "");
+    expect(visible.match(/GitLab history isn&#x27;t available for earlier years\./g)).toHaveLength(1); // said once
     expect(svg).toContain("Stats cover");
     expect(desc).toContain("By 12-month period, newest first");
     expect(svg).not.toMatch(/<pattern/); // no hatching

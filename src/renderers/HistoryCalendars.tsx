@@ -5,34 +5,32 @@ import type { ThemeTokens } from "@/theme/palettes";
 import { Heatmap, measureHeatmap } from "./Heatmap";
 import { heatmapThresholds } from "./heatmap-model";
 import { FONT_STACK } from "./primitives";
-import { wrapText } from "./text";
-import { periodCoverageNote, periodHeadline, rangeLabel } from "./view";
+import { periodHeadline, rangeLabel } from "./view";
 
 /*
  * Multi-year history: one calendar per 12-month period, newest first, each with
- * a one-line title (dates + yearly summary) and, when a platform has no data
- * for that period, a plain-text coverage note. No hatching: the words carry it.
+ * a one-line title (dates + yearly summary, e.g. "965 contributions · GitHub only").
+ * Missing platform history is explained ONCE, in the scope note under the stats —
+ * repeating it per calendar added clutter without information (verified on
+ * real-data screenshots). Tooltips, the description and the data table keep the
+ * per-period detail. No hatching: words carry coverage.
  */
 
 const TITLE_HEIGHT = 18;
-const NOTE_LINE = 15;
 const PERIOD_GAP = 14;
-const NOTE_SIZE = 11;
 
 function daysOf(view: ContributionDataset, period: PeriodSummary) {
   return view.days.filter((d) => isWithinRange(d.date, period.range));
 }
 
-function noteLines(period: PeriodSummary, width: number): string[] {
-  const note = periodCoverageNote(period);
-  return note ? wrapText(note, width, NOTE_SIZE) : [];
+function periodHeight(view: ContributionDataset, period: PeriodSummary, width: number, last: boolean): number {
+  return TITLE_HEIGHT + measureHeatmap(daysOf(view, period), width, last).height;
 }
 
 export function measureHistoryCalendars(periods: PeriodSummary[], view: ContributionDataset, width: number): number {
   return periods.reduce((height, period, i) => {
     const last = i === periods.length - 1;
-    const calendar = measureHeatmap(daysOf(view, period), width, last).height;
-    return height + TITLE_HEIGHT + noteLines(period, width).length * NOTE_LINE + calendar + (last ? 0 : PERIOD_GAP);
+    return height + periodHeight(view, period, width, last) + (last ? 0 : PERIOD_GAP);
   }, 0);
 }
 
@@ -54,25 +52,15 @@ export function HistoryCalendars({
   // One color scale across every year, so a dark cell means the same in each calendar.
   const scale = heatmapThresholds(view.days.map((d) => d.total));
   const platforms = view.sources.map((s) => s.platform);
-  // Precompute each period's layout (pure: no reassignment during render).
-  const rows = periods.map((period, i) => ({
-    period,
-    last: i === periods.length - 1,
-    days: daysOf(view, period),
-    notes: noteLines(period, width),
-  }));
-  const tops = rows.reduce<number[]>((acc, row, i) => {
-    if (i === 0) return [y];
-    const prev = rows[i - 1]!;
-    const prevHeight =
-      TITLE_HEIGHT + prev.notes.length * NOTE_LINE + measureHeatmap(prev.days, width, prev.last).height + PERIOD_GAP;
-    return [...acc, acc[i - 1]! + prevHeight];
-  }, []);
+  const tops = periods.reduce<number[]>(
+    (acc, _period, i) =>
+      i === 0 ? [y] : [...acc, acc[i - 1]! + periodHeight(view, periods[i - 1]!, width, false) + PERIOD_GAP],
+    [],
+  );
   return (
     <g>
-      {rows.map(({ period, last, days, notes }, i) => {
+      {periods.map((period, i) => {
         const titleY = tops[i]!;
-        const calendarY = titleY + TITLE_HEIGHT + notes.length * NOTE_LINE;
         return (
           <g key={period.range.end}>
             <text x={x} y={titleY + 12} fontSize={12} fontWeight={600} fill={theme.text} fontFamily={FONT_STACK}>
@@ -88,22 +76,13 @@ export function HistoryCalendars({
             >
               {periodHeadline(period)}
             </text>
-            {notes.length > 0 && (
-              <text fontSize={NOTE_SIZE} fill={theme.textMuted} fontFamily={FONT_STACK}>
-                {notes.map((line, n) => (
-                  <tspan key={n} x={x} y={titleY + TITLE_HEIGHT + 10 + n * NOTE_LINE}>
-                    {line}
-                  </tspan>
-                ))}
-              </text>
-            )}
             <Heatmap
-              days={days}
+              days={daysOf(view, period)}
               theme={theme}
               x={x}
-              y={calendarY}
+              y={titleY + TITLE_HEIGHT}
               width={width}
-              showLegend={last}
+              showLegend={i === periods.length - 1}
               scale={scale}
               platforms={platforms}
             />
@@ -116,20 +95,11 @@ export function HistoryCalendars({
 
 /* Phones: a readable list of yearly summaries instead of three shrunken calendars. */
 
-const SUMMARY_LABEL = 16;
-const SUMMARY_LINE = 15;
+const SUMMARY_ROW = 34;
 const SUMMARY_GAP = 8;
 
-function summaryLines(period: PeriodSummary, width: number): string[] {
-  const note = periodCoverageNote(period);
-  return [periodHeadline(period), ...(note ? wrapText(note, width, NOTE_SIZE) : [])];
-}
-
-export function measureYearlySummary(periods: PeriodSummary[], width: number): number {
-  return periods.reduce(
-    (h, p, i) => h + SUMMARY_LABEL + summaryLines(p, width).length * SUMMARY_LINE + (i ? SUMMARY_GAP : 0),
-    0,
-  );
+export function measureYearlySummary(periods: PeriodSummary[]): number {
+  return periods.length * SUMMARY_ROW + Math.max(0, periods.length - 1) * SUMMARY_GAP;
 }
 
 export function YearlySummary({
@@ -137,40 +107,24 @@ export function YearlySummary({
   theme,
   x,
   y,
-  width,
 }: {
   periods: PeriodSummary[];
   theme: ThemeTokens;
   x: number;
   y: number;
-  width: number;
 }) {
-  const rows = periods.map((period) => ({ period, lines: summaryLines(period, width) }));
-  const starts = rows.reduce<number[]>(
-    (acc, row, i) =>
-      i === 0 ? [y] : [...acc, acc[i - 1]! + SUMMARY_LABEL + rows[i - 1]!.lines.length * SUMMARY_LINE + SUMMARY_GAP],
-    [],
-  );
   return (
     <g>
-      {rows.map(({ period, lines }, i) => {
-        const start = starts[i]!;
+      {periods.map((period, i) => {
+        const top = y + i * (SUMMARY_ROW + SUMMARY_GAP);
         return (
-          <text key={period.range.end} fontFamily={FONT_STACK}>
-            <tspan x={x} y={start + 12} fontSize={12} fontWeight={600} fill={theme.text}>
+          <text key={period.range.end} fontFamily={FONT_STACK} fontSize={12}>
+            <tspan x={x} y={top + 12} fontWeight={600} fill={theme.text}>
               {rangeLabel(period.range)}
             </tspan>
-            {lines.map((line, n) => (
-              <tspan
-                key={n}
-                x={x}
-                y={start + SUMMARY_LABEL + 11 + n * SUMMARY_LINE}
-                fontSize={n === 0 ? 12 : NOTE_SIZE}
-                fill={n === 0 ? theme.text : theme.textMuted}
-              >
-                {line}
-              </tspan>
-            ))}
+            <tspan x={x} y={top + 29} fill={theme.textMuted}>
+              {periodHeadline(period)}
+            </tspan>
           </text>
         );
       })}

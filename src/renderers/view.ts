@@ -50,9 +50,10 @@ export function prepareView(
     const partial = view.sources
       .filter((s) => s.coverage !== undefined && (s.coverage === null || s.coverage.start > view.range.start))
       .map((s) => PLATFORMS[s.platform].label);
-    prepared.scopeNote = `Stats cover ${rangeLabel(metricsView.range)}, when every platform has data${
-      partial.length ? ` (${partial.join(" and ")} history isn't available earlier)` : ""
-    }.`;
+    // The single on-image explanation of missing history; calendar titles just say "· GitHub only".
+    prepared.scopeNote = `Stats cover ${rangeLabel(metricsView.range)}, when every platform has data.${
+      partial.length ? ` ${partial.join(" and ")} history isn't available for earlier years.` : ""
+    }`;
   }
   const missing = config.years - (periods.length || 1);
   if (config.years > 1 && missing > 0) prepared.historyNote = historyNoteFor(dataset, missing);
@@ -93,13 +94,6 @@ export function periodHeadline(period: PeriodSummary): string {
   if (period.complete) return noun(period.total);
   const only = known.map((p) => PLATFORMS[p.platform].label).join(" and ");
   return `${noun(period.total)} · ${only} only`;
-}
-
-/** Explains which platforms are missing from a period (shown beneath its title). */
-export function periodCoverageNote(period: PeriodSummary): string | undefined {
-  const missing = period.platforms.filter((p) => p.status === "unavailable").map((p) => PLATFORMS[p.platform].label);
-  if (missing.length === 0) return undefined;
-  return `${missing.join(" and ")} history isn't available for this period.`;
 }
 
 export { rangeLabel };

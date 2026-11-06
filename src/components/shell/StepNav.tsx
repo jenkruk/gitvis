@@ -29,16 +29,17 @@ export function StepNav({ active, available, onSelect }: StepNavProps) {
   const activeIndex = STEP_IDS.indexOf(active);
   return (
     <nav aria-label="Progress">
-      <ol className="flex items-center gap-1 sm:gap-2">
+      {/* All three labels stay readable at 320px: tighter spacing (and no connectors below 360px) on phones. */}
+      <ol className="flex items-center gap-0.5 sm:gap-2">
         {STEP_IDS.map((id, index) => {
           const current = id === active;
           const done = index < activeIndex && available[id];
           return (
-            <li key={id} className="flex min-w-0 items-center gap-1 sm:gap-2">
+            <li key={id} className="flex items-center gap-0.5 sm:gap-2">
               {index > 0 && (
                 <span
                   aria-hidden="true"
-                  className={`h-px w-4 shrink-0 sm:w-10 ${
+                  className={`h-px w-3 shrink-0 max-[359px]:hidden sm:w-10 ${
                     index <= activeIndex ? "bg-zinc-900 dark:bg-zinc-100" : "bg-zinc-300 dark:bg-zinc-700"
                   }`}
                 />
@@ -48,7 +49,7 @@ export function StepNav({ active, available, onSelect }: StepNavProps) {
                 onClick={() => onSelect(id)}
                 disabled={!available[id]}
                 aria-current={current ? "step" : undefined}
-                className={`group flex min-h-11 min-w-0 items-center gap-2 rounded-full py-1.5 pr-3 pl-1.5 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed motion-safe:transition-colors dark:focus-visible:outline-blue-400 ${
+                className={`group flex min-h-11 items-center gap-1.5 rounded-full py-1.5 pr-2 pl-1 text-[13px] sm:gap-2 sm:pr-3 sm:pl-1.5 sm:text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed motion-safe:transition-colors dark:focus-visible:outline-blue-400 ${
                   current
                     ? "font-semibold text-zinc-900 dark:text-zinc-50"
                     : "text-zinc-700 enabled:hover:bg-zinc-100 disabled:text-zinc-500 dark:text-zinc-300 dark:enabled:hover:bg-zinc-800 dark:disabled:text-zinc-500"
@@ -56,7 +57,7 @@ export function StepNav({ active, available, onSelect }: StepNavProps) {
               >
                 <span
                   aria-hidden="true"
-                  className={`flex size-7 shrink-0 items-center justify-center rounded-full border text-xs tabular-nums ${
+                  className={`flex size-6 shrink-0 items-center justify-center rounded-full border text-xs tabular-nums sm:size-7 ${
                     current
                       ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
                       : done
@@ -66,7 +67,7 @@ export function StepNav({ active, available, onSelect }: StepNavProps) {
                 >
                   {done ? <Check className="size-4" /> : index + 1}
                 </span>
-                <span className="truncate">
+                <span className="whitespace-nowrap">
                   <span className="sr-only">Step {index + 1}: </span>
                   {STEP_LABELS[id]}
                   {done && <span className="sr-only"> (completed)</span>}

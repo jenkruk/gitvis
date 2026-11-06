@@ -133,15 +133,14 @@ function historyBody(ctx: LayoutContext, x: number, innerWidth: number) {
 function yearlySummary(ctx: LayoutContext, framed: boolean): Section | null {
   if (!isHistory(ctx) || !isCompact(ctx)) return null;
   const pad = framed ? ctx.spacing.panelPadding : 0;
-  const inner = width(ctx) - pad * 2;
-  const height = measureYearlySummary(ctx.periods!, inner) + pad * 2;
+  const height = measureYearlySummary(ctx.periods!) + pad * 2;
   return {
     key: "yearly-summary",
     height,
     render: (y) => (
       <>
         {framed && <Panel x={PADDING} y={y} width={width(ctx)} height={height} theme={ctx.theme} />}
-        <YearlySummary periods={ctx.periods!} theme={ctx.theme} x={PADDING + pad} y={y + pad} width={inner} />
+        <YearlySummary periods={ctx.periods!} theme={ctx.theme} x={PADDING + pad} y={y + pad} />
       </>
     ),
   };

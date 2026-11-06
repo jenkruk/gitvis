@@ -1,0 +1,117 @@
+import type { ReactNode } from "react";
+
+/**
+ * Native form controls styled with Tailwind. Native radios and checkboxes give
+ * us keyboard support (Tab / arrows / Space) and correct screen-reader
+ * semantics without custom ARIA widgets.
+ */
+
+export function ControlGroup({
+  legend,
+  description,
+  children,
+}: {
+  legend: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  return (
+    <fieldset className="min-w-0">
+      <legend className="text-sm font-semibold">{legend}</legend>
+      {description && <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{description}</p>}
+      <div className="mt-3">{children}</div>
+    </fieldset>
+  );
+}
+
+const focusRing =
+  "has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-blue-600 dark:has-focus-visible:outline-blue-400";
+
+export function RadioCard({
+  name,
+  value,
+  checked,
+  onSelect,
+  children,
+  className = "",
+}: {
+  name: string;
+  value: string;
+  checked: boolean;
+  onSelect: (value: string) => void;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <label
+      className={`relative flex cursor-pointer rounded-lg border bg-white p-3 motion-safe:transition-colors dark:bg-zinc-900 ${
+        checked
+          ? "border-zinc-900 ring-1 ring-zinc-900 dark:border-zinc-100 dark:ring-zinc-100"
+          : "border-zinc-200 hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
+      } ${focusRing} ${className}`}
+    >
+      <input
+        type="radio"
+        name={name}
+        value={value}
+        checked={checked}
+        onChange={() => onSelect(value)}
+        className="sr-only"
+      />
+      {children}
+    </label>
+  );
+}
+
+export function Switch({
+  label,
+  description,
+  checked,
+  onChange,
+  note,
+  id,
+}: {
+  id: string;
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  /** Explains why an enabled feature isn't currently rendered. */
+  note?: string;
+}) {
+  const labelId = `${id}-label`;
+  const descriptionId = `${id}-description`;
+  return (
+    // The whole row is the click target; aria-labelledby keeps the accessible name to the label text only.
+    <label
+      htmlFor={id}
+      className={`flex cursor-pointer items-start justify-between gap-4 rounded-md py-2 ${focusRing}`}
+    >
+      <span className="min-w-0">
+        <span id={labelId} className="block text-sm font-medium">
+          {label}
+        </span>
+        <span id={descriptionId} className="block text-xs text-zinc-600 dark:text-zinc-400">
+          {description}
+          {note && <span className="mt-0.5 block font-medium text-amber-700 dark:text-amber-400">{note}</span>}
+        </span>
+      </span>
+      <input
+        id={id}
+        type="checkbox"
+        role="switch"
+        checked={checked}
+        aria-labelledby={labelId}
+        aria-describedby={descriptionId}
+        onChange={(e) => onChange(e.target.checked)}
+        className="peer sr-only"
+      />
+      <span
+        aria-hidden="true"
+        className="relative mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full bg-zinc-300 peer-checked:bg-zinc-900 motion-safe:transition-colors dark:bg-zinc-700 dark:peer-checked:bg-zinc-100 [&>span]:translate-x-0.5 peer-checked:[&>span]:translate-x-4.5"
+      >
+        <span className="size-4 rounded-full bg-white shadow-sm motion-safe:transition-transform dark:bg-zinc-900" />
+      </span>
+    </label>
+  );
+}

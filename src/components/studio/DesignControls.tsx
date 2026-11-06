@@ -31,12 +31,7 @@ export function sectionSummaries(config: VisualizationConfig, dataset: Contribut
   const custom = Object.keys(config.platformColors).length > 0;
   return {
     identity: [IDENTITY_SUMMARY[config.identity.style], config.identity.name.trim()].filter(Boolean).join(" · "),
-    colors: [
-      config.mode === "dark" ? "Dark" : "Light",
-      BACKGROUND_SUMMARY[config.background],
-      PANEL_SUMMARY[config.panel],
-      custom ? "Custom colors" : "",
-    ]
+    colors: [BACKGROUND_SUMMARY[config.background], PANEL_SUMMARY[config.panel], custom ? "Custom colors" : ""]
       .filter(Boolean)
       .join(" · "),
     metrics: `${shown} of ${FEATURES.length} shown`,
@@ -57,6 +52,8 @@ export function DesignControls({ config, dispatch, dataset }: DesignControlsProp
     <div className="space-y-8">
       <PresetPicker config={config} dispatch={dispatch} />
       <LayoutPicker config={config} dispatch={dispatch} />
+      {/* Light/dark is a core choice: kept visible, directly above the palettes it previews. */}
+      <ModePicker config={config} dispatch={dispatch} />
       <PalettePicker config={config} dispatch={dispatch} />
 
       <div className="space-y-3">
@@ -65,7 +62,6 @@ export function DesignControls({ config, dispatch, dataset }: DesignControlsProp
           <IdentityPicker config={config} dispatch={dispatch} />
         </Disclosure>
         <Disclosure title="Colors & Background" summary={summaries.colors}>
-          <ModePicker config={config} dispatch={dispatch} />
           <BackgroundPicker config={config} dispatch={dispatch} />
           <PanelPicker config={config} dispatch={dispatch} />
           <PlatformColorPicker config={config} dispatch={dispatch} />

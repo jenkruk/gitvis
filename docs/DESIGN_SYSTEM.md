@@ -137,7 +137,7 @@ The a11y addon runs axe with the WCAG 2.2 AA tags and `test: "error"`. `src/stor
 - Step changes move focus to the new step's `<h2 tabIndex={-1}>`, whose accessible name includes "Step N of 3". The Design heading is described by the data-source line ("Showing contributions for …"), so arriving there announces what loaded.
 - The step lives in the URL hash (`#connect`, `#design`, `#publish`): reloads keep it, browser Back/Forward move between steps, and a hash for an unreachable step is ignored.
 - One primary action per step: _See my contributions_, _Continue to publish_, _Copy README Markdown_. Everything else is secondary or collapsed.
-- Collapsed sections use `Disclosure` (native `<details>`/`<summary>`, uncontrolled), with a one-line summary of the current state ("Dark · Gradient", "6 of 9 shown").
+- Collapsed sections use `Disclosure` (native `<details>`/`<summary>`, uncontrolled), with a one-line summary of the current state ("Gradient · Outlined panels", "6 of 9 shown").
 - Step panels fade in over 200ms under `motion-safe:` only.
 
 **Controls**

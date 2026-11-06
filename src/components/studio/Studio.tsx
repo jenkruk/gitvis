@@ -26,6 +26,8 @@ export interface StudioProps {
   initialConfig?: VisualizationConfig;
   /** Absolute origin used in published URLs, e.g. https://gitvis.app */
   origin: string;
+  /** True on Vercel preview deployments: published URLs point at production. */
+  isPreviewDeployment?: boolean;
 }
 
 export function Studio({
@@ -34,6 +36,7 @@ export function Studio({
   initialResponse = null,
   initialConfig,
   origin,
+  isPreviewDeployment = false,
 }: StudioProps) {
   const [config, dispatch] = useReducer(configReducer, initialConfig, (c) => c ?? createDefaultConfig());
   const connection = useContributions({ request: initialRequest, response: initialResponse });
@@ -133,6 +136,7 @@ export function Studio({
         results={connection.response?.results ?? []}
         config={config}
         options={publishOptions}
+        isPreviewDeployment={isPreviewDeployment}
         onOptionsChange={setPublishOptions}
       />
     </div>

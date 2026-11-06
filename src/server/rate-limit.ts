@@ -51,14 +51,16 @@ export class FixedWindowLimiter {
 
 const MINUTE = 60_000;
 
-export const cardLimiter = new FixedWindowLimiter(120, MINUTE);
+/** Generous: GitHub camo fetches every README image from a small pool of shared IPs. */
+export const CARD_LIMIT_PER_MINUTE = 600;
+export const cardLimiter = new FixedWindowLimiter(CARD_LIMIT_PER_MINUTE, MINUTE);
 export const contributionsLimiter = new FixedWindowLimiter(30, MINUTE);
 /** Caps real upstream fetches (cache misses) so a flood of unique usernames can't drain the GitHub quota. */
 export const upstreamBudget = new FixedWindowLimiter(300, MINUTE);
 
-/** Client IP as reported by the hosting proxy (Vercel sets x-forwarded-for). */
+/** Client IP as reported by the hosting proxy. Vercel sets x-real-ip (and overwrites x-forwarded-for) from the connecting address. */
 export function clientKey(headers: Headers): string {
-  return headers.get("x-forwarded-for")?.split(",")[0]?.trim() || headers.get("x-real-ip") || "unknown";
+  return headers.get("x-real-ip")?.trim() || headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 }
 
 export function tooManyRequests(retryAfterSeconds: number): Response {

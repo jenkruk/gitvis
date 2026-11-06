@@ -140,8 +140,8 @@ ConnectForm (client) ──GET /api/contributions?github=&gitlab=──▶ route
                                                                   │ validate usernames (400 on invalid)
                                                                   ▼
                                    src/server/contributions.ts  loadContributions()
-                                     ├─ snapshot(github, user, window)  "use cache: remote"  ─▶ api.github.com/graphql
-                                     └─ snapshot(gitlab, user, window)  "use cache: remote"  ─▶ gitlab.com/users/:u/calendar.json
+                                     ├─ snapshot(github, user, window)  Runtime Cache (getCache)  ─▶ api.github.com/graphql
+                                     └─ snapshot(gitlab, user, window)  Runtime Cache (getCache)  ─▶ gitlab.com/users/:u/calendar.json
                                                                   │ PlatformContributions | AdapterError per platform
                                                                   ▼
                                    combineSources(successes, range, "live")  →  { dataset | null, results[] }
@@ -182,72 +182,89 @@ ConnectForm (client) ──GET /api/contributions?github=&gitlab=──▶ route
 
 Next.js forbids `react-dom/server` in App Router code (verified: build error "You're importing a component that imports react-dom/server"). Our renderers are pure, hook-free SVG components, so `src/publish/svg-markup.ts` serializes the element tree directly: function components are called, attributes get React's SVG naming and escaping, and there's no dependency. **A parity test asserts byte-identical output to React's `renderToStaticMarkup`** for every layout × palette × mode, so the published image is guaranteed to match the studio preview.
 
-### Freshness policy (Phase 3.1, verified)
+### Freshness policy (Phase 3.1; storage revised in 3.2)
 
 **Why the Phase 3 design was replaced.** It relied on `cacheLife({ revalidate: 12h, expire: 7d })`. Next's docs define `revalidate` as "the next request will trigger a **background** refresh" (it serves stale data) and only `expire` as "the next one waits for fresh content". With little traffic, every view after an idle gap would show data as old as the gap, and only the following view would be fresh. Two more problems surfaced:
 
 - **The default handler drops entries at `revalidate`.** Without `cacheHandlers`, `"use cache: remote"` uses a per-process, in-memory LRU, so stale-on-failure didn't exist there at all.
 - **Production builds redact thrown errors.** Errors thrown from a `"use cache"` scope lose their message in production, which was verified in E2E. So "throw to avoid caching" turned specific errors into generic ones.
 
-**Policy** (`src/server/freshness.ts`, independent of handler semantics):
+**Policy** (`src/server/freshness.ts`, independent of cache-handler semantics):
 
 1. Time is split into fixed **12h windows** (epochs). Data is cached as one **immutable snapshot per (platform, username, window)**. The cache key contains the window number, so nothing is ever revalidated in place.
 2. **First request in a new window → blocking upstream fetch.** After any idle period (hours or weeks), the first viewer gets fresh data immediately. Maximum data age is 12h. The cost is that one request per window per user waits about 1s for the upstream (fetch timeout 5s).
-3. **Fetch fails transiently → last-known-good.** We look up earlier windows' snapshots, newest first. Past windows are **lookup-only**: a missing past window is answered as `missing` and never fetches. We serve the newest successful snapshot younger than **7 days**, marked stale. The image then shows a "Data from <date>" badge and says so in its `<desc>`.
-4. **Older than 7 days, or nothing to fall back on → honest error card.** `not_found` is never masked by old data.
-5. Outcomes are **returned, not thrown**: `snapshot` is cached until the 7-day limit; `missing` is cached the same way (a past window can never gain data); `failed` is cached for about 2s, so a retry hits upstream again.
+3. **Fetch fails transiently → last-known-good.** We look up earlier windows' snapshots, newest first. Past windows are **read-only lookups**: a miss never fetches and never writes. We serve the newest successful snapshot younger than **7 days**, marked stale. The image then shows a "Data from <date>" badge and says so in its `<desc>`.
+4. **Older than 7 days, or nothing to fall back on → honest error card.** `not_found` is never masked by old data, and it is re-checked after 1h.
+5. **Failures are never written.** Only successful snapshots and `not_found` answers are stored.
+
+### Snapshot storage (Phase 3.2: Vercel Runtime Cache via `getCache`)
+
+`src/server/cached.ts` stores snapshots with `getCache({ namespace: "gitvis" })` from `@vercel/functions`, under keys we control: `v1:<platform>:<username>:<window>`.
+
+**Why not `"use cache: remote"`** (the Phase 3.1 implementation): Next.js 16 puts the build ID (or `deploymentId`) in every `use cache: remote` key, so **each deployment starts with an empty cache**. The 7-day last-known-good fallback, and every user's current snapshot, would vanish on each deploy (Vercel docs, Runtime Cache, "How a new deployment affects cached data"). Entries written through `getCache` with our own keys **stay readable across deployments**.
+
+Properties and limits (Vercel docs, verified 2026-11):
+
+- **Regional.** Each region has its own Runtime Cache. Keep functions in **one region** (the default) so all requests share one cache.
+- **Isolated by environment.** Preview and production never share entries, so a preview can't poison production snapshots.
+- **Best-effort.** It uses LRU eviction at a storage limit. On Hobby, all of a team's projects share one cache, so last-known-good is likely but not guaranteed.
+- **Item limit 2 MB.** Snapshots are about 1–12 KB (sparse daily counts), so about 1–2 read/write units of 8 KB each.
+- **Schema versioning.** `SNAPSHOT_SCHEMA` in the key: bump it when the stored shape changes. Stored values are validated on read, and malformed entries are treated as misses.
+- **Outside Vercel**, `getCache()` falls back to an in-memory cache with the same get/set/TTL semantics, which is what dev and E2E use.
+- **Store failures degrade gracefully.** A read error is treated as a miss; a write error still returns the fresh data. Concurrent misses for the same key share one upstream fetch per instance.
 
 **Low-traffic timeline (one user, one README):**
 
-| Situation                            | What the viewer sees                                                                                         | Upstream calls                              |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------- |
-| Several views within a window        | Same snapshot                                                                                                | 1 per window                                |
-| First view after 3 idle days         | Fresh data, on that request                                                                                  | 1 (blocking)                                |
-| First view after idle, upstream down | Last snapshot ≤ 7 days old, badged "Data from …"                                                             | 1 attempt + cached lookups                  |
-| Upstream down > 7 days               | "Contributions temporarily unavailable" error card with the platform's message                               | 1 attempt per request (failures cached ~2s) |
-| Upstream recovers                    | Fresh data on the next request in a new window, or on the first request after the failure entry's ~2s expiry | 1                                           |
+| Situation                            | What the viewer sees                                                           | Upstream calls                |
+| ------------------------------------ | ------------------------------------------------------------------------------ | ----------------------------- |
+| Several views within a window        | Same snapshot                                                                  | 1 per window                  |
+| First view after 3 idle days         | Fresh data, on that request                                                    | 1 (blocking)                  |
+| First view after idle, upstream down | Last snapshot ≤ 7 days old, badged "Data from …"                               | 1 attempt + read-only lookups |
+| Upstream down > 7 days               | "Contributions temporarily unavailable" error card with the platform's message | 1 attempt per request         |
+| Upstream recovers                    | Fresh data on the next request                                                 | 1                             |
+| A new deployment                     | Unchanged: snapshots and last-known-good survive                               | 0                             |
 
-All rows are exercised against the real production server in `e2e/cache.spec.ts`, using a fake upstream and 4s windows. Cron and a database aren't needed: blocking refresh covers idle READMEs, and last-known-good covers outages.
+All rows except the deployment row are exercised against a real production server in `e2e/cache.spec.ts` (fake upstream, 4s windows). The deployment row is covered by a unit test that uses a new loader instance over the same store, and is a post-deploy verification item. Cron and a database aren't needed.
 
 ### Cache layers (worst-case data age ≈ 12h + 1h + 10 min)
 
-| Layer                               | Setting                                                                                      | Effect after a long idle period                                                                               |
-| ----------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Data snapshots                      | `"use cache: remote"`, keyed by 12h window; kept 7 days for last-known-good                  | Blocking refresh, never stale-then-refresh                                                                    |
-| Edge/CDN (`CDN-Cache-Control`)      | `s-maxage=3600, stale-while-revalidate=600` (stale and error cards: 60s; invalid config: 1h) | After about 70 min idle the edge refetches; it can't replay a day-old image (the Phase 3 setting allowed 24h) |
-| Camo and browsers (`Cache-Control`) | `no-cache, max-age=0` + strong `ETag`                                                        | Every view revalidates; unchanged images are a 0-byte `304`                                                   |
-| Studio API (`/api/contributions`)   | `s-maxage=900, stale-while-revalidate=300`; stale or failed results are `no-store`           | Shares the same snapshots as embeds                                                                           |
+| Layer                                   | Setting                                                                                                      | Effect after a long idle period                                                        |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| Data snapshots                          | Runtime Cache, keyed by 12h window; kept 7.5 days                                                            | Blocking refresh; never stale-then-refresh                                             |
+| Vercel CDN (`Vercel-CDN-Cache-Control`) | `public, s-maxage=3600, stale-while-revalidate=600` (stale and error cards: 60s; invalid config: 1h)         | After about 70 min idle the edge refetches synchronously; it can't replay an old image |
+| Camo and browsers (`Cache-Control`)     | `no-cache, max-age=0` + strong `ETag`                                                                        | Every view revalidates; unchanged images are a 0-byte `304`                            |
+| Studio API (`/api/contributions`)       | `Vercel-CDN-Cache-Control: s-maxage=900, stale-while-revalidate=300`; stale or failed results are `no-store` | Shares the same snapshots as embeds                                                    |
 
-**Verified locally:** data snapshots and the origin's ETag/304 behavior (E2E). **Needs verification after deployment:**
+**Why `Vercel-CDN-Cache-Control` and not `CDN-Cache-Control`:** Vercel honors both, but `CDN-Cache-Control` is also forwarded to downstream CDNs and proxies, including GitHub's camo. `Vercel-CDN-Cache-Control` is consumed and stripped by Vercel, so downstream caches see only `no-cache` + `ETag`, which is GitHub's documented advice for images that change. When a targeted header is present, Vercel forwards `Cache-Control` to clients unchanged.
 
-- **Vercel's `"use cache: remote"` handler.** Shared across instances? Honors `expire`? If it doesn't share, each cold instance does its own fetch per window. That's still correct, just more upstream calls.
-- **Whether Vercel's CDN honors `CDN-Cache-Control`.**
-- **How camo treats `no-cache`.** GitHub documents it as the fix for stale images. If an image sticks, purge it with `curl -X PURGE <camo-url>`.
+**Camo interaction (expected; verify after deploying):** GitHub serves README images through `camo.githubusercontent.com`. With `no-cache`, camo revalidates using our `ETag`, so unchanged images cost a 304 from the edge. If an image ever sticks, purge it with `curl -X PURGE <camo-url>`. camo is on Vercel's verified-bot list (`github-camo`), so bot protection and Attack Mode don't challenge it.
 
 ### Abuse protection
 
 - **Input limits:** strict validation, a 512-character query cap, and bounded render cost (the dataset is ≤ 366 days; layouts are fixed size).
-- **Upstream budget** (per instance): at most 300 upstream fetches per minute, so a flood of unique usernames can't drain the shared GitHub quota. Over budget, the request fails as a short-lived "busy" error.
-- **Per-IP limits** (in memory, per instance): `/api/card` 120/min, `/api/contributions` 30/min, then `429` + `Retry-After`.
+- **Upstream budget** (per instance): at most 300 upstream fetches per minute, so a flood of unique usernames can't drain the shared GitHub quota.
+- **In-app per-IP limits** (in memory, per instance): `/api/card` 600/min (camo shares IPs), `/api/contributions` 30/min. The key is `x-real-ip`, which Vercel sets from the connecting address.
 
-**Review: in-memory limits on serverless.** Each Vercel function instance has its own counters, and instances are created and recycled freely. These limits therefore only blunt bursts that land on one warm instance. A distributed attacker, or traffic spread across instances, passes through. They're a cheap second line of defense, not the control. The real controls are:
+**Review: in-memory limits on serverless.** Counters are per instance, so they only blunt bursts that land on one warm instance. They're a cheap second line of defense. The real controls are the CDN (repeat embed traffic never reaches a function), snapshots (repeated usernames are free), the upstream budget, and the **Vercel WAF**. The WAF rules are in `docs/DEPLOYMENT.md`. Key constraints:
 
-1. The CDN absorbs repeat embed traffic.
-2. Snapshots make repeated usernames free.
-3. The upstream budget caps quota burn per instance.
-4. **Vercel Firewall rate limiting** (shared, at the edge) is required for production, and is listed under production requirements.
+- **Hobby allows 1 rate-limit rule.** Spend it on `/api/contributions`, the interactive route where unique usernames cost upstream calls.
+- **Don't rate-limit `/api/card` by IP.** GitHub's camo requests come from a small shared IP pool, so an IP limit risks breaking every README at once. The CDN, the upstream budget and the in-app 600/min limit cover it instead.
+- **WAF counters are per region.**
+- **Never challenge `/api/card`.** Bot protection and Attack Mode let verified bots like camo through, but other image fetchers (other Markdown renderers, link previews) can't solve a JavaScript challenge. Add a WAF _bypass_ rule for `/api/card` before turning either on.
 
-Note that GitHub's camo fetches from a small pool of IPs, so a per-IP limit on `/api/card` must be generous, or keyed on more than the IP, to avoid throttling every README at once.
+### Production configuration
 
-### Production requirements (before the first deployment)
+See **`docs/DEPLOYMENT.md`** for the environment variables, Vercel settings, firewall rules, cost model, and the deployment and post-deployment checklists.
 
-| Requirement                                                                                                                                         | Why                                                                                                                                                            |
-| --------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GITHUB_TOKEN`: fine-grained PAT, public read-only, no permissions; ideally from a dedicated bot account                                            | GitHub GraphQL needs a token; a separate rate-limit budget                                                                                                     |
-| `SITE_URL=https://<canonical-domain>`                                                                                                               | Published Markdown and Edit links use it. Without it, URLs come from the request's `Host` header and preview deployments would bake preview URLs into READMEs. |
-| Vercel Firewall rules: `/api/contributions` about 30 req/min/IP; `/api/card` about 600 req/min/IP (camo shares IPs); a challenge on sustained abuse | Shared limits across instances (see the review above)                                                                                                          |
-| Do **not** set `GITVIS_DATA_TTL_SECONDS`, `GITVIS_MAX_STALE_SECONDS`, `GITVIS_GITHUB_GRAPHQL_URL` or `GITVIS_GITLAB_ORIGIN`                         | Test-only overrides (E2E)                                                                                                                                      |
-| Deployment verification (ROADMAP 3.1)                                                                                                               | A real README embed through camo, the `<picture>` media queries on github.com, and the remote cache handler semantics                                          |
+**Preview deployments never publish preview URLs.** `src/server/origin.ts` resolves the public origin in this order:
+
+1. `SITE_URL`
+2. `https://VERCEL_PROJECT_PRODUCTION_URL` (set on every Vercel deployment, including previews)
+3. the request host, for local development only
+
+A candidate equal to the preview's own hostname (`VERCEL_URL` or `VERCEL_BRANCH_URL`) is rejected even if it was misconfigured into `SITE_URL`. On previews, the Publish panel explains that its URLs point at production. Preview deployments also sit behind Vercel Authentication, so a hand-copied preview image URL would fail in camo rather than become a permanent dependency.
+
+**Test-only overrides are inert in production.** The `GITVIS_*` overrides (fake upstream URLs, shortened windows) are ignored when `VERCEL_ENV=production`.
 
 ### Error policy
 
@@ -270,7 +287,7 @@ Card errors return **HTTP 200 with a readable error SVG** (plus `X-GitVis-Status
 - Usernames are validated against each platform's allowed character set before being interpolated into URLs or GraphQL variables (always passed as **variables**, never by string concatenation).
 - No private repository content is ever requested. Only daily counts and, for GitHub, an anonymized restricted count.
 - Error responses don't reveal upstream tokens or raw upstream bodies.
-- Rate limiting and abuse: rely on caching first. Add per-IP limits at the edge if the embed endpoint is abused.
+- Rate limiting and abuse: see "Abuse protection" and `docs/DEPLOYMENT.md` (WAF rules).
 
 ## Third-party code
 

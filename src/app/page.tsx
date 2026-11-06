@@ -8,6 +8,7 @@ import { createSampleDataset } from "@/fixtures/sample-dataset";
 import { decodeCardParams } from "@/publish/card-params";
 import { serverLoaders } from "@/server/cached";
 import { loadContributions } from "@/server/contributions";
+import { resolvePublicOrigin } from "@/server/origin";
 
 export default function Home({ searchParams }: PageProps<"/">) {
   return (
@@ -28,14 +29,13 @@ function toSearchParams(params: Record<string, string | string[] | undefined>): 
   return search;
 }
 
-/** Public origin for published URLs. SITE_URL pins the canonical domain in production. */
-async function resolveOrigin(): Promise<string> {
-  const configured = process.env.SITE_URL?.replace(/\/+$/, "");
-  if (configured) return configured;
+/** Public origin for published URLs (always production on Vercel; see src/server/origin.ts). */
+async function resolveOrigin() {
   const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? (/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host) ? "http" : "https");
-  return `${proto}://${host}`;
+  return resolvePublicOrigin(process.env, {
+    host: h.get("x-forwarded-host") ?? h.get("host"),
+    proto: h.get("x-forwarded-proto"),
+  });
 }
 
 /**
@@ -45,7 +45,7 @@ async function resolveOrigin(): Promise<string> {
  */
 async function StudioLoader({ searchParams }: Pick<PageProps<"/">, "searchParams">) {
   const { request, config } = decodeCardParams(toSearchParams(await searchParams));
-  const origin = await resolveOrigin();
+  const { origin, environment } = await resolveOrigin();
   if (request) await connection(); // "today" (new Date) must be computed per request, never prerendered
   const initialResponse = request ? await loadContributions(request, serverLoaders) : null;
 
@@ -56,6 +56,7 @@ async function StudioLoader({ searchParams }: Pick<PageProps<"/">, "searchParams
       initialResponse={initialResponse}
       initialConfig={config}
       origin={origin}
+      isPreviewDeployment={environment === "preview"}
     />
   );
 }

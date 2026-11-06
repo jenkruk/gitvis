@@ -39,7 +39,8 @@ describe("GET /api/contributions", () => {
   it("returns a dataset with cacheable headers when every answer is stable", async () => {
     const res = await get("gitlab=contactkruk");
     expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toContain("s-maxage");
+    expect(res.headers.get("Vercel-CDN-Cache-Control")).toContain("s-maxage");
+    expect(res.headers.get("Cache-Control")).toBe("no-cache");
     const body = await res.json();
     expect(body.results).toEqual([{ platform: "gitlab", username: "contactkruk", status: "ok", total: 2 }]);
     expect(body.dataset.provenance).toBe("live");

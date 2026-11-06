@@ -55,6 +55,22 @@ function setup(
 }
 
 describe("PublishPanel", () => {
+  it("on preview deployments, says published URLs point at production", () => {
+    render(
+      <Harness
+        origin="https://gitvis.app"
+        request={{ github: "jenkruk" }}
+        results={okResults}
+        config={createDefaultConfig()}
+        isPreviewDeployment
+      />,
+    );
+    expect(screen.getByText(/this is a preview deployment/i)).toHaveTextContent("gitvis.app");
+    const markdown = screen.getByRole("textbox", { name: "README Markdown" }) as HTMLTextAreaElement;
+    expect(markdown.value).toContain("https://gitvis.app/api/card?");
+    expect(markdown.value).not.toMatch(/vercel\.app/);
+  });
+
   it("refuses to publish sample data and explains how to proceed", () => {
     render(<Harness origin={origin} request={null} results={[]} config={createDefaultConfig()} />);
     expect(screen.getByText(/connect a github or gitlab account above to publish/i)).toBeVisible();

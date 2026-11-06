@@ -6,6 +6,7 @@ const loaders = vi.hoisted(() => ({ github: vi.fn(), gitlab: vi.fn(), today: () 
 vi.mock("@/server/cached", () => ({ serverLoaders: loaders }));
 
 const { GET } = await import("./route");
+const { CARD_LIMIT_PER_MINUTE } = await import("@/server/rate-limit");
 
 let ip = 0;
 function get(query: string, headers: Record<string, string> = {}) {
@@ -31,7 +32,7 @@ describe("GET /api/card", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("image/svg+xml; charset=utf-8");
     expect(res.headers.get("Cache-Control")).toBe("no-cache, max-age=0");
-    expect(res.headers.get("CDN-Cache-Control")).toBe("public, s-maxage=3600, stale-while-revalidate=600");
+    expect(res.headers.get("Vercel-CDN-Cache-Control")).toBe("public, s-maxage=3600, stale-while-revalidate=600");
     expect(res.headers.get("ETag")).toMatch(/^"[0-9a-f]{40}"$/);
     expect(res.headers.get("X-GitVis-Status")).toBe("ok");
     expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
@@ -52,7 +53,7 @@ describe("GET /api/card", () => {
     const res = await get("github=jenkruk&palette=neon");
     expect(res.status).toBe(200);
     expect(res.headers.get("X-GitVis-Status")).toBe("invalid_config");
-    expect(res.headers.get("CDN-Cache-Control")).toContain("s-maxage=3600");
+    expect(res.headers.get("Vercel-CDN-Cache-Control")).toContain("s-maxage=3600");
     expect(await res.text()).toContain("Unknown palette");
     expect(loaders.github).not.toHaveBeenCalled();
   });
@@ -60,8 +61,8 @@ describe("GET /api/card", () => {
   it("rate-limits a single client and recovers with Retry-After", async () => {
     const pinned = { "x-forwarded-for": "198.51.100.7" };
     const statuses: number[] = [];
-    for (let i = 0; i < 125; i++) statuses.push((await get("github=jenkruk", pinned)).status);
-    expect(statuses.filter((s) => s === 200)).toHaveLength(120);
+    for (let i = 0; i < CARD_LIMIT_PER_MINUTE + 5; i++) statuses.push((await get("github=jenkruk", pinned)).status);
+    expect(statuses.filter((s) => s === 200)).toHaveLength(CARD_LIMIT_PER_MINUTE);
     const limited = await get("github=jenkruk", pinned);
     expect(limited.status).toBe(429);
     expect(Number(limited.headers.get("Retry-After"))).toBeGreaterThan(0);

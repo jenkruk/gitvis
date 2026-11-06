@@ -15,8 +15,10 @@ export type CardStatus = "ok" | "stale" | "invalid_config" | "not_found" | "unav
 export interface CardResult {
   svg: string;
   status: CardStatus;
-  /** Edge cache lifetime in seconds (CDN-Cache-Control s-maxage). */
+  /** Edge cache lifetime in seconds (Vercel-CDN-Cache-Control s-maxage). */
   edgeMaxAge: number;
+  /** ISO time of the oldest upstream fetch behind the image (live data only). */
+  asOf?: string;
 }
 
 const HOUR = 3_600;
@@ -83,8 +85,8 @@ export async function renderCard(search: URLSearchParams, loaders: ContributionL
     const svg = renderSvgMarkup(createElement(Visualization, { dataset: response.dataset, config, size }));
     // Last-known-good data is labeled in the image; keep it short-lived at the edge so recovery shows quickly.
     return response.dataset.freshness?.stale
-      ? { svg, status: "stale", edgeMaxAge: MINUTE }
-      : { svg, status: "ok", edgeMaxAge: HOUR };
+      ? { svg, status: "stale", edgeMaxAge: MINUTE, asOf: response.dataset.freshness.asOf }
+      : { svg, status: "ok", edgeMaxAge: HOUR, asOf: response.dataset.freshness?.asOf };
   } catch (error) {
     console.error("[gitvis] card render failed", error);
     return errorCard(look, "internal_error", MINUTE, {

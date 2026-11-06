@@ -4,7 +4,9 @@ import type { PlatformResult } from "@/adapters/connect";
 import type { VisualizationConfig } from "@/config/config";
 import { decodeCardParams } from "@/publish/card-params";
 import { renderSvgMarkup } from "@/publish/svg-markup";
+import type { PlatformId } from "@/domain/types";
 import { ErrorCard } from "@/renderers/ErrorCard";
+import type { AvatarImages } from "@/renderers/IdentityHeader";
 import { CANVAS_WIDTHS, type CardSize } from "@/renderers/primitives";
 import { Visualization } from "@/renderers/Visualization";
 import { resolveTheme } from "@/theme/palettes";
@@ -62,7 +64,16 @@ function failureCard(look: Look, failure: FailedResult): CardResult {
  * internals: every failure becomes an explanatory error card built only from
  * fixed, user-safe strings.
  */
-export async function renderCard(search: URLSearchParams, loaders: ContributionLoaders): Promise<CardResult> {
+export type AvatarLoader = (
+  request: Partial<Record<PlatformId, string>>,
+  platforms: readonly PlatformId[],
+) => Promise<AvatarImages>;
+
+export async function renderCard(
+  search: URLSearchParams,
+  loaders: ContributionLoaders,
+  loadAvatars?: AvatarLoader,
+): Promise<CardResult> {
   const { request, config, issues, size = "full" } = decodeCardParams(search);
   const look: Look = { config, size };
 
@@ -76,13 +87,18 @@ export async function renderCard(search: URLSearchParams, loaders: ContributionL
       });
     }
 
-    const response = await loadContributions(request, loaders);
+    // Avatars only when the design shows them; fetched in parallel with the data, never fatal.
+    const wantsAvatars = config.identity.style !== "none" && config.identity.avatars.length > 0 && loadAvatars;
+    const [response, avatars] = await Promise.all([
+      loadContributions(request, loaders),
+      wantsAvatars ? loadAvatars(request, config.identity.avatars).catch(() => ({})) : Promise.resolve({}),
+    ]);
     // Any failed platform → explain it, rather than publishing a misleadingly partial total.
     const failure = response.results.find((r): r is FailedResult => r.status !== "ok");
     if (failure) return failureCard(look, failure);
     if (!response.dataset) throw new Error("No dataset despite successful results");
 
-    const svg = renderSvgMarkup(createElement(Visualization, { dataset: response.dataset, config, size }));
+    const svg = renderSvgMarkup(createElement(Visualization, { dataset: response.dataset, config, size, avatars }));
     // Last-known-good data is labeled in the image; keep it short-lived at the edge so recovery shows quickly.
     return response.dataset.freshness?.stale
       ? { svg, status: "stale", edgeMaxAge: MINUTE, asOf: response.dataset.freshness.asOf }

@@ -73,7 +73,7 @@ describe("PublishPanel", () => {
 
   it("refuses to publish sample data and explains how to proceed", () => {
     render(<Harness origin={origin} request={null} results={[]} config={createDefaultConfig()} />);
-    expect(screen.getByText(/connect a github or gitlab account above to publish/i)).toBeVisible();
+    expect(screen.getByText(/connect a github or gitlab account to publish/i)).toBeVisible();
     expect(screen.queryByRole("textbox", { name: "README Markdown" })).not.toBeInTheDocument();
   });
 
@@ -178,7 +178,9 @@ describe("Edit configuration link", () => {
       new URLSearchParams("v=1&github=jenkruk&layout=minimal&palette=forest-gold&mode=light&f=heatmap,best"),
     );
     const user = userEvent.setup();
-    render(<Studio sampleDataset={createSampleDataset()} origin={origin} initialConfig={config} />);
+    render(
+      <Studio sampleDataset={createSampleDataset()} origin={origin} initialConfig={config} initialStep="design" />,
+    );
 
     expect(screen.getByRole("radio", { name: /minimal/i })).toBeChecked();
     expect(screen.getByRole("radio", { name: /forest & gold/i })).toBeChecked();

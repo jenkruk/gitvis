@@ -55,6 +55,8 @@ export async function getCard(request: APIRequestContext, query: string, headers
 
 /** WCAG 2.2 AA scan; fails on any violation and prints a readable summary. */
 export async function expectAccessible(page: Page, context: string) {
+  // Let transitions settle first: mid-fade text has reduced opacity and would be measured at lower contrast.
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))));
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
@@ -71,4 +73,17 @@ export async function expectAccessible(page: Page, context: string) {
 export async function expectNoHorizontalScroll(page: Page) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow, "page must not scroll horizontally").toBeLessThanOrEqual(0);
+}
+
+/** Opens every visible collapsed <details> section (re-queries each time, since opening changes the set). */
+export async function expandAll(page: Page) {
+  // The studio streams in behind a Suspense boundary that React reveals shortly after load; wait for it.
+  await expect(page.getByRole("heading", { level: 2 })).toBeVisible();
+  const closed = page.locator("details:not([open]) > summary:visible");
+  for (let guard = 0; guard < 20 && (await closed.count()) > 0; guard++) await closed.first().click();
+}
+
+/** The current step's heading (exactly one step panel is visible at a time). */
+export function stepHeading(page: Page) {
+  return page.getByRole("heading", { level: 2 });
 }

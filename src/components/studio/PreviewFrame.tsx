@@ -4,6 +4,7 @@ import { Laptop, Smartphone, Tablet } from "lucide-react";
 import type { VisualizationConfig } from "@/config/config";
 import type { ContributionDataset } from "@/domain/types";
 import type { ContributionMetrics } from "@/metrics/metrics";
+import type { AvatarImages } from "@/renderers/IdentityHeader";
 import { CANVAS_WIDTHS, type CardSize } from "@/renderers/primitives";
 import { Visualization } from "@/renderers/Visualization";
 
@@ -34,6 +35,7 @@ export function PreviewFrame({
   onDeviceChange,
   responsive,
   busy,
+  avatars = {},
 }: {
   dataset: ContributionDataset;
   config: VisualizationConfig;
@@ -42,6 +44,7 @@ export function PreviewFrame({
   onDeviceChange: (device: PreviewDevice) => void;
   responsive: boolean;
   busy: boolean;
+  avatars?: AvatarImages;
 }) {
   const size = sizeForDevice(device, responsive);
   const scale = labelScale(device, size);
@@ -101,6 +104,7 @@ export function PreviewFrame({
             idPrefix="preview"
             size={size}
             links={false}
+            avatars={avatars}
           />
         </div>
       </div>

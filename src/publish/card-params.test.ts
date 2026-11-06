@@ -54,20 +54,55 @@ describe("card params: round trip", () => {
  * Golden URLs: once published, these must decode identically forever.
  * Never edit an existing entry — add new ones.
  */
+/** Frozen meaning of the Phase 4 params when ABSENT (pre-Phase-4 URLs). Never change. */
+const LEGACY_EXTRAS = {
+  identity: { style: "none", handles: ["github", "gitlab"], avatars: [], name: "", title: "" },
+  background: "solid",
+  platformColors: {},
+  metricOrder: ["totalContributions", "activeDays", "longestStreak", "bestDay", "currentStreak"],
+  range: 365,
+  density: "spacious",
+} as const satisfies Omit<VisualizationConfig, "layout" | "palette" | "mode" | "features">;
+const legacy = (c: Pick<VisualizationConfig, "layout" | "palette" | "mode" | "features">): VisualizationConfig =>
+  ({
+    ...structuredClone(LEGACY_EXTRAS),
+    ...c,
+  }) as VisualizationConfig;
+
 describe("card params: v1 compatibility (golden URLs)", () => {
   const golden: [string, VisualizationConfig][] = [
     [
       "v=1&github=jenkruk&layout=minimal&palette=monochrome&mode=light&f=heatmap,total",
-      { layout: "minimal", palette: "monochrome", mode: "light", features: flags("heatmap", "totalContributions") },
+      legacy({
+        layout: "minimal",
+        palette: "monochrome",
+        mode: "light",
+        features: flags("heatmap", "totalContributions"),
+      }),
     ],
     [
       "v=1&gitlab=contactkruk&layout=data-rich&palette=forest-gold&mode=dark&f=heatmap,total,active,streak,best,breakdown,trends,labels",
-      { layout: "dataRich", palette: "forestGold", mode: "dark", features: flags(...FEATURE_IDS) },
+      // Every pre-Phase-4 feature on; the Phase 4 "currentStreak" metric must stay OFF for this old URL.
+      legacy({
+        layout: "dataRich",
+        palette: "forestGold",
+        mode: "dark",
+        features: flags(
+          "heatmap",
+          "totalContributions",
+          "activeDays",
+          "longestStreak",
+          "bestDay",
+          "platformBreakdown",
+          "activityTrends",
+          "platformLabels",
+        ),
+      }),
     ],
     [
       // No optional params at all → frozen v1 defaults (best day off).
       "github=jenkruk",
-      {
+      legacy({
         layout: "dashboard",
         palette: "aurora",
         mode: "dark",
@@ -80,9 +115,9 @@ describe("card params: v1 compatibility (golden URLs)", () => {
           "activityTrends",
           "platformLabels",
         ),
-      },
+      }),
     ],
-    ["v=1&github=jenkruk&f=", { layout: "dashboard", palette: "aurora", mode: "dark", features: flags() }],
+    ["v=1&github=jenkruk&f=", legacy({ layout: "dashboard", palette: "aurora", mode: "dark", features: flags() })],
   ];
 
   it.each(golden)("%s", (query, config) => {

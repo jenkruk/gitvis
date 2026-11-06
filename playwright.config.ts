@@ -37,6 +37,7 @@ export default defineConfig({
       env: {
         GITVIS_GITHUB_GRAPHQL_URL: `${UPSTREAM}/graphql`,
         GITVIS_GITLAB_ORIGIN: UPSTREAM,
+        GITVIS_GITHUB_AVATAR_ORIGIN: `${UPSTREAM}/avatars`,
         GITHUB_TOKEN: "e2e-fake-token",
         GITVIS_DATA_TTL_SECONDS: String(E2E_POLICY.ttlSeconds),
         GITVIS_MAX_STALE_SECONDS: String(E2E_POLICY.maxStaleSeconds),

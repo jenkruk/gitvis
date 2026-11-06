@@ -22,7 +22,7 @@ describe("preview modes", () => {
 
   it("switches preview width with the keyboard and constrains the README column", async () => {
     const user = userEvent.setup();
-    render(<Studio sampleDataset={createSampleDataset()} origin="https://gitvis.test" />);
+    render(<Studio sampleDataset={createSampleDataset()} origin="https://gitvis.test" initialStep="design" />);
     const group = screen.getByRole("group", { name: "Preview width" });
     within(group)
       .getByRole("radio", { name: /desktop/i })
@@ -66,7 +66,7 @@ describe("DataView", () => {
   });
 
   it("is available from the studio for the default design", () => {
-    render(<Studio sampleDataset={dataset} origin="https://gitvis.test" />);
+    render(<Studio sampleDataset={dataset} origin="https://gitvis.test" initialStep="design" />);
     expect(screen.getByText("View the data as text and a table")).toBeInTheDocument();
   });
 });

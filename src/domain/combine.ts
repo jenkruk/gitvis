@@ -1,4 +1,4 @@
-import { type DateRange, eachDay, isISODate, isWithinRange, type ISODate } from "./dates";
+import { addDays, type DateRange, eachDay, isISODate, isWithinRange, type ISODate } from "./dates";
 import type { CombinedDay, ContributionDataset, DailyCount, PlatformContributions, Provenance } from "./types";
 
 /**
@@ -43,4 +43,21 @@ export function combineSources(
   }
 
   return { provenance, range, sources, days };
+}
+
+/**
+ * Narrows a dataset to its most recent `days` (e.g. 30 or 90). Returns the SAME
+ * object when the dataset is already that short, so the default 365-day view is
+ * untouched (published-URL rendering stays byte-identical).
+ */
+export function sliceToRecentDays(dataset: ContributionDataset, days: number): ContributionDataset {
+  if (dataset.days.length <= days) return dataset;
+  const end = dataset.range.end;
+  const range = { start: addDays(end, -(days - 1)), end };
+  return {
+    ...dataset,
+    range,
+    days: dataset.days.filter((d) => isWithinRange(d.date, range)),
+    sources: dataset.sources.map((s) => ({ ...s, days: s.days.filter((d) => isWithinRange(d.date, range)) })),
+  };
 }

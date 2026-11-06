@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { expectAccessible, expectNoHorizontalScroll, uniqueUser, upstream } from "./helpers";
+import { expandAll, expectAccessible, expectNoHorizontalScroll, stepHeading, uniqueUser, upstream } from "./helpers";
 
 const VIEWPORTS = [
   { name: "320 (small phone)", width: 320, height: 720 },
@@ -12,21 +12,35 @@ for (const viewport of VIEWPORTS) {
   test.describe(`at ${viewport.name}`, () => {
     test.use({ viewport: { width: viewport.width, height: viewport.height } });
 
-    test("sample-data studio passes axe (WCAG 2.2 AA) without horizontal scrolling", async ({ page }) => {
+    test("Connect and sample-data Design pass axe (WCAG 2.2 AA) without horizontal scrolling", async ({ page }) => {
       await page.goto("/");
-      await expect(page.getByRole("heading", { name: "Design your contribution graphic" })).toBeVisible();
-      await expectAccessible(page, `sample ${viewport.name}`);
+      await expect(page.getByRole("heading", { name: "Create your contribution graphic" })).toBeVisible();
+      await expandAll(page);
+      await expectAccessible(page, `connect ${viewport.name}`);
+      await expectNoHorizontalScroll(page);
+
+      await page.getByRole("button", { name: /try it with sample data/i }).click();
+      await expect(stepHeading(page)).toHaveText(/design your graphic/i);
+      await expandAll(page);
+      await expectAccessible(page, `sample design ${viewport.name}`);
       await expectNoHorizontalScroll(page);
     });
 
-    test("connected studio with publish panel and data table passes axe", async ({ page, request }) => {
+    test("connected Design (every section open) and Publish pass axe", async ({ page, request }) => {
       const user = uniqueUser("a11y");
       await upstream(request, user, { count: 7 });
-      await page.goto(`/?v=1&github=${user}&gitlab=${user}&layout=data-rich`);
-      await expect(page.getByRole("textbox", { name: "README Markdown" })).toBeVisible();
-      await page.getByText("View the data as text and a table").click();
+      await page.goto(`/?v=1&github=${user}&gitlab=${user}&layout=data-rich&hdr=full&name=Avery`);
+      await expect(stepHeading(page)).toHaveText(/design your graphic/i);
+      await expandAll(page);
       await expect(page.getByRole("table", { name: "Contributions by month" })).toBeVisible();
-      await expectAccessible(page, `connected ${viewport.name}`);
+      await expectAccessible(page, `connected design ${viewport.name}`);
+      await expectNoHorizontalScroll(page);
+
+      await page.getByRole("button", { name: "Continue to publish" }).click();
+      await expect(stepHeading(page)).toHaveText(/publish to your readme/i);
+      await expandAll(page);
+      await expect(page.getByRole("textbox", { name: "README Markdown" })).toBeVisible();
+      await expectAccessible(page, `publish ${viewport.name}`);
       await expectNoHorizontalScroll(page);
     });
   });
@@ -37,7 +51,7 @@ test.describe("states", () => {
     await page.goto("/");
     const gitlab = page.getByRole("textbox", { name: /gitlab username/i });
     await gitlab.fill("bad..name");
-    await page.getByRole("button", { name: "Load contributions" }).click();
+    await page.getByRole("button", { name: "See my contributions" }).click();
     await expect(gitlab).toBeFocused();
     await expect(gitlab).toHaveAttribute("aria-invalid", "true");
     await expect(gitlab).toHaveAccessibleDescription(/isn't a valid gitlab username/i);
@@ -52,12 +66,18 @@ test.describe("states", () => {
     await page.goto("/");
     await page.getByRole("textbox", { name: /github username/i }).fill(ok);
     await page.getByRole("textbox", { name: /gitlab username/i }).fill(down);
-    await page.getByRole("button", { name: "Load contributions" }).click();
+    await page.getByRole("button", { name: "See my contributions" }).click();
 
+    // A partial failure stays on Connect, explains itself and offers both retry and continuing.
     await expect(page.getByRole("status").filter({ hasText: /GitLab responded with an error/ })).toBeAttached();
     await expect(page.getByRole("button", { name: "Retry GitLab" })).toBeVisible();
-    await expect(page.getByText(/couldn't be loaded\. The published image shows an explanatory error/)).toBeVisible();
+    await expect(stepHeading(page)).toHaveText(/connect your accounts/i);
     await expectAccessible(page, "partial failure");
+
+    await page.getByRole("button", { name: "Continue with available data" }).click();
+    await page.getByRole("button", { name: "Continue to publish" }).click();
+    await expect(page.getByText(/couldn't be loaded\. The published image shows an explanatory error/)).toBeVisible();
+    await expectAccessible(page, "partial failure publish");
   });
 
   test("respects reduced motion: no running animations while loading", async ({ page, request }) => {
@@ -66,12 +86,10 @@ test.describe("states", () => {
     await upstream(request, user, { count: 1 });
     await page.goto("/");
     await page.getByRole("textbox", { name: /gitlab username/i }).fill(user);
-    await page.getByRole("button", { name: "Load contributions" }).click();
-    const animated = await page.evaluate(() =>
-      document
-        .getAnimations()
-        .filter((a) => a.playState === "running" && a.effect?.getTiming().iterations === Infinity),
-    );
-    expect(animated).toHaveLength(0);
+    await page.getByRole("button", { name: "See my contributions" }).click();
+    const running = () => page.evaluate(() => document.getAnimations().filter((a) => a.playState === "running").length);
+    expect(await running()).toBe(0); // no spinners
+    await expect(stepHeading(page)).toHaveText(/design your graphic/i);
+    expect(await running()).toBe(0); // and no step transition
   });
 });

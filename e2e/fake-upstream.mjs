@@ -5,6 +5,9 @@
  * Per-username behaviour is controlled over HTTP:
  *   POST /__control {"user":"name","mode":"ok"|"fail"|"notfound","count":3}
  *   GET  /__hits?user=name  → {"github":n,"gitlab":n}
+ *
+ * Avatars (GITVIS_GITHUB_AVATAR_ORIGIN / GitLab users API): users whose name
+ * contains "noavatar" get a 404, so the monogram fallback can be exercised.
  */
 import { createServer } from "node:http";
 
@@ -15,6 +18,12 @@ function state(user) {
   if (!users.has(user)) users.set(user, { mode: "ok", count: 3, hits: { github: 0, gitlab: 0 } });
   return users.get(user);
 }
+
+// 1×1 transparent PNG.
+const PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+  "base64",
+);
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -41,6 +50,18 @@ createServer(async (req, res) => {
   }
   if (url.pathname === "/__hits") return json(res, 200, state(url.searchParams.get("user")).hits);
   if (url.pathname === "/__health") return json(res, 200, { ok: true });
+
+  const avatar = /^\/avatars\/([^/]+)$/.exec(url.pathname);
+  if (req.method === "GET" && avatar) {
+    if (avatar[1].includes("noavatar")) return json(res, 404, { message: "not found" });
+    res.writeHead(200, { "Content-Type": "image/png", "Content-Length": PNG.length });
+    return res.end(PNG);
+  }
+  if (req.method === "GET" && url.pathname === "/api/v4/users") {
+    const user = url.searchParams.get("username") ?? "";
+    if (user.includes("noavatar")) return json(res, 200, []);
+    return json(res, 200, [{ username: user, avatar_url: `http://${req.headers.host}/avatars/${user}` }]);
+  }
 
   const gitlab = /^\/users\/([^/]+)\/calendar\.json$/.exec(url.pathname);
   if (req.method === "GET" && gitlab) {

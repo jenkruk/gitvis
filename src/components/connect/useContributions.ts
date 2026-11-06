@@ -37,7 +37,8 @@ export function useContributions(initial: InitialConnection) {
 
   useEffect(() => () => inFlight.current?.abort(), []);
 
-  const connect = useCallback(async (request: ConnectRequest) => {
+  /** Resolves with the loaded response, or null on failure / abort. */
+  const connect = useCallback(async (request: ConnectRequest): Promise<ContributionsResponse | null> => {
     inFlight.current?.abort();
     const controller = new AbortController();
     inFlight.current = controller;
@@ -47,24 +48,26 @@ export function useContributions(initial: InitialConnection) {
       const res = await fetch(`/api/contributions?${connectSearchParams(request)}`, { signal: controller.signal });
       if (res.status === 429) {
         setState({ phase: "failed", request, message: "Too many requests. Please wait a minute and try again." });
-        return;
+        return null;
       }
       const body: unknown = await res.json();
       if (!res.ok) {
         const message = (body as { error?: string }).error ?? "The request was rejected.";
         setState({ phase: "failed", request, message });
-        return;
+        return null;
       }
       const data = body as ContributionsResponse;
       setConnected({ request, response: data });
       setState({ phase: "loaded", request, response: data });
+      return data;
     } catch {
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted) return null;
       setState({
         phase: "failed",
         request,
         message: "Couldn't reach GitVis. Check your connection and try again.",
       });
+      return null;
     }
   }, []);
 

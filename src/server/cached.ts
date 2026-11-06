@@ -37,9 +37,10 @@ export const SNAPSHOT_SCHEMA = 1;
 /** Not-found answers are re-checked after an hour so new or renamed accounts recover. */
 const NOT_FOUND_TTL_SECONDS = 3_600;
 
+/** Minimal key/value interface over Vercel Runtime Cache (or its in-memory fallback). */
 export interface SnapshotStore {
   get(key: string): Promise<unknown>;
-  set(key: string, value: Snapshot, ttlSeconds: number): Promise<void>;
+  set(key: string, value: unknown, ttlSeconds: number): Promise<void>;
 }
 
 export type Fetcher = (platform: PlatformId, username: string) => Promise<AdapterResult>;
@@ -152,7 +153,7 @@ export function testOverridesAllowed(env: Record<string, string | undefined> = p
   return env.VERCEL_ENV !== "production";
 }
 
-function upstreamUrls() {
+export function upstreamUrls() {
   const allowed = testOverridesAllowed();
   const override = (value: string | undefined) => (allowed && value && /^https?:\/\//.test(value) ? value : undefined);
   return {
@@ -171,12 +172,12 @@ const liveFetcher: Fetcher = (platform, username) => {
 };
 
 let runtimeStore: SnapshotStore | undefined;
-function vercelRuntimeStore(): SnapshotStore {
+export function vercelRuntimeStore(): SnapshotStore {
   if (!runtimeStore) {
     const cache = getCache({ namespace: "gitvis" });
     runtimeStore = {
       get: (key) => cache.get(key),
-      set: (key, value, ttl) => cache.set(key, value, { ttl, name: "contribution-snapshot" }),
+      set: (key, value, ttl) => cache.set(key, value, { ttl, name: key.split(":")[1] ?? "gitvis" }),
     };
   }
   return runtimeStore;

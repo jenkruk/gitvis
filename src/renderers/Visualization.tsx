@@ -1,18 +1,12 @@
-import { isFeatureVisible, type VisualizationConfig } from "@/config/config";
+import { finalText, isFeatureVisible, type VisualizationConfig } from "@/config/config";
 import { formatDate, toISODate } from "@/domain/dates";
 import { type ContributionDataset, PLATFORMS } from "@/domain/types";
 import { computeMetrics, type ContributionMetrics } from "@/metrics/metrics";
-import { resolveTheme } from "@/theme/palettes";
-import { LAYOUT_SECTIONS } from "./layouts";
-import {
-  CANVAS_WIDTHS,
-  type CardSize,
-  contentWidthFor,
-  formatNumber,
-  PADDING,
-  SECTION_GAP,
-  stackSections,
-} from "./primitives";
+import { sliceToRecentDays } from "@/domain/combine";
+import { gradientEnd, resolveTheme } from "@/theme/palettes";
+import { type AvatarImages, IdentityHeader, identityHeaderHeight } from "./IdentityHeader";
+import { LAYOUT_SECTIONS, SPACING } from "./layouts";
+import { CANVAS_WIDTHS, type CardSize, contentWidthFor, formatNumber, PADDING, stackSections } from "./primitives";
 import { Header, headerHeight } from "./sections";
 
 export interface VisualizationProps {
@@ -26,6 +20,8 @@ export interface VisualizationProps {
   size?: CardSize;
   /** Render profile links (published files). The studio preview turns them off: links nested in role="img" are inaccessible. */
   links?: boolean;
+  /** Embedded avatar images (data: URIs) for the identity header. */
+  avatars?: AvatarImages;
 }
 
 /** Text alternative summarising the data the graphic shows. */
@@ -61,34 +57,66 @@ export function describeVisualization(dataset: ContributionDataset, metrics: Con
     .join(" ");
 }
 
+/** Phase 4: prefixes the description with the display name/title when set (unchanged otherwise). */
+function describeIdentity(config: VisualizationConfig): string {
+  const { style } = config.identity;
+  const name = finalText(config.identity.name);
+  const title = finalText(config.identity.title);
+  if (style === "none" || !name) return "";
+  return `Contribution activity for ${name}${style === "full" && title ? `, ${title}` : ""}.`;
+}
+
 /**
  * The complete, self-contained SVG graphic. Pure: no hooks, no browser APIs,
  * inline presentation attributes only — safe for renderToStaticMarkup embeds.
+ *
+ * `dataset` may be the full year; the configured date range is applied here.
+ * If `metrics` is passed it must describe the range-sliced dataset
+ * (use `sliceToRecentDays(dataset, config.range)`).
  */
 export function Visualization({
-  dataset,
+  dataset: fullDataset,
   config,
   metrics: provided,
   idPrefix = "gitvis",
   size = "full",
   links = true,
+  avatars = {},
 }: VisualizationProps) {
+  const dataset = sliceToRecentDays(fullDataset, config.range);
   const metrics = provided ?? computeMetrics(dataset);
-  const theme = resolveTheme(config.palette, config.mode);
+  const custom = config.platformColors;
+  const theme = resolveTheme(
+    config.palette,
+    config.mode,
+    custom.github || custom.gitlab ? { series: [custom.github, custom.gitlab] } : {},
+  );
+  const spacing = SPACING[config.density];
   const canvasWidth = CANVAS_WIDTHS[size];
+  const compactCanvas = size === "compact";
   const showPlatformLabels = isFeatureVisible("platformLabels", config, dataset);
+  const { identity } = config;
   const sections = LAYOUT_SECTIONS[config.layout]({
     dataset,
     metrics,
     theme,
     isVisible: (feature) => isFeatureVisible(feature, config, dataset),
     size,
+    spacing,
+    metricOrder: config.metricOrder,
   });
-  const top = PADDING + headerHeight(size === "compact", showPlatformLabels) + SECTION_GAP;
-  const { nodes, bottom } = stackSections(sections, top);
-  const height = Math.ceil(bottom + PADDING - (sections.length === 0 ? SECTION_GAP : 0));
+
+  const header =
+    identity.style === "none"
+      ? headerHeight(compactCanvas, showPlatformLabels && identity.handles.length > 0)
+      : identityHeaderHeight(dataset, { ...identity, style: identity.style }, compactCanvas, showPlatformLabels);
+  const top = PADDING + header + spacing.sectionGap;
+  const { nodes, bottom } = stackSections(sections, top, spacing.sectionGap);
+  const height = Math.ceil(bottom + PADDING - (sections.length === 0 ? spacing.sectionGap : 0));
   const titleId = `${idPrefix}-title`;
   const descId = `${idPrefix}-desc`;
+  const gradientId = `${idPrefix}-bg`;
+  const description = [describeIdentity(config), describeVisualization(dataset, metrics)].filter(Boolean).join(" ");
 
   return (
     <svg
@@ -100,26 +128,56 @@ export function Visualization({
       aria-labelledby={titleId}
       aria-describedby={descId}
     >
-      <title id={titleId}>Contribution activity</title>
-      <desc id={descId}>{describeVisualization(dataset, metrics)}</desc>
-      <rect
-        x={0.5}
-        y={0.5}
-        width={canvasWidth - 1}
-        height={height - 1}
-        rx={14}
-        fill={theme.background}
-        stroke={theme.border}
-      />
-      <Header
-        dataset={dataset}
-        theme={theme}
-        y={PADDING}
-        width={contentWidthFor(size)}
-        showPlatformLabels={showPlatformLabels}
-        compact={size === "compact"}
-        links={links}
-      />
+      <title id={titleId}>
+        {identity.style !== "none" && finalText(identity.name)
+          ? `Contribution activity — ${finalText(identity.name)}`
+          : "Contribution activity"}
+      </title>
+      <desc id={descId}>{description}</desc>
+      {config.background === "gradient" && (
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor={theme.background} />
+            <stop offset="1" stopColor={gradientEnd(theme)} />
+          </linearGradient>
+        </defs>
+      )}
+      {config.background !== "transparent" && (
+        <rect
+          x={0.5}
+          y={0.5}
+          width={canvasWidth - 1}
+          height={height - 1}
+          rx={14}
+          fill={config.background === "gradient" ? `url(#${gradientId})` : theme.background}
+          stroke={theme.border}
+        />
+      )}
+      {identity.style === "none" ? (
+        <Header
+          dataset={dataset}
+          theme={theme}
+          y={PADDING}
+          width={contentWidthFor(size)}
+          showPlatformLabels={showPlatformLabels}
+          compact={compactCanvas}
+          links={links}
+          handles={identity.handles}
+        />
+      ) : (
+        <IdentityHeader
+          dataset={dataset}
+          theme={theme}
+          identity={{ ...identity, style: identity.style }}
+          avatars={avatars}
+          y={PADDING}
+          width={contentWidthFor(size)}
+          compactCanvas={compactCanvas}
+          showHandles={showPlatformLabels}
+          links={links}
+          idPrefix={idPrefix}
+        />
+      )}
       {nodes}
     </svg>
   );

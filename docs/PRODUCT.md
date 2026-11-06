@@ -23,9 +23,13 @@ The differentiator is **the customization experience**. GitVis is a small design
 
 ## Core flow
 
-1. **Connect.** Enter a GitHub username and/or a GitLab username, independently. Either can be blank, and they can differ.
-2. **Customize.** Choose a layout family, toggle features, and pick a palette and light/dark mode. The preview updates immediately.
-3. **Publish.** Copy README Markdown, download SVG or PNG, or copy a stable URL that always renders current data.
+A guided, three-step studio. A step indicator shows where you are; completed steps can be revisited, and going back never loses a setting.
+
+1. **Connect.** Two username fields (GitHub, GitLab; either can be blank, and they can differ) and one action: _See my contributions_. When every account loads, the studio moves on to Design. A partial failure stays on Connect with Retry and _Continue with available data_. Visitors can also _try it with sample data_ (never publishable).
+2. **Design.** Start from a preset — **Contribution graphic** or **Developer profile card** — then pick a layout (Minimal, Dashboard, Data-rich) and one of six featured palettes (_View all 15_). Everything else is optional and collapsed: Identity, Colors & Background, Metrics & Charts, Display. The live preview sits beside the controls on desktop and above them, expandable, on phones.
+3. **Publish.** The real published image, _Copy README Markdown_ as the main action, SVG/PNG downloads, the image URL and _Edit design_. Markdown details and embed options are tucked into one collapsed section, so README syntax only appears here.
+
+Defaults produce a good graphic with no customization. The design and accounts live in the URL (the Edit link), and the current step in its hash, so reloads and shared links restore everything.
 
 ## Features
 
@@ -39,19 +43,31 @@ Switching layouts never discards the user's feature, palette, or mode choices. A
 
 ### Feature toggles
 
-Combined contribution heatmap · Total contributions · Active days · Longest streak · Best day (off by default) · GitHub/GitLab breakdown · Activity trends · Platform labels and links.
+Combined contribution heatmap · Total contributions · Active days · Longest streak · Best day (off by default) · Current streak (off by default) · GitHub/GitLab breakdown · Activity trends · Platform labels and links.
+
+Metrics can be **reordered** (Move up / Move down buttons, keyboard-accessible and announced). The **date range** (30 days, 90 days, 1 year) applies to every metric, the heatmap and the charts. **Density** (Spacious or Compact) tightens cards and panels without changing the layout.
 
 Features live in a registry (`src/config/features.ts`). Adding one is a data change plus a renderer, not an edit to every layout's settings.
 
+### Profile identity (all optional)
+
+- **Header presets:** None (the original header), Compact identity (small avatars, name, handles) and Full profile (large avatars, name, professional title, handles).
+- Each part is independent: show the GitHub handle, the GitLab handle, both or neither; show one avatar, both or none; add a display name (≤ 40 characters) and a professional title (≤ 60).
+- **Avatars are embedded in the image** as data, never linked, so the graphic never depends on an external image loading inside GitHub's proxy. If an avatar can't be fetched, a monogram in the platform color takes its place.
+- **Profile links** can be added under the image in the README snippet (SVG links don't work inside GitHub's `<img>`).
+
 ### Color studio
 
-Nine curated palettes, each with light and dark variants: Aurora, Amethyst, Desert Sunset, Ocean Depths, Forest & Gold, Rose Quartz, Electric Cobalt, Ember, Monochrome. Palettes coordinate background, surface, border, text, accent, chart series, and a 5-step heatmap ramp. Automated tests enforce contrast. Advanced color overrides come after V1's first release (see the roadmap).
+Fifteen curated palettes, each with light and dark variants: Aurora, Amethyst, Desert Sunset, Ocean Depths, Forest & Gold, Rose Quartz, Electric Cobalt, Ember, Monochrome, GitHub Classic, GitLab Inspired, Nordic Frost, Solarized, Midnight Neon, Paper & Ink. Palettes coordinate background, surface, border, text, accent, chart series, and a 5-step heatmap ramp. Automated tests enforce contrast.
+
+- **Background:** Solid, Gradient (a subtle diagonal tint) or Transparent (blends into the README). Transparent images always use theme matching, so text stays readable on GitHub light and dark.
+- **Custom platform colors:** pick any GitHub/GitLab series color. Colors too close to the panel are adjusted automatically to keep 3:1 contrast, and the UI says so. Platforms are always labelled too, so color never carries meaning alone.
 
 ### Publishing
 
 The user's goal is to **paste one Markdown snippet into a GitHub README** and never touch it again.
 
-- **Live image URL** (`/api/card?v=1&…`). The URL holds the whole design: usernames, layout, palette, mode, and features. It renders current data, refreshed about every 12 hours, with no GitHub Actions, accounts, database, or manual updates.
+- **Live image URL** (`/api/card?v=1&…`). The URL holds the whole design: usernames, layout, palette, mode, features, and every personalization setting. It renders current data, refreshed about every 12 hours, with no GitHub Actions, accounts, database, or manual updates.
 - **Copy Markdown** in one click. It can match the reader's GitHub light or dark theme using a `<picture>` element.
 - **Published-image preview**: the actual image GitHub will fetch, shown before copying.
 - **Edit configuration link**: reopens the studio with every choice restored. The README image links there too.
@@ -67,7 +83,7 @@ The user's goal is to **paste one Markdown snippet into a GitHub README** and ne
 
 ## V1 scope
 
-**In scope:** GitHub and GitLab.com public calendars, the three layouts, the feature registry, nine palettes with light and dark variants, live preview, SVG/PNG/Markdown export, a stable embed URL with caching, accessibility (WCAG 2.2 AA for the app UI; text alternatives inside SVGs), and responsive design.
+**In scope:** GitHub and GitLab.com public calendars, the three layouts, the feature registry, fifteen palettes with light and dark variants, optional profile identity, backgrounds, custom platform colors, date ranges, density, metric ordering, live preview, SVG/PNG/Markdown export, a stable embed URL with caching, accessibility (WCAG 2.2 AA for the app UI; text alternatives inside SVGs), and responsive design.
 
 **Out of scope for V1:** accounts and authentication, a database, payments, self-hosted GitLab instances, Bitbucket (the schema allows for it), private-repository access via OAuth, and animated SVGs.
 

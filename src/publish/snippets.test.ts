@@ -138,3 +138,24 @@ describe("README <picture> markup audit", () => {
     expect(firstMatch(false, false)).toMatchObject({ compact: false, media: "(prefers-color-scheme: light)" });
   });
 });
+
+describe("Phase 4 snippet options", () => {
+  it("adds clickable Markdown profile links after the image", () => {
+    const md = readmeSnippet(origin, params, { theme: "selected", responsive: false, profileLinks: true });
+    expect(md.split("\n\n")[1]).toBe(
+      "[GitHub @jenkruk](https://github.com/jenkruk) · [GitLab @contactkruk](https://gitlab.com/contactkruk)",
+    );
+  });
+
+  it("separates the links from a <picture> block with a blank line so GitHub renders them as Markdown", () => {
+    const html = readmeSnippet(origin, params, { theme: "auto", responsive: true, profileLinks: true });
+    expect(html).toMatch(/<\/a>\n\n\[GitHub @jenkruk\]/);
+  });
+
+  it("forces theme matching for transparent backgrounds", () => {
+    const transparent = { ...params, config: { ...params.config, background: "transparent" as const } };
+    const html = readmeSnippet(origin, transparent, { theme: "selected", responsive: false });
+    expect(html).toContain("prefers-color-scheme: dark");
+    expect(html).toContain("prefers-color-scheme: light");
+  });
+});

@@ -112,20 +112,43 @@ Deployment verification moved to Phase 3.2.
 - [ ] After more than 13h with no traffic, the first view has fresh data.
 - [ ] WAF rule 1 logging, then enforcing; `/api/card` never challenged.
 
-## Phase 4: Color studio and design-system depth
+## Phase 4: Personalization and visual design ✅
+
+- [x] Optional profile identity: header presets (None, Compact identity, Full profile), independent handles, avatars, display name and title
+- [x] Avatars fetched server-side and embedded as `data:` URIs (allowlist, size/type limits, 24h cache, monogram fallback); card CSP `img-src data:`
+- [x] Profile links under the image in the README snippet
+- [x] Six new palettes (15 total), Solid/Gradient/Transparent backgrounds, custom platform colors with automatic contrast correction
+- [x] Transparent contrast verified against GitHub light and dark page colors; transparent forces theme matching
+- [x] Current-streak metric, metric visibility and keyboard-accessible ordering, 30/90/365-day ranges, Compact/Spacious density
+- [x] URL contract extended within v1 (optional params written only when non-default); legacy byte-identical SVG snapshots; golden URLs; 2,048-character cap; text sanitizing
+- [x] Storybook (production components, a11y addon, viewports) plus a Vitest smoke test over stories
+- [x] Unit, component and Playwright + axe coverage for the new controls, serialization and SVG output
+
+## Phase 4.1: Guided user experience ✅
+
+- [x] Three-step studio (Connect → Design → Publish) with a step indicator, revisitable completed steps and locked future steps
+- [x] Connect: one primary action, auto-advance on success, partial-failure retry or continue, sample-data exploration
+- [x] Design: Contribution graphic / Developer profile card presets (config presets over `identity.style`), layouts, six curated palettes + View all, four collapsed sections, sticky desktop preview, expandable phone preview
+- [x] Publish: published image, Copy README Markdown as primary, downloads, image URL, Edit design, one-line refresh note; Markdown options collapsed
+- [x] Step in the URL hash (reload, Back/Forward); focus moves to each step's heading; reduced motion respected
+- [x] v1 URLs and rendering unchanged (legacy snapshots, golden URLs)
+- [x] Storybook: guided studio steps, design controls, step navigation; unit and Playwright coverage for navigation, focus, preservation and the publishing flow
+
+## Phase 4.2: Design-system depth
 
 **Tasks**
 
 - Advanced overrides (accent, heatmap endpoints, background) with live contrast warnings and an automatic fallback to readable text colors.
 - Palette preview thumbnails with real mini-renders.
 - Persist the last config in `localStorage` as a convenience (the URL stays the source of truth).
-- **Storybook** for production components and the design system: controls, palette and token pages, every layout × palette × mode, and the Connect states. Includes the a11y addon (axe) per story.
+- Storybook: token pages, Connect states, and running the a11y addon in CI (`@storybook/addon-vitest`).
+- Verify avatars against real GitHub/GitLab/Gravatar URLs on a deployment.
 - **Accessibility preview modes:** grayscale, and an accessible-data view that swaps the graphic for the data view (device widths shipped in 3.1).
 - **Alternative data views:** monthly table and summary shipped in 3.1; add a weekly table and sortable columns.
 
 **Acceptance criteria**
 
-- Every production component has stories that pass the Storybook a11y checks.
+- Every production component has stories that pass the Storybook a11y checks in CI.
 - Grayscale mode keeps every layout readable (labels and legends carry the meaning).
 - The data tables match the graphic's numbers (shared source, tested).
 

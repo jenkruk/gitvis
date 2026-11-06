@@ -72,6 +72,7 @@ Assumptions:
   - raise the edge TTL on `ok` cards (fewer invocations, at the cost of freshness);
   - add an in-process read-through memo (cheap, per instance).
 - **GitHub API:** each user costs at most 2 GraphQL calls/day, plus failure retries, against 5,000 points/h.
+- **Avatars (Phase 4, opt-in):** one Runtime Cache read per avatar per card invocation (entries are ≤ ~90 KB base64, so up to ~1–2 units each) and at most one upstream image fetch per avatar per 24h. Cards with avatars are also larger (≤ ~180 KB with two avatars), so 200 responses cost more transfer; 304s are unaffected. At the beta's scale this adds well under 10% to Runtime Cache reads.
 
 ## 6. Deployment checklist (do in order; needs approval)
 

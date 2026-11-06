@@ -59,16 +59,69 @@ Each palette defines **light and dark** variants with these tokens:
 | Electric Cobalt | Cobalt → mint          |
 | Ember           | Coral → amber          |
 | Monochrome      | Neutral grays          |
+| GitHub Classic  | Familiar greens        |
+| GitLab Inspired | Orange → purple        |
+| Nordic Frost    | Frost blue → teal      |
+| Solarized       | Solarized-style tones  |
+| Midnight Neon   | Magenta → cyan glow    |
+| Paper & Ink     | Ink on warm paper      |
 
 Contrast thresholds are **enforced by unit tests** (`src/theme/palettes.test.ts`) for every palette × mode. Any new palette must pass them.
 
-Palette, layout, and mode are independent axes of `VisualizationConfig`, and changing one never resets the others.
+Palette, layout, and mode are independent axes of `VisualizationConfig`, and changing one never resets the others. So are background, identity, platform colors, range, density and metric order.
+
+### Backgrounds
+
+- **Solid:** the palette `background`.
+- **Gradient:** `background` → `gradientEnd(theme)` (background mixed 10% toward the accent). Tests check `text`/`textMuted` ≥ 4.5:1 on the gradient end.
+- **Transparent:** no canvas rect. Panels keep their `surface` fill. Tests check text, muted text (≥ 4.5:1) and heatmap level 4 (≥ 3:1) directly on GitHub's page colors (`GITHUB_SURFACES`: light `#ffffff`; dark `#0d1117` and `#212830`). The README snippet forces theme matching so the light variant never sits on a dark page.
+
+### Custom platform colors
+
+`resolveTheme(palette, mode, { series })` runs each custom color through `ensureContrast(color, surface, 3)`, mixing it toward black or white in 5% steps until it reaches 3:1. The studio shows "Adjusted to … for contrast." when that happens.
+
+## Profile headers (`src/renderers/IdentityHeader.tsx`)
+
+| Preset           | Avatar                  | Content                                    | Height |
+| ---------------- | ----------------------- | ------------------------------------------ | ------ |
+| None             | —                       | Original title row, date range, handles    | —      |
+| Compact identity | 36px                    | Name (or "Contribution activity"), handles | 40–58  |
+| Full profile     | 64px (48 compact image) | Name 20px (17), title, date range, handles | ~88    |
+
+- Avatars are circles clipped with a per-graphic `clipPath` id (`{idPrefix}-avatar-{platform}`) and ringed in the platform color. `<image href>` is always a `data:` URI.
+- **Monogram fallback:** a circle in the series color with the initial in `bestTextOn(color)`.
+- Name and title are single lines with an ellipsis, and leave room for the Sample badge. They are also in `<title>`/`<desc>`.
+
+## Density
+
+`SPACING` in `src/renderers/layouts.tsx`: Spacious (section gap 16, panel padding 16, stat card 70/84, breakdown 74, trends 170) and Compact (10, 10, 58/70, 60, 140). Font sizes don't change with density; only whitespace does.
+
+## Storybook
+
+`npm run storybook` (dev, port 6006) and `npm run build-storybook`. Stories import production components only (`src/**/*.stories.tsx`, shared data in `src/stories/fixtures.ts`):
+
+- **Graphic/Visualization:** every layout, the 15 × 2 palette gallery, backgrounds over GitHub light/dark, ranges, densities, profile headers (avatar and monogram), custom colors, the compact phone image.
+- **Graphic/Heatmap** and **Graphic/Metric cards:** the section components with palette, mode, width, density and count controls.
+- **Studio/Guided studio:** each step (Connect, Design with data or sample data, Publish) at desktop and phone viewports.
+- **Studio/Design controls** (the Design column on the real reducer, including the profile-card preset and a non-curated palette), **Studio/Step navigation** and **Studio/Preview modes**.
+
+The a11y addon runs axe with the WCAG 2.2 AA tags and `test: "error"`. `src/stories/stories.test.tsx` renders every story in Vitest, so a broken story fails `npm test`.
 
 ## Accessibility and responsiveness
 
 **Target: WCAG 2.2 AA.** Accessibility and responsiveness are architectural requirements: every new component ships mobile-first, keyboard-operable, screen-reader-friendly, and with tests that assert those properties.
 
 ### Studio app
+
+**Guided steps (Phase 4.1)**
+
+- `StepNav` (`src/components/shell/StepNav.tsx`): an ordered list of real buttons inside `<nav aria-label="Progress">`. The current step has `aria-current="step"`; completed steps show a check and "(completed)" for screen readers; unreachable steps are `disabled` (Design until data or sample mode, Publish until live data).
+- One step panel is visible at a time (`hidden` on the others). Connect and Design stay mounted so typed values and open sections survive; Publish mounts on demand.
+- Step changes move focus to the new step's `<h2 tabIndex={-1}>`, whose accessible name includes "Step N of 3". The Design heading is described by the data-source line ("Showing contributions for …"), so arriving there announces what loaded.
+- The step lives in the URL hash (`#connect`, `#design`, `#publish`): reloads keep it, browser Back/Forward move between steps, and a hash for an unreachable step is ignored.
+- One primary action per step: _See my contributions_, _Continue to publish_, _Copy README Markdown_. Everything else is secondary or collapsed.
+- Collapsed sections use `Disclosure` (native `<details>`/`<summary>`, uncontrolled), with a one-line summary of the current state ("Dark · Gradient", "6 of 9 shown").
+- Step panels fade in over 200ms under `motion-safe:` only.
 
 **Controls**
 
@@ -94,7 +147,7 @@ Palette, layout, and mode are independent axes of `VisualizationConfig`, and cha
 **Motion and layout**
 
 - Animation is limited to short color, opacity, and transform transitions under `motion-safe:`. Under `prefers-reduced-motion` nothing moves.
-- Mobile-first: one column under `lg`. The DOM order is Connect, then preview, then controls, so small screens see feedback above the controls. At `lg` the grid places the controls left and the preview right.
+- Mobile-first: one column under `lg`. In Design, the preview comes before the controls in the DOM, so small screens see feedback first; it starts at a capped height (≤ 60vh) with an _Expand preview_ button (`aria-expanded`) and is never sticky on phones. At `lg` the grid places the controls left and the sticky preview right.
 - The preview scales to fit (`width: 100%`, preserved aspect ratio) with no horizontal scroll at 320px (1.4.10 Reflow). Text stays usable at 200% zoom.
 
 ### Graphic and charts
@@ -143,7 +196,8 @@ The table scrolls inside its own focusable, labelled region, never the page. All
 ### Verification
 
 - **Now:** Vitest + Testing Library assertions on roles, names, descriptions, and keyboard paths for every interactive component; contrast tests for every palette. **Playwright + axe-core** (`npm run test:e2e`): WCAG 2.2 AA scans of every major state at 320/375/768/1280 (any violation fails), a keyboard-only Connect → Customize → Publish run, 24px target sizes, ≥ 11px UI text, no horizontal scroll, and reduced motion.
-- **Planned:** Storybook stories with the a11y addon (Phase 4); visual regression across themes × palettes × viewports (Phase 5); manual VoiceOver and NVDA passes before launch.
+- **Storybook** with the a11y addon (Phase 4), plus a Vitest smoke test over every story.
+- **Planned:** visual regression across themes × palettes × viewports (Phase 5); manual VoiceOver and NVDA passes before launch.
 
 ## Original design
 

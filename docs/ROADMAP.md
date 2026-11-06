@@ -147,7 +147,8 @@ Deployment verification moved to Phase 3.2.
 - [x] Multi-year year cards: each 12-month period framed per panel style (Borderless: hairline separators), header pairs dates with that year's total, coverage labels
 - [x] Nine new palettes (24 total; six featured, "View all 24"), all contrast-tested across modes, backgrounds and panel styles
 - [x] Reporting-period labels for summary statistics ("Last 12 months · GitHub + GitLab"), in the graphic, `<desc>` and data table
-- [x] Mandatory source attribution via URL contract v2; v1 URLs unchanged; long usernames wrap/shorten so attribution always fits
+- [x] Mandatory source attribution in the v1 contract (decided pre-launch; no v2); long usernames wrap/shorten so attribution always fits
+- [x] Multi-year summary stats live inside the newest year's card, so they visibly belong to that year
 
 ## Phase 4.3: Design-system depth
 

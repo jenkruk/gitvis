@@ -15,8 +15,8 @@ export interface FeatureDefinition {
   /** Data condition required for the feature to be meaningful. */
   requires?: "multiplePlatforms";
   /**
-   * Always on for new designs (URL v2+): not offered as a toggle. Only legacy
-   * v1 URLs can carry it disabled, and they render exactly as they always did.
+   * Always on (source attribution): not offered as a toggle, and a URL that
+   * disables it is decoded with it on (see withAttribution).
    */
   alwaysOn?: boolean;
 }

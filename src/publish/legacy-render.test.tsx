@@ -10,6 +10,10 @@ import { renderSvgMarkup } from "./svg-markup";
  * Published-URL compatibility guard: URLs generated before Phase 4 must keep
  * rendering byte-identical SVG. Snapshots were recorded BEFORE Phase 4 changes;
  * never update them to make a test pass — a diff here means old READMEs changed.
+ *
+ * One deliberate, pre-launch exception (Nov 2026, before any deployment): source
+ * attribution became mandatory in v1, so "minimal-mono-light" and "no-features"
+ * (which hid account labels) were re-recorded once. Nothing had been published.
  */
 const LEGACY_URLS: Record<string, string> = {
   "dashboard-default": "v=1&github=jenkruk&gitlab=contactkruk",

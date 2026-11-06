@@ -186,6 +186,7 @@ export function statCardsHeight(
 export function StatCards({
   items,
   theme,
+  x: left = PADDING,
   y,
   width,
   detailed,
@@ -194,6 +195,8 @@ export function StatCards({
 }: {
   items: StatItem[];
   theme: ThemeTokens;
+  /** Left edge (defaults to the canvas padding; inset when placed inside a year card). */
+  x?: number;
   y: number;
   width: number;
   detailed: boolean;
@@ -212,7 +215,7 @@ export function StatCards({
       {items.map((item, index) => {
         const i = index % perRow;
         const row = Math.floor(index / perRow);
-        const x = PADDING + i * (cardWidth + STAT_GAP);
+        const x = left + i * (cardWidth + STAT_GAP);
         const cardY = y + row * (height + STAT_GAP);
         return (
           <g key={item.id}>
@@ -266,18 +269,20 @@ export function inlineStatsHeight(items: StatItem[], width: number): number {
 export function InlineStats({
   items,
   theme,
+  x = PADDING,
   y,
   width,
 }: {
   items: StatItem[];
   theme: ThemeTokens;
+  x?: number;
   y: number;
   width: number;
 }) {
   return (
     <text fontSize={INLINE_STATS.fontSize} fill={theme.text} fontFamily={FONT_STACK}>
       {packInlineStats(items, width).map((line, row) => (
-        <tspan key={line[0]!.id} x={PADDING} y={y + 13 + row * INLINE_STATS.lineHeight}>
+        <tspan key={line[0]!.id} x={x} y={y + 13 + row * INLINE_STATS.lineHeight}>
           {line.map((item, i) => (
             <tspan key={item.id}>
               {i > 0 && <tspan fill={theme.textMuted}>{"  ·  "}</tspan>}

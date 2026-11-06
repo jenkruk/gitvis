@@ -92,8 +92,8 @@ export function presetOf(config: Pick<VisualizationConfig, "identity">): Startin
 
 /**
  * Source attribution: every connected account's platform and username are
- * shown whenever its contributions are. Applied to every v2 URL and every
- * studio design; legacy v1 URLs are decoded as-is so old embeds never change.
+ * shown whenever its contributions are. Applied when decoding every URL and to
+ * every studio design.
  */
 export function withAttribution(config: VisualizationConfig): VisualizationConfig {
   const allHandles = PLATFORM_IDS.every((p) => config.identity.handles.includes(p));

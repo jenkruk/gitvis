@@ -53,7 +53,7 @@ Features live in a registry (`src/config/features.ts`). Adding one is a data cha
 
 - **Header presets:** None (the original header), Compact identity (small avatars, name, handles) and Full profile (large avatars, name, professional title, handles).
 - Each part is independent: show one avatar, both or none; add a display name (≤ 40 characters) and a professional title (≤ 60).
-- **Source attribution is always on:** every published graphic names the platform and username of each account whose contributions it shows ("GitHub @jenkruk · GitLab @contactkruk"), in every layout and header style. This is attribution, not identity verification — no sign-in. Images published before this rule keep rendering as they were.
+- **Source attribution is always on:** every published graphic names the platform and username of each account whose contributions it shows ("GitHub @jenkruk · GitLab @contactkruk"), in every layout and header style. This is attribution, not identity verification — no sign-in.
 - **Avatars are embedded in the image** as data, never linked, so the graphic never depends on an external image loading inside GitHub's proxy. If an avatar can't be fetched, a monogram in the platform color takes its place.
 - **Profile links** can be added under the image in the README snippet (SVG links don't work inside GitHub's `<img>`).
 

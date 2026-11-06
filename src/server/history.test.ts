@@ -191,7 +191,7 @@ describe("published multi-year card", () => {
     expect(card.status).toBe("ok");
     expect(card.svg).toContain("Nov 8, 2023 – Nov 6, 2024");
     expect(card.svg).toContain(">GitHub only · GitLab unavailable<");
-    expect(card.svg).toContain(">Last 12 months · GitHub + GitLab<");
+    expect(card.svg).toContain(">Platform breakdown · Last 12 months<");
   });
 
   it("shows an explanatory error instead of fewer years when history can't load", async () => {

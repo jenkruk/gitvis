@@ -2,12 +2,12 @@ import { finalText, isFeatureVisible, type VisualizationConfig } from "@/config/
 import { formatDate, toISODate } from "@/domain/dates";
 import { type ContributionDataset, PLATFORMS } from "@/domain/types";
 import { computeMetrics, type ContributionMetrics } from "@/metrics/metrics";
-import { sliceToRecentDays } from "@/domain/combine";
-import { gradientEnd, resolveTheme } from "@/theme/palettes";
+import { applyPanelStyle, gradientEnd, panelBackdrops, resolveTheme } from "@/theme/palettes";
 import { type AvatarImages, IdentityHeader, identityHeaderHeight } from "./IdentityHeader";
 import { LAYOUT_SECTIONS, SPACING } from "./layouts";
 import { CANVAS_WIDTHS, type CardSize, contentWidthFor, formatNumber, PADDING, stackSections } from "./primitives";
 import { Header, headerHeight } from "./sections";
+import { describePeriod, type PreparedView, prepareView } from "./view";
 
 export interface VisualizationProps {
   dataset: ContributionDataset;
@@ -22,6 +22,18 @@ export interface VisualizationProps {
   links?: boolean;
   /** Embedded avatar images (data: URIs) for the identity header. */
   avatars?: AvatarImages;
+}
+
+/** Multi-year additions to the text alternative (empty for a single period, so legacy text is unchanged). */
+export function describeHistory({
+  periods,
+  scopeNote,
+  historyNote,
+}: Pick<PreparedView, "periods" | "scopeNote" | "historyNote">): string {
+  const parts = scopeNote ? [scopeNote] : [];
+  if (periods.length > 1) parts.push(`By 12-month period, newest first: ${periods.map(describePeriod).join(" ")}`);
+  if (historyNote) parts.push(historyNote);
+  return parts.join(" ");
 }
 
 /** Text alternative summarising the data the graphic shows. */
@@ -83,21 +95,29 @@ export function Visualization({
   links = true,
   avatars = {},
 }: VisualizationProps) {
-  const dataset = sliceToRecentDays(fullDataset, config.range);
-  const metrics = provided ?? computeMetrics(dataset);
+  const prepared = prepareView(fullDataset, config);
+  // `dataset` = what the calendars and header show; metrics only cover what every platform reports.
+  const { view: dataset, metricsView, periods, scopeNote, historyNote } = prepared;
+  const metrics = provided ?? computeMetrics(metricsView);
   const custom = config.platformColors;
-  const theme = resolveTheme(
+  const base = resolveTheme(
     config.palette,
     config.mode,
     custom.github || custom.gitlab ? { series: [custom.github, custom.gitlab] } : {},
   );
+  // Unfilled panels: content colors are checked against what's actually behind them.
+  const theme = applyPanelStyle(base, config.panel, panelBackdrops(base, config.background, config.mode));
   const spacing = SPACING[config.density];
   const canvasWidth = CANVAS_WIDTHS[size];
   const compactCanvas = size === "compact";
   const showPlatformLabels = isFeatureVisible("platformLabels", config, dataset);
   const { identity } = config;
   const sections = LAYOUT_SECTIONS[config.layout]({
-    dataset,
+    dataset: metricsView,
+    calendar: dataset,
+    periods,
+    scopeNote,
+    historyNote,
     metrics,
     theme,
     isVisible: (feature) => isFeatureVisible(feature, config, dataset),
@@ -116,7 +136,9 @@ export function Visualization({
   const titleId = `${idPrefix}-title`;
   const descId = `${idPrefix}-desc`;
   const gradientId = `${idPrefix}-bg`;
-  const description = [describeIdentity(config), describeVisualization(dataset, metrics)].filter(Boolean).join(" ");
+  const description = [describeIdentity(config), describeVisualization(metricsView, metrics), describeHistory(prepared)]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <svg
@@ -138,7 +160,7 @@ export function Visualization({
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" stopColor={theme.background} />
-            <stop offset="1" stopColor={gradientEnd(theme)} />
+            <stop offset="1" stopColor={gradientEnd(base)} />
           </linearGradient>
         </defs>
       )}

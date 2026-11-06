@@ -118,3 +118,47 @@ describe("normalizeGitHubContributions", () => {
     expect(normalizeGitHubContributions("a", {})).toMatchObject({ ok: false, error: { kind: "invalid_response" } });
   });
 });
+
+describe("GitHub history query", () => {
+  it("passes dates and login only as variables, one aliased collection per year", async () => {
+    const { githubYearsQuery, githubYearsVariables } = await import("./github");
+    const query = githubYearsQuery(3);
+    expect(query.match(/contributionsCollection\(from: \$from\d, to: \$to\d\)/g)).toHaveLength(3);
+    expect(query).not.toMatch(/\d{4}-\d{2}-\d{2}/); // no literal dates
+    expect(githubYearsVariables('jen"kruk', [2023, 2024])).toEqual({
+      login: 'jen"kruk',
+      from0: "2023-01-01T00:00:00Z",
+      to0: "2023-12-31T23:59:59Z",
+      from1: "2024-01-01T00:00:00Z",
+      to1: "2024-12-31T23:59:59Z",
+    });
+    expect(githubYearsQuery(99).match(/contributionsCollection/g)).toHaveLength(4); // bounded
+  });
+
+  it("normalizes each year and rejects incomplete responses", async () => {
+    const { normalizeGitHubYears } = await import("./github");
+    const day = (date: string, contributionCount: number) => ({ date, contributionCount });
+    const calendar = (days: ReturnType<typeof day>[]) => ({
+      contributionCalendar: { weeks: [{ contributionDays: days }] },
+    });
+    expect(
+      normalizeGitHubYears("a", [2023, 2024], {
+        data: { user: { y0: calendar([day("2023-02-01", 2)]), y1: calendar([day("2024-03-01", 0)]) } },
+      }),
+    ).toEqual({
+      ok: true,
+      years: [
+        { year: 2023, days: [{ date: "2023-02-01", count: 2 }] },
+        { year: 2024, days: [] },
+      ],
+    });
+    expect(normalizeGitHubYears("a", [2023, 2024], { data: { user: { y0: calendar([]) } } })).toMatchObject({
+      ok: false,
+      error: { kind: "invalid_response" },
+    });
+    expect(normalizeGitHubYears("a", [2023], { data: { user: null } })).toMatchObject({
+      ok: false,
+      error: { kind: "not_found" },
+    });
+  });
+});

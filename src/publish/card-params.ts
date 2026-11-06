@@ -25,10 +25,11 @@ import {
   STAT_FEATURE_IDS,
   type StatFeatureId,
 } from "@/config/features";
+import type { HistoryYears } from "@/domain/history";
 import { PLATFORM_IDS, type PlatformId } from "@/domain/types";
 import type { LayoutId } from "@/config/layouts";
 import type { CardSize } from "@/renderers/primitives";
-import type { ColorMode, PaletteId } from "@/theme/palettes";
+import type { ColorMode, PaletteId, PanelStyle } from "@/theme/palettes";
 
 export const CARD_PARAMS_VERSION = "1";
 /** Raised from 512 in Phase 4: worst-case percent-encoded Unicode name + title is ~1,600 chars. Camo hex-encodes URLs (~2×); still far below browser/CDN limits. */
@@ -80,6 +81,7 @@ const FEATURE_CODES: Record<FeatureId, string> = {
  * Phase 4 optional params. ABSENT = the pre-Phase-4 rendering, frozen forever:
  *   hdr=none · hl=github,gitlab · av=(none) · name/title empty · bg=solid · pc=(palette) ·
  *   ord=total,active,streak,best,current · range=365 · den=spacious
+ * Phase 4.2: pnl=filled · yrs=1 (yrs=2|3 require the full 365-day range)
  * Encoders write them only when they differ, so legacy-equivalent designs keep their exact URLs.
  */
 const IDENTITY_CODES: Record<IdentityStyle, string> = { none: "none", compact: "compact", full: "full" };
@@ -89,6 +91,8 @@ const BACKGROUND_CODES: Record<BackgroundStyle, string> = {
   transparent: "transparent",
 };
 const DENSITY_CODES: Record<Density, string> = { spacious: "spacious", compact: "compact" };
+const PANEL_CODES: Record<PanelStyle, string> = { filled: "filled", outlined: "outlined", borderless: "borderless" };
+const YEARS_CODES: Record<`${HistoryYears}`, string> = { "1": "1", "2": "2", "3": "3" };
 const RANGE_CODES: Record<`${DateRangeDays}`, string> = { "30": "30", "90": "90", "365": "365" };
 const PLATFORM_CODES: Record<PlatformId, string> = { github: "github", gitlab: "gitlab" };
 const LEGACY = {
@@ -98,6 +102,8 @@ const LEGACY = {
   metricOrder: [...STAT_FEATURE_IDS] as StatFeatureId[],
   range: 365 as DateRangeDays,
   density: "spacious" as Density,
+  panel: "filled" as PanelStyle,
+  years: 1 as HistoryYears,
 };
 
 /** Frozen v1 defaults — deliberately NOT derived from createDefaultConfig(), which may evolve. */
@@ -132,6 +138,8 @@ const FEATURE_BY_CODE = invert(FEATURE_CODES);
 const IDENTITY_BY_CODE = invert(IDENTITY_CODES);
 const BACKGROUND_BY_CODE = invert(BACKGROUND_CODES);
 const DENSITY_BY_CODE = invert(DENSITY_CODES);
+const PANEL_BY_CODE = invert(PANEL_CODES);
+const YEARS_BY_CODE = invert(YEARS_CODES);
 const RANGE_BY_CODE = invert(RANGE_CODES);
 const PLATFORM_BY_CODE = invert(PLATFORM_CODES);
 const STAT_CODES = Object.fromEntries(STAT_FEATURE_IDS.map((id) => [id, FEATURE_CODES[id]])) as Record<
@@ -207,6 +215,8 @@ export function encodeCardParams({ request, config, size }: CardParams): URLSear
   }
   if (config.range !== LEGACY.range) params.set("range", RANGE_CODES[`${config.range}`]);
   if (config.density !== LEGACY.density) params.set("den", DENSITY_CODES[config.density]);
+  if (config.panel !== LEGACY.panel) params.set("pnl", PANEL_CODES[config.panel]);
+  if (config.years !== LEGACY.years) params.set("yrs", YEARS_CODES[`${config.years}`]);
   return params;
 }
 
@@ -295,6 +305,11 @@ export function decodeCardParams(search: URLSearchParams): DecodedCardParams {
   const background = pick("bg", BACKGROUND_BY_CODE, LEGACY.background);
   const range = Number(pick("range", RANGE_BY_CODE, `${LEGACY.range}`)) as DateRangeDays;
   const density = pick("den", DENSITY_BY_CODE, LEGACY.density);
+  const panel = pick("pnl", PANEL_BY_CODE, LEGACY.panel);
+  const years = Number(pick("yrs", YEARS_BY_CODE, `${LEGACY.years}`)) as HistoryYears;
+  if (years > 1 && range !== 365) {
+    issues.push({ param: "yrs", message: "Multi-year history can't be combined with a 30- or 90-day range." });
+  }
 
   const platformColors: Partial<Record<PlatformId, string>> = {};
   const rawColors = search.get("pc");
@@ -321,7 +336,10 @@ export function decodeCardParams(search: URLSearchParams): DecodedCardParams {
     metricOrder,
     range,
     density,
+    panel,
+    years,
   };
+  if (years > 1) config.range = 365;
   return size === "full" ? { request, config, issues } : { request, config, issues, size };
 }
 

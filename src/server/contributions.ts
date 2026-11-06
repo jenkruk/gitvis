@@ -1,8 +1,10 @@
 import "server-only";
-import type { ConnectRequest, ContributionsResponse, PlatformResult } from "@/adapters/connect";
+import type { ConnectRequest, ContributionsResponse, HistoryStatus, PlatformResult } from "@/adapters/connect";
 import { type AdapterResult, isTransientError } from "@/adapters/types";
 import { combineSources } from "@/domain/combine";
-import { diffDays, type ISODate, isWithinRange, trailingYear } from "@/domain/dates";
+import { type DateRange, diffDays, type ISODate, isWithinRange, trailingYear } from "@/domain/dates";
+import { historyRange } from "@/domain/history";
+import type { HistoryOutcome } from "./history";
 import { type ContributionDataset, PLATFORM_IDS, type PlatformContributions } from "@/domain/types";
 
 export interface ContributionLoaders {
@@ -11,6 +13,13 @@ export interface ContributionLoaders {
   gitlab: (username: string) => Promise<AdapterResult>;
   /** Today's date in UTC. Injected for deterministic tests. */
   today: () => ISODate;
+  /** Earlier GitHub days (complete-year cache). Absent → multi-year requests stay at 12 months. */
+  githubHistory?: (username: string, range: DateRange) => Promise<HistoryOutcome>;
+}
+
+export interface LoadOptions {
+  /** 12-month periods wanted (1–3). Only GitHub can supply more than one. */
+  years?: number;
 }
 
 /**
@@ -20,8 +29,19 @@ export interface ContributionLoaders {
 export async function loadContributions(
   request: ConnectRequest,
   loaders: ContributionLoaders,
+  { years = 1 }: LoadOptions = {},
 ): Promise<ContributionsResponse> {
   const today = loaders.today();
+  // History is fetched in parallel with the trailing year: image proxies are latency-sensitive.
+  // The range is anchored on today; the rare one-day timezone extension is trimmed below.
+  const wantsHistory = years > 1 && !!request.github && !!loaders.githubHistory;
+  const pendingHistory = wantsHistory
+    ? loaders.githubHistory!(request.github!, {
+        start: historyRange(today, years).start,
+        // Inclusive of the trailing year's first day: if the end shifts a day for timezones, no day is left uncovered.
+        end: trailingYear(today).start,
+      })
+    : null;
 
   const requested = PLATFORM_IDS.flatMap((platform) => {
     const username = request[platform];
@@ -33,9 +53,32 @@ export async function loadContributions(
     ),
   );
 
-  const sources = outcomes.flatMap((o) => (o.ok ? [o.data] : []));
+  let sources = outcomes.flatMap((o) => (o.ok ? [o.data] : []));
   const range = trailingYear(resolveEndDate(today, sources));
-  const dataset = sources.length > 0 ? { ...combineSources(sources, range, "live"), ...freshnessOf(sources) } : null;
+  let datasetRange = range;
+  let history: HistoryStatus | undefined;
+
+  if (pendingHistory) {
+    const outcome = await pendingHistory;
+    const github = sources.find((s) => s.platform === "github");
+    if (!outcome.ok) {
+      const { kind, message } = outcome.error;
+      history = { years, status: kind, message, retryable: isTransientError(kind) };
+    } else if (github) {
+      history = { years, status: "ok" };
+      datasetRange = historyRange(range.end, years);
+      const earlier = outcome.days.filter((d) => d.date >= datasetRange.start && d.date < range.start);
+      // GitHub covers the whole span; GitLab publishes only the last 12 months — beyond that it's unknown.
+      sources = sources.map((s) =>
+        s.platform === "github"
+          ? { ...s, days: [...earlier, ...s.days], coverage: datasetRange }
+          : { ...s, coverage: range },
+      );
+    }
+  }
+
+  const dataset =
+    sources.length > 0 ? { ...combineSources(sources, datasetRange, "live"), ...freshnessOf(sources) } : null;
 
   const results: PlatformResult[] = outcomes.map((outcome, i) => {
     const { platform, username } = requested[i]!;
@@ -48,7 +91,7 @@ export async function loadContributions(
     return { platform, username, status: "ok", total, privateCount, stale, fetchedAt };
   });
 
-  return { dataset, results };
+  return history ? { dataset, results, history } : { dataset, results };
 }
 
 /** Dataset freshness = its oldest source; stale if any source is last-known-good. */

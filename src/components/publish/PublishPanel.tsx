@@ -30,7 +30,14 @@ export interface PublishPanelProps {
   isPreviewDeployment?: boolean;
   /** Returns to the design step (settings are kept). */
   onEdit?: () => void;
+  /**
+   * Offline card source for environments without the /api/card route (Storybook).
+   * Given a published card URL, returns its SVG markup. Production omits it.
+   */
+  renderCard?: (cardUrl: string) => string;
 }
+
+const svgDataUri = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 
 const focusRing =
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:focus-visible:outline-blue-400";
@@ -51,6 +58,7 @@ export function PublishPanel({
   onOptionsChange,
   isPreviewDeployment = false,
   onEdit,
+  renderCard,
 }: PublishPanelProps) {
   return (
     <div className="space-y-4">
@@ -72,6 +80,7 @@ export function PublishPanel({
           options={options}
           onOptionsChange={onOptionsChange}
           onEdit={onEdit}
+          renderCard={renderCard}
         />
       ) : (
         <p className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">
@@ -89,6 +98,7 @@ function PublishContent({
   options,
   onOptionsChange,
   onEdit,
+  renderCard,
 }: {
   params: CardParams;
   origin: string;
@@ -96,6 +106,7 @@ function PublishContent({
   options: SnippetOptions;
   onOptionsChange: (options: SnippetOptions) => void;
   onEdit?: () => void;
+  renderCard?: (cardUrl: string) => string;
 }) {
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState<"svg" | "png" | null>(null);
@@ -133,7 +144,7 @@ function PublishContent({
     setBusy(kind);
     announce(`Preparing ${kind.toUpperCase()}…`);
     try {
-      const svg = await fetchPublishedSvg(imageUrl);
+      const svg = renderCard ? renderCard(imageUrl) : await fetchPublishedSvg(imageUrl);
       const blob = kind === "svg" ? new Blob([svg], { type: "image/svg+xml" }) : await svgToPng(svg);
       saveBlob(blob, downloadName(params.request, kind));
       announce(`${kind.toUpperCase()} downloaded.`);
@@ -161,7 +172,11 @@ function PublishContent({
         </p>
       )}
 
-      <PublishedPreview key={previewUrl} src={previewUrl} alt={altText(params.request)} />
+      <PublishedPreview
+        key={previewUrl}
+        src={renderCard ? svgDataUri(renderCard(previewUrl)) : previewUrl}
+        alt={altText(params.request)}
+      />
 
       <div className="space-y-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">

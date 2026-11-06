@@ -1,11 +1,11 @@
 import type { NextRequest } from "next/server";
-import { validateConnectRequest } from "@/adapters/connect";
+import { parseYears, validateConnectRequest } from "@/adapters/connect";
 import { serverLoaders } from "@/server/cached";
 import { loadContributions } from "@/server/contributions";
 import { clientKey, contributionsLimiter, tooManyRequests } from "@/server/rate-limit";
 
 /**
- * GET /api/contributions?github=<user>&gitlab=<user>
+ * GET /api/contributions?github=<user>&gitlab=<user>[&years=1|2|3]
  * Returns a ContributionsResponse: a combined `live` dataset (or null) plus a
  * status per requested platform. Tokens never leave the server.
  */
@@ -23,10 +23,14 @@ export async function GET(request: NextRequest) {
         : `Invalid username for: ${validation.fields.join(", ")}.`;
     return Response.json({ error }, { status: 400 });
   }
+  const years = parseYears(params.get("years"));
+  if (years === null) return Response.json({ error: "years must be 1, 2 or 3." }, { status: 400 });
 
-  const response = await loadContributions(validation.request, serverLoaders);
+  const response = await loadContributions(validation.request, serverLoaders, { years });
   // Only let CDNs cache stable answers; failures should be retryable immediately.
-  const stable = response.results.every((r) => (r.status === "ok" && !r.stale) || r.status === "not_found");
+  const stable =
+    response.results.every((r) => (r.status === "ok" && !r.stale) || r.status === "not_found") &&
+    (!response.history || response.history.status === "ok");
 
   return Response.json(response, {
     headers: stable

@@ -20,6 +20,7 @@ function fullyCustomized(): VisualizationConfig {
     { type: "setFeature", feature: "currentStreak", enabled: true },
     { type: "setRange", range: 90 },
     { type: "setDensity", density: "compact" },
+    { type: "setPanel", panel: "outlined" },
   ];
   for (const step of steps) c = configReducer(c, step);
   return c;
@@ -40,7 +41,7 @@ describe("Phase 4 URL params", () => {
     expect(query).toContain("palette=midnight-neon");
     expect(query).toContain("hdr=full&hl=github&av=github%2Cgitlab&name=Jen+Kruk");
     expect(query).toContain(
-      "bg=gradient&pc=github%3Aff7a59&ord=total%2Cactive%2Cbest%2Cstreak%2Ccurrent&range=90&den=compact",
+      "bg=gradient&pc=github%3Aff7a59&ord=total%2Cactive%2Cbest%2Cstreak%2Ccurrent&range=90&den=compact&pnl=outlined",
     );
     // Feature codes follow registry order; "current" never appears in pre-Phase-4 URLs, so their f= is unchanged.
     expect(query).toContain("f=heatmap%2Ctotal%2Cactive%2Cstreak%2Ccurrent%2Cbreakdown%2Ctrends%2Clabels");
@@ -110,5 +111,80 @@ describe("Phase 4 URL params", () => {
     ]) {
       expect(decode(`v=1&github=jenkruk&palette=${code}`).issues).toEqual([]);
     }
+  });
+});
+
+describe("Phase 4.2 panel style (pnl)", () => {
+  it("is absent for filled panels, so existing URLs never change", () => {
+    expect(decode("v=1&github=jenkruk").config.panel).toBe("filled");
+    const query = encodeCardParams({ request: { github: "jenkruk" }, config: createDefaultConfig() }).toString();
+    expect(query).not.toContain("pnl");
+  });
+
+  it.each([
+    ["v=1&github=jenkruk&pnl=outlined", "outlined"],
+    ["v=1&github=jenkruk&pnl=borderless", "borderless"],
+    ["v=1&github=jenkruk&pnl=filled", "filled"],
+  ] as const)("golden: %s → %s", (query, panel) => {
+    const { config, issues } = decode(query);
+    expect(issues).toEqual([]);
+    expect(config.panel).toBe(panel);
+  });
+
+  it("reports an unknown panel code and falls back to filled", () => {
+    const { config, issues } = decode("v=1&github=jenkruk&pnl=glass");
+    expect(config.panel).toBe("filled");
+    expect(issues.map((i) => i.param)).toEqual(["pnl"]);
+  });
+
+  it("is independent of the background setting", () => {
+    const config = { ...createDefaultConfig(), background: "transparent" as const, panel: "borderless" as const };
+    const query = encodeCardParams({ request: { github: "jenkruk" }, config }).toString();
+    expect(query).toContain("bg=transparent&pnl=borderless");
+    expect(decode(query).config).toEqual(config);
+  });
+});
+
+describe("Phase 4.2 history (yrs)", () => {
+  it("is absent for one year, so existing URLs never change", () => {
+    expect(decode("v=1&github=jenkruk").config.years).toBe(1);
+    expect(
+      encodeCardParams({ request: { github: "jenkruk" }, config: createDefaultConfig() }).toString(),
+    ).not.toContain("yrs");
+  });
+
+  it.each([
+    ["v=1&github=jenkruk&yrs=2", 2],
+    ["v=1&github=jenkruk&yrs=3", 3],
+    ["v=1&github=jenkruk&yrs=1", 1],
+  ] as const)("golden: %s → %i years", (query, years) => {
+    const { config, issues } = decode(query);
+    expect(issues).toEqual([]);
+    expect(config).toMatchObject({ years, range: 365 });
+  });
+
+  it("round-trips and keeps legacy 30/90/365-day URLs decoding exactly as before", () => {
+    const config = configReducer(createDefaultConfig(), { type: "setYears", years: 3 });
+    const query = encodeCardParams({ request: { github: "jenkruk" }, config }).toString();
+    expect(query).toContain("yrs=3");
+    expect(query).not.toContain("range=");
+    expect(decode(query).config).toEqual(config);
+    for (const range of [30, 90, 365] as const) {
+      expect(decode(`v=1&github=jenkruk&range=${range}`).config).toMatchObject({ range, years: 1 });
+    }
+  });
+
+  it("rejects unknown values and conflicting ranges", () => {
+    expect(decode("v=1&github=jenkruk&yrs=5").issues.map((i) => i.param)).toEqual(["yrs"]);
+    const conflict = decode("v=1&github=jenkruk&yrs=3&range=30");
+    expect(conflict.issues.map((i) => i.param)).toEqual(["yrs"]);
+    expect(conflict.config).toMatchObject({ years: 3, range: 365 }); // the lenient studio view
+  });
+
+  it("choosing years always uses the full 365-day range; a legacy range resets to one year", () => {
+    let c = configReducer(createDefaultConfig(), { type: "setRange", range: 90 });
+    c = configReducer(c, { type: "setYears", years: 2 });
+    expect(c).toMatchObject({ years: 2, range: 365 });
+    expect(configReducer(c, { type: "setRange", range: 30 })).toMatchObject({ years: 1, range: 30 });
   });
 });

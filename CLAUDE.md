@@ -28,6 +28,8 @@ Customizable contribution visualizations that combine GitHub + GitLab activity f
 - Route handlers can't import `react-dom/server`; serialize SVG with `src/publish/svg-markup.ts` and keep its React-parity test passing. Renderers must stay hook-free with inline attributes.
 - `src/publish/__snapshots__/legacy/*.svg` are byte-identical renders of pre-Phase-4 URLs. Never update them; a failure means an old embed changed. New URL params must be optional and written only when they differ from the frozen legacy defaults.
 - Avatars are fetched only in `src/server/avatars.ts` (host allowlist, size/type limits) and embedded as `data:` URIs. Never put an external URL in a rendered SVG `<image>`.
+- Days outside a source's `coverage` are UNKNOWN, never zero: don't zero-fill, don't sum them into combined totals. Metrics use `prepareView(...).metricsView` (the span every platform covers); never present partial data as a complete cross-platform total.
+- GitLab history = its public 12-month calendar only (no Events API, no GitLab auth). GitHub history = complete calendar years cached per year in `src/server/history.ts`.
 - Contribution snapshots live in the Vercel Runtime Cache via `getCache` (`src/server/cached.ts`), not `"use cache: remote"` (its keys change every deploy). Bump `SNAPSHOT_SCHEMA` when the stored shape changes. Never write failures to the cache.
 - Published URLs must use the production origin from `src/server/origin.ts`; never build them from the request host.
 

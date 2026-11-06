@@ -128,3 +128,25 @@ describe("starting presets", () => {
     expect(graphic.identity).toMatchObject({ style: "none", name: "Avery" });
   });
 });
+
+describe("switching presets back and forth", () => {
+  it("restores the user's own profile header and avatars instead of the preset defaults", () => {
+    const custom = [
+      { type: "applyPreset", preset: "profile" },
+      { type: "setIdentityStyle", style: "compact" },
+      { type: "setAvatar", platform: "github", enabled: false },
+      { type: "setAvatar", platform: "gitlab", enabled: false },
+      { type: "setName", name: "Avery" },
+      { type: "setTitle", title: "Engineer" },
+      { type: "setHandle", platform: "gitlab", enabled: false },
+    ] as const;
+    const profile = custom.reduce(configReducer, createDefaultConfig());
+    const graphic = configReducer(profile, { type: "applyPreset", preset: "graphic" });
+    const back = configReducer(graphic, {
+      type: "applyPreset",
+      preset: "profile",
+      restore: { style: profile.identity.style as "compact", avatars: profile.identity.avatars },
+    });
+    expect(back.identity).toEqual(profile.identity);
+  });
+});

@@ -19,7 +19,7 @@ test.describe("data freshness and cache layers", () => {
     const second = await getCard(request, `gitlab=${user}`);
 
     expect(second.desc).toContain("3 contributions"); // still the cached snapshot
-    expect(await hits(request, user)).toEqual({ github: 0, gitlab: 1 });
+    expect(await hits(request, user)).toEqual({ github: 0, gitlab: 1, history: 0 });
   });
 
   test("after days without requests, the first view gets fresh data immediately (no stale-then-refresh)", async ({

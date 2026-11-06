@@ -43,6 +43,12 @@ export interface PlatformContributions {
   fetchedAt?: string;
   /** True when served as last-known-good because a refresh failed. */
   stale?: boolean;
+  /**
+   * Dates this source actually reports. Days outside it are UNKNOWN, never zero
+   * (e.g. GitLab only publishes 12 months). Absent = the whole dataset range;
+   * null = nothing within the dataset range is covered.
+   */
+  coverage?: DateRange | null;
 }
 
 /** How current a live dataset is. Absent for sample data. */
@@ -59,6 +65,7 @@ export type Provenance = "live" | "sample";
 export interface CombinedDay {
   date: ISODate;
   total: number;
+  /** A platform is absent on days outside its coverage (unknown), and 0 on covered days without activity. */
   byPlatform: Partial<Record<PlatformId, number>>;
 }
 

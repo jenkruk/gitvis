@@ -36,6 +36,20 @@ test.describe("published card", () => {
     expect(svg).toContain("Avery");
   });
 
+  test("panel styles are preserved in the published SVG", async ({ request }) => {
+    const user = uniqueUser("panels");
+    await upstream(request, user, { count: 4 });
+    const panelRects = (svg: string) => svg.match(/<rect [^>]*rx="10"[^>]*>/g) ?? [];
+    const filled = await getCard(request, `github=${user}`);
+    const outlined = await getCard(request, `github=${user}&pnl=outlined&bg=gradient`);
+    const borderless = await getCard(request, `github=${user}&pnl=borderless&bg=transparent`);
+    expect(panelRects(filled.svg).length).toBeGreaterThan(0);
+    expect(panelRects(outlined.svg)).toHaveLength(panelRects(filled.svg).length);
+    for (const rect of panelRects(outlined.svg)) expect(rect).toContain('fill="none"');
+    expect(panelRects(borderless.svg)).toEqual([]);
+    expect(borderless.status).toBe("ok");
+  });
+
   test("legacy URLs render without any identity header", async ({ request }) => {
     const user = uniqueUser("legacy");
     await upstream(request, user, { count: 3 });
@@ -107,6 +121,25 @@ test.describe("studio", () => {
     await page.locator("label", { has: page.getByRole("radio", { name: /^None/ }) }).click();
     await expect(graphic.getByText("Avery Example", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("radio", { name: /contribution graphic/i })).toBeChecked();
+  });
+
+  test("panel style is chosen with the keyboard and survives into the shareable URL", async ({ page, request }) => {
+    const user = uniqueUser("panelkbd");
+    await upstream(request, user, { count: 4 });
+    await page.goto(`/?v=1&github=${user}`);
+    await expandAll(page);
+    const filled = page.getByRole("radio", { name: "Filled" });
+    await filled.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(page.getByRole("radio", { name: "Outlined" })).toBeChecked();
+    await expect(page).toHaveURL(/[?&]pnl=outlined/);
+    await expect(page.getByRole("radio", { name: "Solid" })).toBeChecked(); // independent of the background
+    await expect(page.locator("summary", { hasText: "Colors & Background" })).toContainText("Outlined panels");
+    await expectAccessible(page, "outlined panels");
+
+    await page.reload();
+    await expandAll(page);
+    await expect(page.getByRole("radio", { name: "Outlined" })).toBeChecked();
   });
 
   for (const width of [320, 375]) {

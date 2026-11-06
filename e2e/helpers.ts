@@ -21,7 +21,10 @@ export async function upstream(
   expect(res.ok()).toBe(true);
 }
 
-export async function hits(request: APIRequestContext, user: string): Promise<{ github: number; gitlab: number }> {
+export async function hits(
+  request: APIRequestContext,
+  user: string,
+): Promise<{ github: number; gitlab: number; history: number }> {
   return (await request.get(`${UPSTREAM}/__hits?user=${user}`)).json();
 }
 

@@ -45,7 +45,7 @@ Switching layouts never discards the user's feature, palette, or mode choices. A
 
 Combined contribution heatmap · Total contributions · Active days · Longest streak · Best day (off by default) · Current streak (off by default) · GitHub/GitLab breakdown · Activity trends · Platform labels and links.
 
-Metrics can be **reordered** (Move up / Move down buttons, keyboard-accessible and announced). The **date range** (30 days, 90 days, 1 year) applies to every metric, the heatmap and the charts. **Density** (Spacious or Compact) tightens cards and panels without changing the layout.
+Metrics can be **reordered** (Move up / Move down buttons, keyboard-accessible and announced). The **date range** is 1 year (default), 2 years or 3 years: one calendar per 12-month period, newest first, each with its yearly total. Earlier years come from GitHub; GitLab publishes only the last 12 months, so for combined accounts earlier periods are clearly labelled "GitHub only", stats cover the period both platforms report (and say so), and GitLab-only accounts can't choose 2 or 3 years. Old links with 30- or 90-day ranges keep working unchanged. **Density** (Spacious or Compact) tightens cards and panels without changing the layout.
 
 Features live in a registry (`src/config/features.ts`). Adding one is a data change plus a renderer, not an edit to every layout's settings.
 
@@ -60,6 +60,7 @@ Features live in a registry (`src/config/features.ts`). Adding one is a data cha
 
 Fifteen curated palettes, each with light and dark variants: Aurora, Amethyst, Desert Sunset, Ocean Depths, Forest & Gold, Rose Quartz, Electric Cobalt, Ember, Monochrome, GitHub Classic, GitLab Inspired, Nordic Frost, Solarized, Midnight Neon, Paper & Ink. Palettes coordinate background, surface, border, text, accent, chart series, and a 5-step heatmap ramp. Automated tests enforce contrast.
 
+- **Panels:** Filled, Outlined or Borderless cards and chart panels, independent of the background. Colors are re-checked for contrast against whatever is actually behind them.
 - **Background:** Solid, Gradient (a subtle diagonal tint) or Transparent (blends into the README). Transparent images always use theme matching, so text stays readable on GitHub light and dark.
 - **Custom platform colors:** pick any GitHub/GitLab series color. Colors too close to the panel are adjusted automatically to keep 3:1 contrast, and the UI says so. Platforms are always labelled too, so color never carries meaning alone.
 
@@ -83,7 +84,7 @@ The user's goal is to **paste one Markdown snippet into a GitHub README** and ne
 
 ## V1 scope
 
-**In scope:** GitHub and GitLab.com public calendars, the three layouts, the feature registry, fifteen palettes with light and dark variants, optional profile identity, backgrounds, custom platform colors, date ranges, density, metric ordering, live preview, SVG/PNG/Markdown export, a stable embed URL with caching, accessibility (WCAG 2.2 AA for the app UI; text alternatives inside SVGs), and responsive design.
+**In scope:** GitHub and GitLab.com public calendars, the three layouts, the feature registry, fifteen palettes with light and dark variants, optional profile identity, backgrounds, custom platform colors, panel styles, 1–3 years of history (GitHub; GitLab's 12 months), density, metric ordering, live preview, SVG/PNG/Markdown export, a stable embed URL with caching, accessibility (WCAG 2.2 AA for the app UI; text alternatives inside SVGs), and responsive design.
 
 **Out of scope for V1:** accounts and authentication, a database, payments, self-hosted GitLab instances, Bitbucket (the schema allows for it), private-repository access via OAuth, and animated SVGs.
 

@@ -38,7 +38,10 @@ export function Panel({
   height: number;
   theme: ThemeTokens;
 }) {
-  return <rect x={x} y={y} width={width} height={height} rx={10} fill={theme.surface} stroke={theme.border} />;
+  const fill = theme.panelFill ?? theme.surface;
+  const stroke = theme.panelStroke ?? theme.border;
+  if (fill === "none" && stroke === "none") return null; // borderless: spacing alone separates sections
+  return <rect x={x} y={y} width={width} height={height} rx={10} fill={fill} stroke={stroke} />;
 }
 
 export interface Section {

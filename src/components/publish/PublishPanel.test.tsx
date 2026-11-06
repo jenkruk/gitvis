@@ -172,6 +172,35 @@ describe("PublishPanel", () => {
   });
 });
 
+describe("offline card source (Storybook)", () => {
+  it("renders the preview and downloads from renderCard without touching the network", async () => {
+    const renderCard = vi.fn((url: string) => `<svg data-url="${new URL(url).search.length}"></svg>`);
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const user = userEvent.setup();
+    render(
+      <Harness
+        origin={origin}
+        request={{ github: "jenkruk" }}
+        results={okResults}
+        config={createDefaultConfig()}
+        renderCard={renderCard}
+      />,
+    );
+    const image = screen.getByRole("img", { name: /github @jenkruk/i });
+    expect(image.getAttribute("src")).toMatch(/^data:image\/svg\+xml;charset=utf-8,/);
+    expect(renderCard).toHaveBeenCalledWith(
+      expect.stringMatching(/^https:\/\/gitvis\.test\/api\/card\?v=1&github=jenkruk/),
+    );
+    // The URL users copy is still the real one.
+    expect(screen.getByRole("textbox", { name: "Image URL" })).toHaveValue(renderCard.mock.calls[0]![0]);
+
+    await user.click(screen.getByRole("button", { name: "Download SVG" }));
+    expect(await screen.findByText("SVG downloaded.")).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(click).toHaveBeenCalled();
+  });
+});
+
 describe("Edit configuration link", () => {
   it("restores the design in the studio and preserves it across layout switches", async () => {
     const { config } = decodeCardParams(

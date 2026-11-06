@@ -37,12 +37,16 @@ export interface HeatmapGrid {
 }
 
 /** Lays days out as week columns (Sunday-first rows) with month labels. */
-export function buildHeatmapGrid(days: readonly CombinedDay[]): HeatmapGrid {
+export function buildHeatmapGrid(
+  days: readonly CombinedDay[],
+  /** Shared scale across several calendars (multi-year); defaults to this calendar's own quartiles. */
+  scale?: readonly [number, number, number],
+): HeatmapGrid {
   const first = days[0];
   if (!first) return { cells: [], columns: 0, monthLabels: [] };
 
   const origin = startOfWeek(first.date);
-  const thresholds = heatmapThresholds(days.map((d) => d.total));
+  const thresholds = scale ?? heatmapThresholds(days.map((d) => d.total));
   const cells = days.map((day) => ({
     day,
     column: Math.floor(diffDays(origin, day.date) / 7),

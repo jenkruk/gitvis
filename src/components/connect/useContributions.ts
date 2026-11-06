@@ -38,14 +38,16 @@ export function useContributions(initial: InitialConnection) {
   useEffect(() => () => inFlight.current?.abort(), []);
 
   /** Resolves with the loaded response, or null on failure / abort. */
-  const connect = useCallback(async (request: ConnectRequest): Promise<ContributionsResponse | null> => {
+  const connect = useCallback(async (request: ConnectRequest, years = 1): Promise<ContributionsResponse | null> => {
     inFlight.current?.abort();
     const controller = new AbortController();
     inFlight.current = controller;
     setState({ phase: "loading", request });
 
     try {
-      const res = await fetch(`/api/contributions?${connectSearchParams(request)}`, { signal: controller.signal });
+      const res = await fetch(`/api/contributions?${connectSearchParams(request, years)}`, {
+        signal: controller.signal,
+      });
       if (res.status === 429) {
         setState({ phase: "failed", request, message: "Too many requests. Please wait a minute and try again." });
         return null;

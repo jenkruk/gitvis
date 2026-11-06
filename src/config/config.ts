@@ -1,5 +1,6 @@
+import type { HistoryYears } from "@/domain/history";
 import type { ContributionDataset, PlatformId } from "@/domain/types";
-import type { ColorMode, PaletteId } from "@/theme/palettes";
+import type { ColorMode, PaletteId, PanelStyle } from "@/theme/palettes";
 import {
   defaultFeatureFlags,
   type FeatureFlags,
@@ -20,6 +21,8 @@ export const IDENTITY_STYLES: readonly IdentityStyle[] = ["none", "compact", "fu
 export const BACKGROUND_STYLES: readonly BackgroundStyle[] = ["solid", "gradient", "transparent"];
 export const DATE_RANGES: readonly DateRangeDays[] = [30, 90, 365];
 export const DENSITIES: readonly Density[] = ["spacious", "compact"];
+export const PANEL_STYLES: readonly PanelStyle[] = ["filled", "outlined", "borderless"];
+export type { PanelStyle };
 
 export const NAME_MAX_LENGTH = 40;
 export const TITLE_MAX_LENGTH = 60;
@@ -54,6 +57,13 @@ export interface VisualizationConfig {
   metricOrder: StatFeatureId[];
   range: DateRangeDays;
   density: Density;
+  /** Panel appearance (stat cards, heatmap, breakdown, charts); independent of `background`. */
+  panel: PanelStyle;
+  /**
+   * 12-month periods shown (1–3), newest first. Years > 1 always use the full
+   * 365-day range; `range` 30/90 survive only for links that already use them.
+   */
+  years: HistoryYears;
 }
 
 /**
@@ -96,6 +106,8 @@ export function createDefaultConfig(): VisualizationConfig {
     metricOrder: [...STAT_FEATURE_IDS],
     range: 365,
     density: "spacious",
+    panel: "filled",
+    years: 1,
   };
 }
 
@@ -136,7 +148,14 @@ export type ConfigAction =
   | { type: "moveMetric"; metric: StatFeatureId; direction: -1 | 1 }
   | { type: "setRange"; range: DateRangeDays }
   | { type: "setDensity"; density: Density }
-  | { type: "applyPreset"; preset: StartingPresetId }
+  | { type: "setPanel"; panel: PanelStyle }
+  | { type: "setYears"; years: HistoryYears }
+  | {
+      type: "applyPreset";
+      preset: StartingPresetId;
+      /** The profile header the user last had, restored when switching back from the graphic preset. */
+      restore?: { style: Exclude<IdentityStyle, "none">; avatars: PlatformId[] };
+    }
   | { type: "reset" };
 
 function toggle(list: PlatformId[], platform: PlatformId, enabled: boolean): PlatformId[] {
@@ -190,13 +209,22 @@ export function configReducer(state: VisualizationConfig, action: ConfigAction):
       return { ...state, metricOrder: order };
     }
     case "setRange":
-      return state.range === action.range ? state : { ...state, range: action.range };
+      // Legacy 30/90/365-day ranges are single-period by definition.
+      return state.range === action.range && state.years === 1 ? state : { ...state, range: action.range, years: 1 };
+    case "setYears":
+      return state.years === action.years && state.range === 365
+        ? state
+        : { ...state, years: action.years, range: 365 };
     case "setDensity":
       return state.density === action.density ? state : { ...state, density: action.density };
+    case "setPanel":
+      return state.panel === action.panel ? state : { ...state, panel: action.panel };
     case "applyPreset":
       // Only identity changes; layout, palette, features and the rest are untouched.
       if (presetOf(state) === action.preset) return state;
+      // Name, title and handles are never touched, so nothing typed is lost either way.
       if (action.preset === "graphic") return identity({ style: "none" });
+      if (action.restore) return identity({ style: action.restore.style, avatars: [...action.restore.avatars] });
       return identity({
         style: "full",
         avatars: state.identity.avatars.length ? state.identity.avatars : ["github", "gitlab"],

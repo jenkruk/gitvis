@@ -2,14 +2,17 @@ import { formatDate } from "@/domain/dates";
 import { type ContributionDataset, PLATFORMS } from "@/domain/types";
 import type { ContributionMetrics } from "@/metrics/metrics";
 import { formatNumber, formatPercent } from "@/renderers/primitives";
-import { describeVisualization } from "@/renderers/Visualization";
+import { type PreparedView, rangeLabel } from "@/renderers/view";
+import { describeHistory, describeVisualization } from "@/renderers/Visualization";
 
 /**
  * Text and table alternative to the graphic, built from the same metrics so
  * the numbers can't drift. Useful for screen readers, zoomed-in reading and
  * anyone who prefers exact values over color intensity.
  */
-export function DataView({ dataset, metrics }: { dataset: ContributionDataset; metrics: ContributionMetrics }) {
+export function DataView({ prepared, metrics }: { prepared: PreparedView; metrics: ContributionMetrics }) {
+  // Metrics (and the monthly table) cover what every platform reports; the period table spans every year shown.
+  const dataset: ContributionDataset = prepared.metricsView;
   const platforms = dataset.sources.map((s) => s.platform);
   const stats: [string, string][] = [
     ["Total contributions", formatNumber(metrics.total)],
@@ -32,7 +35,11 @@ export function DataView({ dataset, metrics }: { dataset: ContributionDataset; m
         View the data as text and a table
       </summary>
       <div className="space-y-4 border-t border-zinc-200 p-3 dark:border-zinc-800">
-        <p className="text-zinc-700 dark:text-zinc-300">{describeVisualization(dataset, metrics)}</p>
+        <p className="text-zinc-700 dark:text-zinc-300">
+          {[describeVisualization(dataset, metrics), describeHistory(prepared)].filter(Boolean).join(" ")}
+        </p>
+
+        {prepared.periods.length > 1 && <PeriodTable prepared={prepared} />}
 
         <dl className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2">
           {stats.map(([term, value]) => (
@@ -91,5 +98,68 @@ export function DataView({ dataset, metrics }: { dataset: ContributionDataset; m
         </div>
       </div>
     </details>
+  );
+}
+
+/** One row per 12-month period. A platform without data for a period says so — never a zero. */
+function PeriodTable({ prepared }: { prepared: PreparedView }) {
+  const platforms = prepared.view.sources.map((s) => s.platform);
+  return (
+    <div
+      role="region"
+      aria-labelledby="data-period-caption"
+      tabIndex={0}
+      className="overflow-x-auto rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+    >
+      <table className="w-full min-w-[20rem] border-collapse text-left tabular-nums">
+        <caption id="data-period-caption" className="mb-2 text-left font-medium">
+          Contributions by 12-month period
+        </caption>
+        <thead>
+          <tr className="border-b border-zinc-200 dark:border-zinc-800">
+            <th scope="col" className="py-1.5 pr-4 font-medium">
+              Period
+            </th>
+            {platforms.map((p) => (
+              <th key={p} scope="col" className="py-1.5 pr-4 text-right font-medium">
+                {PLATFORMS[p].label}
+              </th>
+            ))}
+            {platforms.length > 1 && (
+              <th scope="col" className="py-1.5 text-right font-medium">
+                Combined
+              </th>
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {prepared.periods.map((period) => (
+            <tr key={period.range.end} className="border-b border-zinc-100 dark:border-zinc-800">
+              <th scope="row" className="py-1 pr-4 font-normal">
+                {rangeLabel(period.range)}
+              </th>
+              {period.platforms.map((p) => (
+                <td key={p.platform} className="py-1 pr-4 text-right">
+                  {p.status === "complete" ? (
+                    formatNumber(p.total)
+                  ) : (
+                    <span className="text-zinc-600 dark:text-zinc-400">Not available</span>
+                  )}
+                </td>
+              ))}
+              {platforms.length > 1 && (
+                <td className="py-1 text-right font-medium">
+                  {period.complete ? (
+                    formatNumber(period.total)
+                  ) : (
+                    <span className="font-normal text-zinc-600 dark:text-zinc-400">Incomplete</span>
+                  )}
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

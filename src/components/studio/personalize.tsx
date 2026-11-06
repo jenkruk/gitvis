@@ -3,14 +3,15 @@ import type { Dispatch } from "react";
 import {
   type BackgroundStyle,
   type ConfigAction,
-  type DateRangeDays,
   type Density,
   type IdentityStyle,
   NAME_MAX_LENGTH,
+  type PanelStyle,
   TITLE_MAX_LENGTH,
   type VisualizationConfig,
 } from "@/config/config";
-import { PLATFORM_IDS, PLATFORMS, type PlatformId } from "@/domain/types";
+import type { HistoryYears } from "@/domain/history";
+import { type ContributionDataset, PLATFORM_IDS, PLATFORMS, type PlatformId } from "@/domain/types";
 import { resolveTheme } from "@/theme/palettes";
 import { ControlGroup, RadioCard } from "./controls";
 
@@ -26,9 +27,9 @@ const checkboxLabel =
   "flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-zinc-200 px-3 text-sm has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-blue-600 dark:border-zinc-800";
 
 const HEADER_PRESETS: { id: IdentityStyle; label: string; description: string }[] = [
-  { id: "none", label: "None", description: "Title, date range and handles." },
-  { id: "compact", label: "Compact identity", description: "Small avatars, your name and handles." },
-  { id: "full", label: "Full profile", description: "Large avatars, name, title and handles." },
+  { id: "none", label: "None", description: "Standard title row." },
+  { id: "compact", label: "Compact identity", description: "Small avatars and your name." },
+  { id: "full", label: "Full profile", description: "Large avatars, name and title." },
 ];
 
 /** Profile header preset plus independent handle, avatar, name and title options. */
@@ -36,7 +37,7 @@ export function IdentityPicker({ config, dispatch }: Props) {
   const { identity } = config;
   const off = identity.style === "none";
   return (
-    <ControlGroup legend="Profile header" description="Everything here is optional and independent.">
+    <ControlGroup legend="Profile header">
       <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
         {HEADER_PRESETS.map((preset) => (
           <RadioCard
@@ -54,8 +55,8 @@ export function IdentityPicker({ config, dispatch }: Props) {
       </div>
 
       <fieldset className="mt-4">
-        <legend className="text-sm font-medium">Show handles</legend>
-        <p className={hint}>Requires “Platform labels &amp; links” under Context.</p>
+        <legend className="text-sm font-medium">Handles</legend>
+        <p className={hint}>Shown when “Platform labels &amp; links” is on in Metrics &amp; Charts.</p>
         <div className="mt-2 grid grid-cols-2 gap-2">
           {PLATFORM_IDS.map((p) => (
             <label key={p} className={checkboxLabel}>
@@ -152,10 +153,10 @@ function TextField({
   );
 }
 
-const BACKGROUNDS: { id: BackgroundStyle; label: string; description: string }[] = [
-  { id: "solid", label: "Solid", description: "The palette background." },
-  { id: "gradient", label: "Gradient", description: "A subtle diagonal tint." },
-  { id: "transparent", label: "Transparent", description: "Blends into the README page." },
+const BACKGROUNDS: { id: BackgroundStyle; label: string }[] = [
+  { id: "solid", label: "Solid" },
+  { id: "gradient", label: "Gradient" },
+  { id: "transparent", label: "Transparent" },
 ];
 
 export function BackgroundPicker({ config, dispatch }: Props) {
@@ -164,8 +165,8 @@ export function BackgroundPicker({ config, dispatch }: Props) {
       legend="Background"
       description={
         config.background === "transparent"
-          ? "Transparent graphics are published with “Match reader's theme”, so they stay readable on light and dark GitHub."
-          : "Independent of the palette."
+          ? "Follows the reader's light or dark GitHub theme when published."
+          : undefined
       }
     >
       <div className="grid grid-cols-3 gap-2">
@@ -176,10 +177,58 @@ export function BackgroundPicker({ config, dispatch }: Props) {
             value={bg.id}
             checked={config.background === bg.id}
             onSelect={() => dispatch({ type: "setBackground", background: bg.id })}
-            className="flex-col p-2"
+            className="items-center justify-center p-2"
           >
             <span className="text-sm font-medium">{bg.label}</span>
-            <span className="text-[11px] text-zinc-600 dark:text-zinc-400">{bg.description}</span>
+          </RadioCard>
+        ))}
+      </div>
+    </ControlGroup>
+  );
+}
+
+const PANELS: { id: PanelStyle; label: string }[] = [
+  { id: "filled", label: "Filled" },
+  { id: "outlined", label: "Outlined" },
+  { id: "borderless", label: "Borderless" },
+];
+
+/** A tiny drawing of each panel style, so the choice is visible without a description. */
+function PanelSwatch({ style }: { style: PanelStyle }) {
+  return (
+    <svg aria-hidden="true" width="40" height="24" viewBox="0 0 40 24" className="text-zinc-500 dark:text-zinc-400">
+      <rect
+        x="1"
+        y="1"
+        width="38"
+        height="22"
+        rx="4"
+        fill={style === "filled" ? "currentColor" : "none"}
+        fillOpacity={0.25}
+        stroke={style === "borderless" ? "none" : "currentColor"}
+      />
+      <rect x="7" y="8" width="16" height="3" rx="1.5" fill="currentColor" />
+      <rect x="7" y="14" width="24" height="3" rx="1.5" fill="currentColor" opacity={0.6} />
+    </svg>
+  );
+}
+
+/** Panel appearance for cards, the heatmap and charts — independent of the background. */
+export function PanelPicker({ config, dispatch }: Props) {
+  return (
+    <ControlGroup legend="Panels">
+      <div className="grid grid-cols-3 gap-2">
+        {PANELS.map((panel) => (
+          <RadioCard
+            key={panel.id}
+            name="panel"
+            value={panel.id}
+            checked={config.panel === panel.id}
+            onSelect={() => dispatch({ type: "setPanel", panel: panel.id })}
+            className="flex-col items-center gap-1 p-2"
+          >
+            <PanelSwatch style={panel.id} />
+            <span className="text-sm font-medium">{panel.label}</span>
           </RadioCard>
         ))}
       </div>
@@ -193,7 +242,7 @@ export function PlatformColorPicker({ config, dispatch }: Props) {
   const custom = config.platformColors;
   const effective = resolveTheme(config.palette, config.mode, { series: [custom.github, custom.gitlab] });
   return (
-    <ControlGroup legend="Platform colors" description="Used for breakdowns, legends and chart series.">
+    <ControlGroup legend="Platform colors">
       <div className="grid gap-2">
         {PLATFORM_IDS.map((p: PlatformId, i) => {
           const chosen = custom[p];
@@ -233,33 +282,68 @@ export function PlatformColorPicker({ config, dispatch }: Props) {
   );
 }
 
-const RANGES: { id: DateRangeDays; label: string }[] = [
-  { id: 30, label: "30 days" },
-  { id: 90, label: "90 days" },
-  { id: 365, label: "1 year" },
+const YEAR_OPTIONS: { id: HistoryYears; label: string }[] = [
+  { id: 1, label: "1 year" },
+  { id: 2, label: "2 years" },
+  { id: 3, label: "3 years" },
 ];
 const DENSITY_OPTIONS: { id: Density; label: string }[] = [
   { id: "spacious", label: "Spacious" },
   { id: "compact", label: "Compact" },
 ];
 
-export function DataPicker({ config, dispatch }: Props) {
+/** Whether earlier years can be shown for the current data, and why not. */
+export interface HistoryAvailability {
+  available: boolean;
+  reason?: string;
+}
+
+export function historyAvailability(dataset: ContributionDataset): HistoryAvailability {
+  if (dataset.provenance === "sample") {
+    return { available: false, reason: "Connect a GitHub account to show earlier years." };
+  }
+  if (!dataset.sources.some((s) => s.platform === "github")) {
+    return { available: false, reason: "GitLab publishes only the last 12 months, so earlier years aren't available." };
+  }
+  return { available: true };
+}
+
+export function DataPicker({ config, dispatch, history }: Props & { history: HistoryAvailability }) {
+  // Links made with the old 30/90-day options keep their range; it's listed until another choice is made.
+  const legacyRange = config.range < 365 ? config.range : null;
+  const description = [
+    history.available ? "Earlier years come from GitHub; GitLab publishes only the last 12 months." : history.reason,
+  ]
+    .filter(Boolean)
+    .join(" ");
   return (
     <div className="space-y-6">
-      <ControlGroup legend="Date range" description="Metrics, heatmap and charts all follow the range.">
+      <ControlGroup legend="Date range" description={description}>
         <div className="grid grid-cols-3 gap-2">
-          {RANGES.map((r) => (
+          {YEAR_OPTIONS.map((option) => (
             <RadioCard
-              key={r.id}
-              name="range"
-              value={String(r.id)}
-              checked={config.range === r.id}
-              onSelect={() => dispatch({ type: "setRange", range: r.id })}
+              key={option.id}
+              name="years"
+              value={String(option.id)}
+              checked={!legacyRange && config.years === option.id}
+              disabled={option.id > 1 && !history.available && config.years !== option.id}
+              onSelect={() => dispatch({ type: "setYears", years: option.id })}
               className="items-center justify-center py-2"
             >
-              <span className="text-sm font-medium">{r.label}</span>
+              <span className="text-sm font-medium">{option.label}</span>
             </RadioCard>
           ))}
+          {legacyRange && (
+            <RadioCard
+              name="years"
+              value={`days-${legacyRange}`}
+              checked
+              onSelect={() => undefined}
+              className="col-span-3 items-center justify-center py-2"
+            >
+              <span className="text-sm font-medium">Last {legacyRange} days (from your link)</span>
+            </RadioCard>
+          )}
         </div>
       </ControlGroup>
       <ControlGroup legend="Density">

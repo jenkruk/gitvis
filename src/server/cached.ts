@@ -13,7 +13,8 @@ import {
   type Snapshot,
   type SnapshotOutcome,
 } from "./freshness";
-import { fetchGitHubContributions, GITHUB_GRAPHQL_URL } from "./github";
+import { fetchGitHubContributions, fetchGitHubYears, GITHUB_GRAPHQL_URL } from "./github";
+import { createHistoryLoader } from "./history";
 import { fetchGitLabContributions } from "./gitlab";
 import { upstreamBudget } from "./rate-limit";
 
@@ -183,11 +184,20 @@ export function vercelRuntimeStore(): SnapshotStore {
   return runtimeStore;
 }
 
-export const serverLoaders: ContributionLoaders = createLoaders({
-  store: {
-    get: (key) => vercelRuntimeStore().get(key),
-    set: (key, value, ttl) => vercelRuntimeStore().set(key, value, ttl),
-  },
-  fetcher: liveFetcher,
-  policy: () => (testOverridesAllowed() ? policyFromEnv() : policyFromEnv({})),
-});
+const sharedStore: SnapshotStore = {
+  get: (key) => vercelRuntimeStore().get(key),
+  set: (key, value, ttl) => vercelRuntimeStore().set(key, value, ttl),
+};
+
+export const serverLoaders: ContributionLoaders = {
+  ...createLoaders({
+    store: sharedStore,
+    fetcher: liveFetcher,
+    policy: () => (testOverridesAllowed() ? policyFromEnv() : policyFromEnv({})),
+  }),
+  githubHistory: createHistoryLoader({
+    store: sharedStore,
+    fetchYears: (username, years) =>
+      fetchGitHubYears(username, years, process.env.GITHUB_TOKEN, { url: upstreamUrls().github }),
+  }),
+};

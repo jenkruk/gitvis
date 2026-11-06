@@ -126,6 +126,8 @@ Consequences: GitLab counts tend to run higher for the same amount of work. Labe
 
 - **URL state:** the query string is the Edit link (unchanged v1 contract); the hash holds the current step. Steps are pushed onto history, so Back/Forward work.
 - **Starting presets** (`STARTING_PRESETS`, `presetOf`, the `applyPreset` action) are derived from `identity.style` — _Contribution graphic_ = no header, _Developer profile card_ = full header (+ avatars if none were chosen). They change nothing else and add no URL parameter, so every published URL renders exactly as before.
+- **Presets never discard identity choices:** name, title and handles are untouched by presets, and the picker remembers the last profile header (style and avatars) so Graphic → Profile restores it instead of the preset defaults.
+- **Storybook seam:** `PublishPanel`/`Studio` accept an optional `renderCard(cardUrl) → svg`. Storybook passes one that decodes the real URL and renders it with the production renderer and serializer; production omits it and uses `/api/card`.
 - **Curated palettes:** `CURATED_PALETTE_IDS` lists the six shown first; the selected palette is always listed too.
 
 Feature visibility is computed, never stored: `getFeatureVisibility(featureId, layout, dataset)` returns whether the feature is rendered and why not (layout doesn't support it, or it needs two platforms). Toggles keep their values across layout switches.
@@ -178,18 +180,20 @@ ConnectForm (client) ──GET /api/contributions?github=&gitlab=──▶ route
 
 **Phase 4 params** (optional, added within v1; absent = the original rendering):
 
-| Param   | Values                                                                                               | Missing        |
-| ------- | ---------------------------------------------------------------------------------------------------- | -------------- |
-| `hdr`   | `none` · `compact` · `full`                                                                          | `none`         |
-| `hl`    | handles shown: comma list of `github`, `gitlab` (may be empty)                                       | both           |
-| `av`    | avatars shown: comma list of `github`, `gitlab`                                                      | none           |
-| `name`  | display name, ≤ 40 characters after sanitizing                                                       | none           |
-| `title` | professional title, ≤ 60 characters after sanitizing                                                 | none           |
-| `bg`    | `solid` · `gradient` · `transparent`                                                                 | `solid`        |
-| `pc`    | platform colors, `github:ff7a59,gitlab:123456`                                                       | palette series |
-| `ord`   | stat order: `total` `active` `streak` `best` `current`; a partial list is completed in default order | default order  |
-| `range` | `30` · `90` · `365`                                                                                  | `365`          |
-| `den`   | `spacious` · `compact`                                                                               | `spacious`     |
+| Param   | Values                                                                                                      | Missing        |
+| ------- | ----------------------------------------------------------------------------------------------------------- | -------------- |
+| `hdr`   | `none` · `compact` · `full`                                                                                 | `none`         |
+| `hl`    | handles shown: comma list of `github`, `gitlab` (may be empty)                                              | both           |
+| `av`    | avatars shown: comma list of `github`, `gitlab`                                                             | none           |
+| `name`  | display name, ≤ 40 characters after sanitizing                                                              | none           |
+| `title` | professional title, ≤ 60 characters after sanitizing                                                        | none           |
+| `bg`    | `solid` · `gradient` · `transparent`                                                                        | `solid`        |
+| `pc`    | platform colors, `github:ff7a59,gitlab:123456`                                                              | palette series |
+| `ord`   | stat order: `total` `active` `streak` `best` `current`; a partial list is completed in default order        | default order  |
+| `range` | `30` · `90` · `365`                                                                                         | `365`          |
+| `den`   | `spacious` · `compact`                                                                                      | `spacious`     |
+| `pnl`   | `filled` · `outlined` · `borderless` (Phase 4.2)                                                            | `filled`       |
+| `yrs`   | `1` · `2` · `3` 12-month periods (Phase 4.2); `2`/`3` require the full range (with `range=30/90` → invalid) | `1`            |
 
 New palette codes: `github-classic` · `gitlab-inspired` · `nordic-frost` · `solarized` · `midnight-neon` · `paper-ink`. New feature code: `current` (current streak; off unless listed in `f`, so old URLs never gain it).
 
@@ -292,6 +296,34 @@ A candidate equal to the preview's own hostname (`VERCEL_URL` or `VERCEL_BRANCH_
 ### Error policy
 
 Card errors return **HTTP 200 with a readable error SVG** (plus `X-GitVis-Status: <code>`), because GitHub shows a broken-image icon for non-2xx responses and README owners need to see what's wrong. Messages come only from the fixed, user-safe adapter and validation strings. Unexpected exceptions become a generic "Something went wrong" card; details are logged server-side and never rendered. If **any** requested platform fails, the card shows an error rather than a silently partial (misleadingly low) total.
+
+### Historical ranges (Phase 4.2)
+
+**Sources (verified November 2026).** GitHub's `contributionsCollection(from, to)` returns a calendar for any period of at most one year, so history is fetched per year. GitLab publishes a calendar for the **last 12 months only** (profile calendar, `calendar.json`, and the experimental GraphQL `contributionCalendar`). Its Events API is not used: it needs a token, misses private contributions the calendar counts, and GitLab prunes events older than 3 years — older GitLab years would be silently undercounted.
+
+**Coverage, not zeros.** `PlatformContributions.coverage` records the dates a source actually reports. `combineSources` seeds a platform's 0 only on covered days, so outside coverage `byPlatform[platform]` is **absent** (unknown). Legacy datasets have no coverage and behave exactly as before.
+
+**One derivation for every view** (`src/renderers/view.ts`, `prepareView`): the years slice (`historyRange`, 365-day periods ending today), the legacy 30/90-day slice, and `metricsView` — the span **every** connected platform covers (`coveredSpan`). Stats, breakdown, trends, the monthly table and the description use `metricsView`; calendars use the full view. The graphic, studio preview and data table all call it, so their numbers can't drift.
+
+- **Combined accounts, 2–3 years:** calendars show GitHub-only history for earlier periods, each titled "… · GitHub only" with "GitLab history isn't available for this period." Stats carry a scope note ("Stats cover … when every platform has data"). Cell tooltips say "(GitHub only; GitLab not available)". No hatching.
+- **Per-period summaries** (`periodSummaries`): a platform's total is reported only if it covers the **whole** period; otherwise "unavailable". A combined total exists only when every platform is complete (the data table shows "Not available" / "Incomplete").
+- **GitHub-only accounts:** full-span stats (complete data).
+- **GitLab-only accounts:** the studio disables 2 and 3 years with the reason; a hand-made `yrs` URL renders 12 months plus "The earlier years aren't available: GitLab publishes only the last 12 months."
+- **Phones (`size=compact`):** yearly summaries as text plus the readable last-20-weeks heatmap.
+
+**Loading and caching.** `loadContributions(request, loaders, { years })` fetches history in parallel with the trailing year (`githubHistory` loader, `src/server/history.ts`):
+
+- History is fetched as **complete calendar years** in one aliased GraphQL request (`y0: contributionsCollection($from0, $to0)`, …; login and dates are variables), and stored **one key per year**: `v1:github-year:<login-lowercase>:<year>`. Keys never move with "today", every 2- or 3-year view reuses them, and after Jan 1 only one new year is fetched.
+- Past years are effectively immutable: kept **30 days**, refreshed at most **weekly**, and if a refresh fails the cached copy is served. The current calendar year (reachable only at a leap-year boundary) follows a 12-hour policy. Failures are never written. Concurrent loads share one request; each fetch takes from the upstream budget.
+- The trailing 12 months keep the existing 12h snapshot policy, so the newest period stays fresh while history costs ~one request per user per week.
+- `/api/contributions?…&years=1|2|3` (anything else → 400). The studio loads 3 years whenever a multi-year design is chosen, so switching 2 ↔ 3 never refetches.
+- **Failure policy:** if requested history can't load, the response carries `history: { status, message, retryable }`. Cards show an explanatory "temporarily unavailable" card (60s at the edge) rather than fewer years; the studio shows the last 12 months with a "Try again" notice.
+
+### Panel styles (Phase 4.2)
+
+`pnl` sets how stat cards, the heatmap container, the platform breakdown and chart panels are drawn: **filled** (`surface` + `border`, the original), **outlined** (border only) or **borderless** (nothing; section spacing separates them). Every panel goes through the `Panel` primitive, so the style is applied consistently.
+
+Unfilled panels put their content directly on whatever is behind them, so `applyPanelStyle` re-checks text and muted text (4.5:1), and accent, series and the top heatmap level (3:1), against the **actual backdrops** from `panelBackdrops`: the canvas color (solid), both gradient stops (gradient), or GitHub's page colors for the matching mode (transparent). Filled panels return the theme untouched, so `pnl` absent = byte-identical legacy output. Contrast is tested for all 15 palettes × 2 modes × 3 backgrounds × 2 unfilled styles, including a worst-case custom series color.
 
 ### Avatars (Phase 4)
 

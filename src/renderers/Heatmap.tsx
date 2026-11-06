@@ -11,6 +11,10 @@ export interface HeatmapProps {
   y: number;
   width: number;
   showLegend?: boolean;
+  /** Shared level thresholds when several calendars are shown together. */
+  scale?: readonly [number, number, number];
+  /** Connected platforms; when given, tooltips name platforms whose data isn't available that day. */
+  platforms?: readonly PlatformId[];
 }
 
 /** Space reserved for the "More" label at the right end of the legend. */
@@ -26,18 +30,26 @@ export function measureHeatmap(days: readonly CombinedDay[], width: number, show
   return heatmapGeometry(buildHeatmapGrid(days).columns, width, showLegend);
 }
 
-function describeDay(day: CombinedDay): string {
+function describeDay(day: CombinedDay, platforms?: readonly PlatformId[]): string {
   const noun = day.total === 1 ? "contribution" : "contributions";
   const parts = Object.entries(day.byPlatform)
     .filter(([, count]) => count > 0)
     .map(([platform, count]) => `${PLATFORMS[platform as PlatformId].label} ${formatNumber(count)}`);
   const breakdown = parts.length > 1 ? ` (${parts.join(", ")})` : "";
-  return `${formatNumber(day.total)} ${noun} on ${formatDate(day.date, "long")}${breakdown}`;
+  // Outside a platform's coverage its count is unknown — say so rather than implying zero.
+  const missing = (platforms ?? []).filter((p) => day.byPlatform[p] === undefined).map((p) => PLATFORMS[p].label);
+  const known = (platforms ?? []).filter((p) => day.byPlatform[p] !== undefined).map((p) => PLATFORMS[p].label);
+  const coverage = !missing.length
+    ? ""
+    : known.length
+      ? ` (${known.join(" and ")} only; ${missing.join(" and ")} not available)`
+      : " (no data available)";
+  return `${formatNumber(day.total)} ${noun} on ${formatDate(day.date, "long")}${breakdown}${coverage}`;
 }
 
 /** Combined contribution calendar: weeks as columns, Sunday-first rows. */
-export function Heatmap({ days, theme, x, y, width, showLegend = true }: HeatmapProps) {
-  const grid = buildHeatmapGrid(days);
+export function Heatmap({ days, theme, x, y, width, showLegend = true, scale, platforms }: HeatmapProps) {
+  const grid = buildHeatmapGrid(days, scale);
   const g = heatmapGeometry(grid.columns, width, showLegend);
   const gridTop = g.monthLabelHeight;
   const text = { fontFamily: FONT_STACK, fontSize: 10, fill: theme.textMuted };
@@ -65,7 +77,7 @@ export function Heatmap({ days, theme, x, y, width, showLegend = true }: Heatmap
           rx={2}
           fill={theme.heatmap[level]}
         >
-          <title>{describeDay(day)}</title>
+          <title>{describeDay(day, platforms)}</title>
         </rect>
       ))}
       {showLegend && (

@@ -119,7 +119,7 @@ Deployment verification moved to Phase 3.2.
 - [x] Profile links under the image in the README snippet
 - [x] Six new palettes (15 total), Solid/Gradient/Transparent backgrounds, custom platform colors with automatic contrast correction
 - [x] Transparent contrast verified against GitHub light and dark page colors; transparent forces theme matching
-- [x] Current-streak metric, metric visibility and keyboard-accessible ordering, 30/90/365-day ranges, Compact/Spacious density
+- [x] Current-streak metric, metric visibility and keyboard-accessible ordering, 30/90/365-day ranges (replaced in the studio by 1–3 years in 4.2; URLs still honored), Compact/Spacious density
 - [x] URL contract extended within v1 (optional params written only when non-default); legacy byte-identical SVG snapshots; golden URLs; 2,048-character cap; text sanitizing
 - [x] Storybook (production components, a11y addon, viewports) plus a Vitest smoke test over stories
 - [x] Unit, component and Playwright + axe coverage for the new controls, serialization and SVG output
@@ -134,7 +134,15 @@ Deployment verification moved to Phase 3.2.
 - [x] v1 URLs and rendering unchanged (legacy snapshots, golden URLs)
 - [x] Storybook: guided studio steps, design controls, step navigation; unit and Playwright coverage for navigation, focus, preservation and the publishing flow
 
-## Phase 4.2: Design-system depth
+## Phase 4.2: Visual refinement ✅
+
+- [x] Panel styles (Filled, Outlined, Borderless) for stat cards, heatmap, breakdown and charts; `pnl` URL param; contrast re-checked against the real backdrop; legacy output unchanged
+- [x] Presets restore the user's last profile header and avatars; name, title and handles are never discarded
+- [x] Storybook Publish stories render the real published URL offline (no unavailable API)
+- [x] Studio copy trimmed (redundant group descriptions removed, shorter layout and header descriptions)
+- [x] Historical ranges: 1/2/3 years (`yrs`), one calendar per 12-month period with yearly summaries; GitHub history via per-year cached GraphQL, GitLab's public 12 months only; coverage-aware metrics, descriptions and data table; phone summaries; GitLab-only accounts limited to 1 year with an explanation; 30/90/365-day URLs preserved
+
+## Phase 4.3: Design-system depth
 
 **Tasks**
 

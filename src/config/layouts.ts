@@ -11,7 +11,7 @@ export const LAYOUTS = [
   {
     id: "minimal",
     label: "Minimal",
-    description: "Understated typography and a heatmap, with an optional one-line summary.",
+    description: "Heatmap with a one-line summary.",
     supportedFeatures: [
       "heatmap",
       "totalContributions",
@@ -25,7 +25,7 @@ export const LAYOUTS = [
   {
     id: "dashboard",
     label: "Dashboard",
-    description: "Balanced stat cards, heatmap and platform breakdown.",
+    description: "Stat cards, heatmap and breakdown.",
     supportedFeatures: [
       "heatmap",
       "totalContributions",
@@ -40,7 +40,7 @@ export const LAYOUTS = [
   {
     id: "dataRich",
     label: "Data-rich",
-    description: "Detailed stats, trends and platform comparisons.",
+    description: "Detailed stats, trends and comparisons.",
     supportedFeatures: [
       "heatmap",
       "totalContributions",

@@ -99,6 +99,8 @@ Independent of the background: any panel style works with Solid, Gradient or Tra
 
 `resolveTheme(palette, mode, { series })` runs each custom color through `ensureContrast(color, surface, 3)`, mixing it toward black or white in 5% steps until it reaches 3:1. The studio shows "Adjusted to … for contrast." when that happens.
 
+**Custom colors also color the heatmap by platform** (`withPlatformHeatmap`, applied after panel-style adjustment): each series color gets a 5-step ramp from `heatmapEmpty` to the series color (level 4 = the series color, ≥ 3:1). A day takes the ramp of the platform with the most contributions (a 50/50 blend on ties); its level still comes from the day's total. The legend labels each hue ("Less GitHub ■■■■ GitLab ■■■■ More") and tooltips always name the platform. Without custom colors, the palette's single ramp is used (unchanged).
+
 ## Profile headers (`src/renderers/IdentityHeader.tsx`)
 
 | Preset           | Avatar                  | Content                                    | Height |

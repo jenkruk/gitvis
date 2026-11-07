@@ -63,7 +63,7 @@ Twenty-four curated palettes, each with light and dark variants: Aurora, Amethys
 
 - **Panels:** Filled, Outlined or Borderless cards and chart panels, independent of the background. Colors are re-checked for contrast against whatever is actually behind them.
 - **Background:** Solid, Gradient (a subtle diagonal tint) or Transparent (blends into the README). Transparent images always use theme matching, so text stays readable on GitHub light and dark.
-- **Custom platform colors:** pick any GitHub/GitLab series color. Colors too close to the panel are adjusted automatically to keep 3:1 contrast, and the UI says so. Platforms are always labelled too, so color never carries meaning alone.
+- **Custom platform colors:** pick any GitHub/GitLab series color. Colors too close to the panel are adjusted automatically to keep 3:1 contrast, and the UI says so. Platforms are always labelled too, so color never carries meaning alone. A custom color also colors the heatmap by platform: each day shows the color of the platform with the most contributions, and the legend labels both.
 
 ### Publishing
 

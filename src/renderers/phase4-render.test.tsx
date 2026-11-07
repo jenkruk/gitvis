@@ -6,7 +6,7 @@ import { combineSources } from "@/domain/combine";
 import { addDays, toISODate, trailingYear } from "@/domain/dates";
 import { renderSvgMarkup } from "@/publish/svg-markup";
 import { contrastRatio } from "@/theme/color";
-import { resolveTheme } from "@/theme/palettes";
+import { resolveTheme, withPlatformHeatmap } from "@/theme/palettes";
 import { CANVAS_WIDTHS } from "./primitives";
 import { Visualization } from "./Visualization";
 
@@ -226,5 +226,64 @@ describe("panel styles (Phase 4.2)", () => {
     );
     expect(svg).not.toMatch(/<rect x="0.5" y="0.5"/); // no canvas
     expect(panels(svg).length).toBeGreaterThan(0);
+  });
+});
+
+describe("heatmap colored by platform (custom platform colors)", () => {
+  const custom = with_({ type: "setPlatformColor", platform: "gitlab", color: "#a7562a" });
+  const cells = (svg: string) =>
+    [...svg.matchAll(/<rect [^>]*rx="2" fill="(#[0-9a-f]{6})"><title>([^<]*)<\/title>/g)].map((m) => ({
+      fill: m[1]!,
+      title: m[2]!,
+    }));
+
+  it("leaves the default (no custom colors) on the palette's single ramp", () => {
+    const svg = render(createDefaultConfig());
+    const theme = resolveTheme("aurora", "dark");
+    for (const { fill } of cells(svg)) expect(theme.heatmap).toContain(fill);
+    expect(svg).not.toMatch(/>GitLab<\/text><rect/);
+  });
+
+  it("colors each day by the platform that contributed most, and labels both ramps", () => {
+    const svg = render(custom);
+    const theme = withPlatformHeatmap(resolveTheme("aurora", "dark", { series: [undefined, "#a7562a"] }));
+    const [githubRamp, gitlabRamp] = theme.platformHeatmap!;
+    const gitlabOnly = cells(svg).find((c) => /\(GitLab \d+\)$/.test(c.title))!;
+    const githubOnly = cells(svg).find((c) => /\(GitHub \d+\)$/.test(c.title))!;
+    expect(gitlabRamp.slice(1)).toContain(gitlabOnly.fill);
+    expect(githubRamp.slice(1)).toContain(githubOnly.fill);
+    // Single-platform days now name their platform in the tooltip.
+    expect(gitlabOnly.title).toMatch(/ on .+ \(GitLab \d+\)$/);
+    // The legend labels each hue.
+    expect(svg).toMatch(/>Less<\/text>.*>GitHub<\/text>.*>GitLab<\/text>.*>More<\/text>/s);
+  });
+
+  it("keeps each platform ramp ordered and its top level readable on the surface (3:1)", () => {
+    for (const mode of ["light", "dark"] as const) {
+      const theme = withPlatformHeatmap(resolveTheme("mocha", mode, { series: ["#d9a46c", "#a7562a"] }));
+      for (const ramp of theme.platformHeatmap!) {
+        expect(ramp[0]).toBe(theme.heatmapEmpty);
+        const contrasts = ramp.slice(1).map((c) => contrastRatio(c, theme.surface));
+        for (let i = 1; i < contrasts.length; i++) expect(contrasts[i]!).toBeGreaterThan(contrasts[i - 1]!);
+        expect(contrasts.at(-1)!).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+
+  it("blends the two hues on days where both platforms tie", () => {
+    const tie = combineSources(
+      [
+        { platform: "github", username: "a", days: [{ date: end, count: 3 }] },
+        { platform: "gitlab", username: "b", days: [{ date: end, count: 3 }] },
+      ],
+      trailingYear(end),
+      "live",
+    );
+    const svg = renderToStaticMarkup(<Visualization dataset={tie} config={custom} />);
+    const theme = withPlatformHeatmap(resolveTheme("aurora", "dark", { series: [undefined, "#a7562a"] }));
+    const today = cells(svg).find((c) => c.title.includes("Nov 6, 2026"))!;
+    const [gh, gl] = theme.platformHeatmap!;
+    expect(gh).not.toContain(today.fill);
+    expect(gl).not.toContain(today.fill);
   });
 });

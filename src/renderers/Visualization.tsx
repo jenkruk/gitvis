@@ -2,7 +2,7 @@ import { finalText, isFeatureVisible, type VisualizationConfig } from "@/config/
 import { formatDate, toISODate } from "@/domain/dates";
 import { type ContributionDataset, PLATFORMS } from "@/domain/types";
 import { computeMetrics, type ContributionMetrics } from "@/metrics/metrics";
-import { applyPanelStyle, gradientEnd, panelBackdrops, resolveTheme } from "@/theme/palettes";
+import { applyPanelStyle, gradientEnd, panelBackdrops, resolveTheme, withPlatformHeatmap } from "@/theme/palettes";
 import { type AvatarImages, IdentityHeader, identityHeaderHeight } from "./IdentityHeader";
 import { LAYOUT_SECTIONS, SPACING } from "./layouts";
 import { CANVAS_WIDTHS, type CardSize, contentWidthFor, formatNumber, PADDING, stackSections } from "./primitives";
@@ -106,7 +106,9 @@ export function Visualization({
     custom.github || custom.gitlab ? { series: [custom.github, custom.gitlab] } : {},
   );
   // Unfilled panels: content colors are checked against what's actually behind them.
-  const theme = applyPanelStyle(base, config.panel, panelBackdrops(base, config.background, config.mode));
+  const panelled = applyPanelStyle(base, config.panel, panelBackdrops(base, config.background, config.mode));
+  // Custom platform colors also color the heatmap by platform (after contrast adjustment above).
+  const theme = custom.github || custom.gitlab ? withPlatformHeatmap(panelled) : panelled;
   const spacing = SPACING[config.density];
   const canvasWidth = CANVAS_WIDTHS[size];
   const compactCanvas = size === "compact";

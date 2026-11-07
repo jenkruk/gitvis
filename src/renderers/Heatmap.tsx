@@ -1,7 +1,8 @@
 import { formatDate } from "@/domain/dates";
-import { type CombinedDay, PLATFORMS, type PlatformId } from "@/domain/types";
+import { type CombinedDay, PLATFORM_IDS, PLATFORMS, type PlatformId } from "@/domain/types";
+import { mix } from "@/theme/color";
 import type { ThemeTokens } from "@/theme/palettes";
-import { buildHeatmapGrid, type HeatmapGeometry, heatmapGeometry } from "./heatmap-model";
+import { buildHeatmapGrid, type HeatLevel, type HeatmapGeometry, heatmapGeometry } from "./heatmap-model";
 import { FONT_STACK, formatNumber } from "./primitives";
 
 export interface HeatmapProps {
@@ -30,12 +31,13 @@ export function measureHeatmap(days: readonly CombinedDay[], width: number, show
   return heatmapGeometry(buildHeatmapGrid(days).columns, width, showLegend);
 }
 
-function describeDay(day: CombinedDay, platforms?: readonly PlatformId[]): string {
+function describeDay(day: CombinedDay, platforms?: readonly PlatformId[], namePlatform = false): string {
   const noun = day.total === 1 ? "contribution" : "contributions";
   const parts = Object.entries(day.byPlatform)
     .filter(([, count]) => count > 0)
     .map(([platform, count]) => `${PLATFORMS[platform as PlatformId].label} ${formatNumber(count)}`);
-  const breakdown = parts.length > 1 ? ` (${parts.join(", ")})` : "";
+  // Colored by platform: always say which platform(s) a day's color comes from.
+  const breakdown = parts.length > 1 || (namePlatform && parts.length === 1) ? ` (${parts.join(", ")})` : "";
   // Outside a platform's coverage its count is unknown — say so rather than implying zero.
   const missing = (platforms ?? []).filter((p) => day.byPlatform[p] === undefined).map((p) => PLATFORMS[p].label);
   const known = (platforms ?? []).filter((p) => day.byPlatform[p] !== undefined).map((p) => PLATFORMS[p].label);
@@ -45,6 +47,25 @@ function describeDay(day: CombinedDay, platforms?: readonly PlatformId[]): strin
       ? ` (${known.join(" and ")} only; ${missing.join(" and ")} not available)`
       : " (no data available)";
   return `${formatNumber(day.total)} ${noun} on ${formatDate(day.date, "long")}${breakdown}${coverage}`;
+}
+
+/**
+ * Per-platform coloring: a day takes the color of the platform with the most
+ * contributions (a 50/50 blend on ties); its level still comes from the day's total.
+ */
+function cellColor(day: CombinedDay, level: HeatLevel, theme: ThemeTokens): string {
+  const ramps = theme.platformHeatmap;
+  if (!ramps || level === 0) return theme.heatmap[level];
+  const counts = PLATFORM_IDS.map((p) => day.byPlatform[p] ?? 0);
+  const max = Math.max(...counts);
+  const leaders = PLATFORM_IDS.flatMap((_, i) => (counts[i] === max ? [i] : []));
+  const colors = leaders.map((i) => ramps[i % ramps.length]![level]);
+  return colors.length === 1 ? colors[0]! : mix(colors[0]!, colors[1]!, 0.5);
+}
+
+/** Platforms with data in these days, in PLATFORM_IDS order. */
+function platformsIn(days: readonly CombinedDay[]): PlatformId[] {
+  return PLATFORM_IDS.filter((p) => days.some((d) => d.byPlatform[p] !== undefined));
 }
 
 /** Combined contribution calendar: weeks as columns, Sunday-first rows. */
@@ -75,12 +96,15 @@ export function Heatmap({ days, theme, x, y, width, showLegend = true, scale, pl
           width={g.cell}
           height={g.cell}
           rx={2}
-          fill={theme.heatmap[level]}
+          fill={cellColor(day, level, theme)}
         >
-          <title>{describeDay(day, platforms)}</title>
+          <title>{describeDay(day, platforms, !!theme.platformHeatmap)}</title>
         </rect>
       ))}
-      {showLegend && (
+      {showLegend && theme.platformHeatmap && (
+        <PlatformLegend theme={theme} platforms={platformsIn(days)} g={g} text={text} />
+      )}
+      {showLegend && !theme.platformHeatmap && (
         // Right-aligned to the grid: "Less ■■■■■ More"
         <g transform={`translate(${g.gridWidth} ${g.height - 6})`}>
           <text x={0} y={0} textAnchor="end" {...text}>
@@ -102,6 +126,76 @@ export function Heatmap({ days, theme, x, y, width, showLegend = true, scale, pl
           </text>
         </g>
       )}
+    </g>
+  );
+}
+
+/** Average glyph width for 10px legend text (conservative, like text.ts). */
+const LEGEND_GLYPH = 5.8;
+
+/**
+ * Right-aligned "Less  GitHub ■■■■  GitLab ■■■■  More": one ramp per platform with
+ * its name, so the hue is always labeled (one platform → "Less ■■■■■ More" in its color).
+ */
+function PlatformLegend({
+  theme,
+  platforms,
+  g,
+  text,
+}: {
+  theme: ThemeTokens;
+  platforms: PlatformId[];
+  g: HeatmapGeometry;
+  text: { fontFamily: string; fontSize: number; fill: string };
+}) {
+  const ramps = theme.platformHeatmap!;
+  const rampOf = (p: PlatformId) => ramps[PLATFORM_IDS.indexOf(p) % ramps.length]!;
+  const named = platforms.length > 1;
+  const groups = platforms.map((p) => ({
+    platform: p,
+    label: named ? PLATFORMS[p].label : "",
+    colors: named ? rampOf(p).slice(1) : rampOf(p),
+  }));
+  const textWidth = (s: string) => s.length * LEGEND_GLYPH;
+  const groupWidth = (grp: (typeof groups)[number]) =>
+    (grp.label ? textWidth(grp.label) + 4 : 0) + grp.colors.length * g.step - g.gap;
+  const width =
+    textWidth("Less") + 6 + groups.reduce((w, grp, i) => w + groupWidth(grp) + (i ? 10 : 0), 0) + 6 + textWidth("More");
+  const starts = groups.reduce<number[]>(
+    (acc, grp, i) => [...acc, i === 0 ? textWidth("Less") + 6 : acc[i - 1]! + groupWidth(groups[i - 1]!) + 10],
+    [],
+  );
+  return (
+    <g transform={`translate(${g.gridWidth - width} ${g.height - 6})`}>
+      <text x={0} y={0} {...text}>
+        Less
+      </text>
+      {groups.map((grp, i) => {
+        const cellsX = starts[i]! + (grp.label ? textWidth(grp.label) + 4 : 0);
+        return (
+          <g key={grp.platform}>
+            {grp.label && (
+              <text x={starts[i]} y={0} {...text}>
+                {grp.label}
+              </text>
+            )}
+            {grp.colors.map((color, c) => (
+              <rect
+                key={color + c}
+                x={cellsX + c * g.step}
+                y={-g.cell + 1}
+                width={g.cell}
+                height={g.cell}
+                rx={2}
+                fill={color}
+              />
+            ))}
+          </g>
+        );
+      })}
+      <text x={width} y={0} textAnchor="end" {...text}>
+        More
+      </text>
     </g>
   );
 }

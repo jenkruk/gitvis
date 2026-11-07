@@ -226,7 +226,7 @@ export function PlatformColorPicker({ config, dispatch }: Props) {
   const custom = config.platformColors;
   const effective = resolveTheme(config.palette, config.mode, { series: [custom.github, custom.gitlab] });
   return (
-    <ControlGroup legend="Platform colors">
+    <ControlGroup legend="Platform colors" description="A custom color also colors the heatmap by platform.">
       <div className="grid gap-2">
         {PLATFORM_IDS.map((p: PlatformId, i) => {
           const chosen = custom[p];

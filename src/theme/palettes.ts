@@ -25,7 +25,15 @@ export interface ThemeTokens extends PaletteVariant {
   /** Panel fill/stroke overrides ("none" = not drawn). Absent = filled panels (`surface` + `border`). */
   panelFill?: string;
   panelStroke?: string;
+  /**
+   * Per-platform heatmap ramps (same order as `series`), present when the user picks
+   * custom platform colors: cells take the color of the platform that contributed most.
+   * Absent = the palette's single combined ramp (`heatmap`).
+   */
+  platformHeatmap?: readonly [HeatmapRamp, HeatmapRamp];
 }
+
+export type HeatmapRamp = readonly [string, string, string, string, string];
 
 export type PanelStyle = "filled" | "outlined" | "borderless";
 export type BackdropStyle = "solid" | "gradient" | "transparent";
@@ -824,4 +832,18 @@ export function applyPanelStyle(theme: ThemeTokens, style: PanelStyle, backdrops
     panelFill: "none",
     panelStroke: style === "outlined" ? theme.border : "none",
   };
+}
+
+/**
+ * Colors the heatmap by platform: each series color gets its own 5-step ramp from
+ * the empty-cell color to the series color itself (level 4 = the series color, which
+ * already meets 3:1 on every backdrop). Apply after `applyPanelStyle` so it uses the
+ * contrast-adjusted series.
+ */
+export function withPlatformHeatmap(theme: ThemeTokens): ThemeTokens {
+  const rampFor = (series: string): HeatmapRamp => {
+    const [l1, l2, l3, l4] = ramp(mix(theme.heatmapEmpty, series, 0.3), series, 4) as [string, string, string, string];
+    return [theme.heatmapEmpty, l1, l2, l3, l4];
+  };
+  return { ...theme, platformHeatmap: [rampFor(theme.series[0]), rampFor(theme.series[1])] };
 }

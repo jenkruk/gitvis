@@ -1,20 +1,26 @@
 import type { ReactNode } from "react";
+import { LOGO_CELLS, LOGO_VIEWBOX } from "./logo-mark";
 
 function LogoMark() {
-  // 3×3 contribution-grid mark; decorative (the wordmark carries the name).
-  const cells = [0.35, 0.6, 1, 0.6, 1, 0.35, 1, 0.35, 0.6];
+  // 3×3 contribution-grid mark; decorative (the wordmark carries the name). Also the app icon.
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" className="text-emerald-500">
-      {cells.map((opacity, i) => (
+    <svg
+      width={LOGO_VIEWBOX}
+      height={LOGO_VIEWBOX}
+      viewBox={`0 0 ${LOGO_VIEWBOX} ${LOGO_VIEWBOX}`}
+      aria-hidden="true"
+      className="text-emerald-500"
+    >
+      {LOGO_CELLS.map((cell, i) => (
         <rect
           key={i}
-          x={(i % 3) * 8 + 1}
-          y={Math.floor(i / 3) * 8 + 1}
-          width="6"
-          height="6"
-          rx="1.5"
+          x={cell.x}
+          y={cell.y}
+          width={cell.size}
+          height={cell.size}
+          rx={cell.radius}
           fill="currentColor"
-          opacity={opacity}
+          opacity={cell.opacity}
         />
       ))}
     </svg>

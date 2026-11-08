@@ -113,21 +113,33 @@ export function Header({
  * Non-removable labels: "Sample data" for synthetic datasets, and the data date
  * when last-known-good data is shown after a failed refresh.
  */
+/** Height of the sample/stale-data badge (when one is shown). */
+export const STATUS_BADGE_HEIGHT = 22;
+
+export const hasStatusBadge = (dataset: ContributionDataset) =>
+  dataset.provenance === "sample" || !!dataset.freshness?.stale;
+
+/** `x` is the badge's right edge, or its center with `anchor="middle"`. */
 export function StatusBadge({
   dataset,
   theme,
   x,
   y,
+  anchor = "end",
 }: {
   dataset: ContributionDataset;
   theme: ThemeTokens;
   x: number;
   y: number;
+  anchor?: "end" | "middle";
 }) {
-  if (dataset.provenance === "sample") return <Badge theme={theme} x={x} y={y} width={84} text="Sample data" />;
+  const right = (width: number) => (anchor === "middle" ? x + width / 2 : x);
+  if (dataset.provenance === "sample") {
+    return <Badge theme={theme} x={right(84)} y={y} width={84} text="Sample data" />;
+  }
   if (dataset.freshness?.stale) {
     const text = `Data from ${formatDate(toISODate(dataset.freshness.asOf.slice(0, 10)))}`;
-    return <Badge theme={theme} x={x} y={y} width={136} text={text} />;
+    return <Badge theme={theme} x={right(136)} y={y} width={136} text={text} />;
   }
   return null;
 }
@@ -564,6 +576,40 @@ export function Footnote({ theme, y, width }: { theme: ThemeTokens; y: number; w
           {line}
         </tspan>
       ))}
+    </text>
+  );
+}
+
+/* ------------------------------------------------------------------- Credit */
+
+/** Space the credit line takes: a clear gap above it, then one line (its baseline is the bottom of this space). */
+export const CREDIT_HEIGHT = 44;
+/** Space below the credit's baseline: it sits near the card's bottom edge. */
+export const CREDIT_BOTTOM = 16;
+const CREDIT_SIZE = 12;
+
+/**
+ * "Made with GitVis · created by Jen Kruk · Get yours!" on every card. Only
+ * "Get yours!" is a link (to the GitVis site, new tab); it works when the SVG is
+ * opened on its own, so README snippets also carry a "Get yours!" text link.
+ */
+export function Credit({ theme, y, href }: { theme: ThemeTokens; y: number; href?: string }) {
+  const cta = (
+    // dx, not a trailing space: SVG drops whitespace at the end of a text run.
+    <tspan dx={4} fill={theme.text} fontWeight={600} textDecoration={href ? "underline" : undefined}>
+      Get yours!
+    </tspan>
+  );
+  return (
+    <text x={PADDING} y={y + CREDIT_HEIGHT} fontSize={CREDIT_SIZE} fill={theme.textMuted} fontFamily={FONT_STACK}>
+      <tspan>Made with GitVis · created by Jen Kruk ·</tspan>
+      {href ? (
+        <a href={href} target="_blank">
+          <tspan cursor="pointer">{cta}</tspan>
+        </a>
+      ) : (
+        cta
+      )}
     </text>
   );
 }

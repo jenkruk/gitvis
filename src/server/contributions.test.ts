@@ -29,20 +29,47 @@ function loaders(overrides: Partial<ContributionLoaders> = {}): ContributionLoad
 }
 
 describe("loadContributions", () => {
-  it("combines both platforms into a live dataset with a trailing-year range", async () => {
+  it("combines both platforms, each covering its own profile year", async () => {
     const l = loaders();
     const response = await loadContributions({ github: "jenkruk", gitlab: "contactkruk" }, l);
 
+    // GitHub's "last year" starts on the Sunday of the week a year back; GitLab's on the same date a year back.
     expect(response.dataset).toMatchObject({
       provenance: "live",
-      range: { start: "2025-11-07", end: "2026-11-06" },
+      range: { start: "2025-11-02", end: "2026-11-06" },
     });
-    expect(response.dataset!.days).toHaveLength(365);
+    expect(response.dataset!.days).toHaveLength(370);
+    expect(response.dataset!.sources.map((s) => s.coverage)).toEqual([
+      { start: "2025-11-02", end: "2026-11-06" },
+      { start: "2025-11-06", end: "2026-11-06" },
+    ]);
+    // Before GitLab's year, its activity is unknown (no key), not zero.
+    expect(response.dataset!.days[0]!.byPlatform).toEqual({ github: 0 });
     expect(response.results).toEqual([
       { platform: "github", username: "jenkruk", status: "ok", total: 2, privateCount: undefined },
       { platform: "gitlab", username: "contactkruk", status: "ok", total: 3, privateCount: undefined },
     ]);
     expect(l.github).toHaveBeenCalledWith("jenkruk");
+  });
+
+  it("reports each platform's own yearly total, matching its profile", async () => {
+    const response = await loadContributions(
+      { github: "jenkruk", gitlab: "contactkruk" },
+      loaders({
+        // Nov 4, 2025 is in GitHub's year (from Sun Nov 2) but before GitLab's (from Nov 6).
+        github: async () =>
+          ok("github", [
+            ["2025-11-04", 2],
+            ["2026-11-01", 5],
+          ]),
+        gitlab: async () =>
+          ok("gitlab", [
+            ["2025-11-04", 9],
+            ["2026-11-02", 3],
+          ]),
+      }),
+    );
+    expect(response.results.map((r) => r.status === "ok" && r.total)).toEqual([7, 3]);
   });
 
   it("only calls the platforms that were requested", async () => {
@@ -83,7 +110,7 @@ describe("loadContributions", () => {
       { gitlab: "east" },
       loaders({ gitlab: async () => ok("gitlab", [["2026-11-07", 4]]) }),
     );
-    expect(response.dataset!.range).toEqual({ start: "2025-11-08", end: "2026-11-07" });
+    expect(response.dataset!.range).toEqual({ start: "2025-11-07", end: "2026-11-07" });
     expect(response.results[0]).toMatchObject({ total: 4 });
   });
 

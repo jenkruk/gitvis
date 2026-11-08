@@ -87,7 +87,9 @@ describe("Connect flow", () => {
     await user.type(gitlab(), "contactkruk{Enter}"); // Enter submits the form
 
     expect(fetchMock).toHaveBeenCalledWith("/api/contributions?github=jenkruk&gitlab=contactkruk", expect.anything());
-    expect(await screen.findByText(/GitLab @contactkruk: 175 contributions/, { selector: "span" })).toBeVisible();
+    expect(
+      await screen.findByText(/GitLab @contactkruk: 175 contributions in the last 12 months/, { selector: "span" }),
+    ).toBeVisible();
     expect(screen.getByText(/GitHub @jenkruk: GitHub is rate-limiting/, { selector: "span" })).toBeVisible();
     expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Connect your accounts");
     // The address bar becomes the full Edit link (usernames + design).
@@ -105,6 +107,30 @@ describe("Connect flow", () => {
     // A successful retry moves on to Design with the live data.
     expect(await screen.findByRole("heading", { name: /design your graphic/i })).toHaveFocus();
     expect(preview()).not.toHaveAccessibleDescription(/sample data/i);
+  });
+
+  it("words each platform's total the way its profile does", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        ...loaded,
+        results: [
+          { platform: "github", username: "jenkruk", status: "ok", total: 650 },
+          {
+            platform: "gitlab",
+            username: "contactkruk",
+            status: "rate_limited",
+            message: "Slow down.",
+            retryable: true,
+          },
+        ],
+      }),
+    );
+    const { user, github } = setup();
+    await user.type(github(), "jenkruk{Enter}");
+    // GitHub's profile says "in the last year"; GitLab's says "in the last 12 months".
+    expect(
+      await screen.findByText("GitHub @jenkruk: 650 contributions in the last year.", { selector: "span" }),
+    ).toBeVisible();
   });
 
   it("can continue with the platforms that did load", async () => {

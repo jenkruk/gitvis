@@ -248,14 +248,18 @@ function UsernameField({
   );
 }
 
+/** Each total covers the platform's own year, so it's worded the way that profile words it. */
+const PROFILE_PERIOD = { github: "in the last year", gitlab: "in the last 12 months" } as const;
+
 function describeResult(result: PlatformResult): string {
   const who = `${PLATFORMS[result.platform].label} @${result.username}`;
   if (result.status !== "ok") return `${who}: ${result.message}`;
-  if (result.total === 0) return `${who}: no contributions in the last 12 months.`;
+  const period = PROFILE_PERIOD[result.platform];
+  if (result.total === 0) return `${who}: no contributions ${period}.`;
   const privateNote = result.privateCount
     ? ` Includes ${formatNumber(result.privateCount)} private (counts only).`
     : "";
-  return `${who}: ${formatNumber(result.total)} contributions in the last 12 months.${privateNote}`;
+  return `${who}: ${formatNumber(result.total)} contributions ${period}.${privateNote}`;
 }
 
 /** Announces a short summary politely and renders per-platform detail inline. */

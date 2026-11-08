@@ -14,6 +14,10 @@ import { renderSvgMarkup } from "./svg-markup";
  * One deliberate, pre-launch exception (Nov 2026, before any deployment): source
  * attribution became mandatory in v1, so "minimal-mono-light" and "no-features"
  * (which hid account labels) were re-recorded once. Nothing had been published.
+ *
+ * Second pre-launch exception (Nov 8, 2026, still undeployed): every card gained the
+ * "Made with GitVis · created by Jen Kruk · Get yours!" credit line, so all snapshots
+ * were re-recorded once. The only differences are the credit <text> and the taller card (+36px).
  */
 const LEGACY_URLS: Record<string, string> = {
   "dashboard-default": "v=1&github=jenkruk&gitlab=contactkruk",

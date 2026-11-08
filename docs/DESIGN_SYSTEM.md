@@ -85,7 +85,7 @@ Palette, layout, and mode are independent axes of `VisualizationConfig`, and cha
 | ---------- | ----------------------------------------------- | --------------------------------------- |
 | Filled     | `surface` fill + `border` stroke (default)      | Palette tokens as designed              |
 | Outlined   | `border` stroke, no fill                        | Re-checked against the real backdrop(s) |
-| Borderless | Not drawn; section gaps carry the hierarchy     | Re-checked against the real backdrop(s) |
+| Borderless | Invisible frame; same padding and gaps          | Re-checked against the real backdrop(s) |
 
 Independent of the background: any panel style works with Solid, Gradient or Transparent. Geometry and spacing are identical across styles, so switching never reflows the graphic. The Sample badge always keeps its filled pill.
 
@@ -116,7 +116,7 @@ Independent of the background: any panel style works with Solid, Gradient or Tra
 ## History calendars (`src/renderers/HistoryCalendars.tsx`)
 
 - **Full image — year cards:** one card per 12-month period, newest first, stacked with the section gap. Card header: dates (13px semibold, `text`) left and **that year's total** (13px semibold) right on the same row, then the coverage label (11px `textMuted`): "GitHub + GitLab", "GitHub", or "GitHub only · GitLab unavailable". Inner padding = the density's panel padding. One legend in the last card; one colour scale (quartiles over all shown days) across every year.
-- **Panel style:** Filled and Outlined frame each card like every other panel. **Borderless** draws no boxes (and no inner padding) — years are separated by a `border`-coloured hairline in the gap, plus the bold header row.
+- **Panel style:** Filled and Outlined frame each card like every other panel. **Borderless** keeps the same frame, padding and gaps but draws it invisibly — the spacing and the bold header row separate the years.
 - **Stats belong to the newest year:** multi-year graphics draw the summary stats (stat cards, or Minimal's one-line stats) inside the newest year's card, between its header and calendar — the border makes clear they describe that year only. Breakdown and chart titles add the period ("Platform breakdown · Last 12 months"). Phones and heatmap-less designs put a "Last 12 months · GitHub + GitLab" heading above the stats instead. Single-year graphics are unchanged.
 - **No hatching.** Missing coverage is explained in words (coverage labels, tooltips, description, data table), never by patterns.
 - **Phones (`size=compact`):** a "yearly summary" list — dates, total, coverage label per year, separated by hairlines — above the usual last-20-weeks heatmap.

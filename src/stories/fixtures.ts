@@ -5,7 +5,7 @@
 import { configReducer, createDefaultConfig, type VisualizationConfig } from "@/config/config";
 import { combineSources } from "@/domain/combine";
 import { addDays, eachDay } from "@/domain/dates";
-import { historyRange } from "@/domain/history";
+import { historyRange, newestPeriod, platformYear } from "@/domain/history";
 import { createSampleDataset } from "@/fixtures/sample-dataset";
 import { decodeCardParams } from "@/publish/card-params";
 import { renderSvgMarkup } from "@/publish/svg-markup";
@@ -40,11 +40,12 @@ export function renderSampleCard(cardUrl: string): string {
  */
 export function createSampleHistoryDataset(platforms: ("github" | "gitlab")[] = ["github", "gitlab"]) {
   const end = sampleDataset.range.end;
-  const range = historyRange(end, 3);
+  const range = historyRange(newestPeriod(platforms, end), 3);
   const lastYear = sampleDataset.range;
+  const gitlabYear = platformYear("gitlab", end);
   const sources = platforms.map((platform) => {
     const recent = sampleDataset.sources.find((s) => s.platform === platform)!;
-    if (platform === "gitlab") return { ...recent, coverage: lastYear };
+    if (platform === "gitlab") return { ...recent, coverage: gitlabYear };
     // Earlier GitHub years: a gentler, deterministic echo of the recent pattern.
     const earlier = eachDay({ start: range.start, end: addDays(lastYear.start, -1) }).flatMap((date, i) =>
       (i * 7) % 11 < 4 ? [{ date, count: 1 + ((i * 5) % 6) }] : [],

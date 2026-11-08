@@ -40,7 +40,7 @@ export function Panel({
 }) {
   const fill = theme.panelFill ?? theme.surface;
   const stroke = theme.panelStroke ?? theme.border;
-  if (fill === "none" && stroke === "none") return null; // borderless: spacing alone separates sections
+  if (fill === "none" && stroke === "none") return null; // borderless: an invisible frame; padding and gaps are unchanged
   return <rect x={x} y={y} width={width} height={height} rx={10} fill={fill} stroke={stroke} />;
 }
 

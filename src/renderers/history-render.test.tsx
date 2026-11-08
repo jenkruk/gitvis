@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import { configReducer, createDefaultConfig, type VisualizationConfig } from "@/config/config";
 import { LAYOUT_IDS } from "@/config/layouts";
 import { combineSources } from "@/domain/combine";
-import { addDays, toISODate, trailingYear } from "@/domain/dates";
-import { historyRange } from "@/domain/history";
+import { addDays, toISODate } from "@/domain/dates";
+import { historyRange, newestPeriod, platformYear } from "@/domain/history";
 import type { PlatformContributions } from "@/domain/types";
 import { computeMetrics } from "@/metrics/metrics";
 import { renderSvgMarkup } from "@/publish/svg-markup";
@@ -13,8 +13,11 @@ import { resolveTheme } from "@/theme/palettes";
 import { prepareView } from "./view";
 
 const end = toISODate("2026-11-06");
-const threeYears = historyRange(end, 3);
-const lastYear = trailingYear(end);
+/** The newest period: GitHub's own year, from Sunday Nov 2, 2025 (GitLab's starts Nov 6). */
+const newest = newestPeriod(["github", "gitlab"], end);
+const threeYears = historyRange(newest, 3);
+/** GitLab's own 12 months (its calendar covers nothing earlier). */
+const lastYear = platformYear("gitlab", end);
 
 const github: PlatformContributions = {
   platform: "github",
@@ -48,7 +51,7 @@ describe("multi-year history", () => {
     const titles = [...svg.matchAll(/font-weight="600" fill="[^"]+"[^>]*>([A-Z][a-z]{2} \d+, \d{4} – [^<]+)</g)].map(
       (m) => m[1],
     );
-    expect(titles).toEqual(["Nov 7, 2025 – Nov 6, 2026", "Nov 7, 2024 – Nov 6, 2025", "Nov 8, 2023 – Nov 6, 2024"]);
+    expect(titles).toEqual(["Nov 2, 2025 – Nov 6, 2026", "Nov 2, 2024 – Nov 1, 2025", "Nov 3, 2023 – Nov 1, 2024"]);
     expect(svg.match(/>More</g)).toHaveLength(1);
   });
 
@@ -59,7 +62,7 @@ describe("multi-year history", () => {
     // The current year's total is the card's headline: a large number with a small "contributions" label.
     expect(svg).toMatch(
       new RegExp(
-        `>Nov 7, 2025 – Nov 6, 2026</text><text[^>]*text-anchor="end"[^>]*><tspan font-size="22" font-weight="700"[^>]*>${current!.total.toLocaleString("en-US")}</tspan><tspan[^>]*font-size="12"[^>]*>contributions</tspan>`,
+        `>Nov 2, 2025 – Nov 6, 2026</text><text[^>]*text-anchor="end"[^>]*><tspan font-size="22" font-weight="700"[^>]*>${current!.total.toLocaleString("en-US")}</tspan><tspan[^>]*font-size="12"[^>]*>contributions</tspan>`,
       ),
     );
     for (const period of older) {
@@ -78,14 +81,20 @@ describe("multi-year history", () => {
     expect(cards!.length).toBeGreaterThanOrEqual(4); // 3 year cards + breakdown
   });
 
-  it("year cards follow the panel style; Borderless keeps no boxes and uses hairline separators", () => {
+  it("year cards follow the panel style; Borderless hides the frame but keeps its padding", () => {
     const outlined = render(combined, years(3, { type: "setPanel", panel: "outlined" }));
     expect(
       outlined.match(/<rect x="24" y="\d+" width="792" height="\d+" rx="10" fill="none"/g)!.length,
     ).toBeGreaterThanOrEqual(4);
     const borderless = render(combined, years(3, { type: "setPanel", panel: "borderless" }));
     expect(borderless).not.toMatch(/rx="10"/);
-    expect(borderless.match(/<line x1="24" x2="816"/g)).toHaveLength(2); // between the three years
+    expect(borderless).not.toMatch(/<line x1="24" x2="816"/); // no divider lines either
+    // Same geometry as Outlined: identical height and content positions, only the frames are invisible.
+    const height = (markup: string) => /height="(\d+)"/.exec(markup)![1];
+    expect(height(borderless)).toBe(height(outlined));
+    const firstLabel = (markup: string) =>
+      /<text x="([\d.]+)" y="([\d.]+)"[^>]*font-weight="600"/.exec(markup)!.slice(1);
+    expect(firstLabel(borderless)).toEqual(firstLabel(outlined));
   });
 
   it("labels GitHub-only periods in words — no hatching — and never sums them with GitLab", () => {
@@ -99,17 +108,17 @@ describe("multi-year history", () => {
 
   it("puts the summary stats inside the newest year's card, and names their period", () => {
     const prepared = prepareView(combined, years(3));
-    expect(prepared.metricsView.range).toEqual(lastYear);
+    expect(prepared.metricsView.range).toEqual(newest);
     const metrics = computeMetrics(prepared.metricsView);
     const svg = render();
     // No separate heading: the stat cards sit between the newest card's header and its calendar.
     expect(svg).not.toContain(">Last 12 months · GitHub + GitLab<");
     const order = [
-      "Nov 7, 2025 – Nov 6, 2026",
+      "Nov 2, 2025 – Nov 6, 2026",
       ">Active days<",
       ">Longest streak<",
       ">Mon<",
-      "Nov 7, 2024 – Nov 6, 2025",
+      "Nov 2, 2024 – Nov 1, 2025",
     ];
     const visible = svg.replace(/<desc[\s\S]*?<\/desc>/, "");
     const positions = order.map((text) => visible.indexOf(text));
@@ -123,22 +132,22 @@ describe("multi-year history", () => {
     expect(svg).toContain(">Platform breakdown · Last 12 months<");
     expect(desc(svg)).toContain("Summary statistics: Last 12 months, GitHub + GitLab.");
     expect(desc(svg)).toContain(`${metrics.total.toLocaleString("en-US")} contributions across`);
-    expect(desc(svg)).toContain("from Nov 7, 2025 to Nov 6, 2026");
+    expect(desc(svg)).toContain("from Nov 2, 2025 to Nov 6, 2026");
     expect(desc(svg)).toMatch(/By 12-month period, newest first: .*GitHub only; GitLab not available for this period/);
   });
 
   it("GitHub-only stats also describe the newest year — the card they sit in", () => {
     const svg = render(githubOnly);
     expect(desc(svg)).toContain("Summary statistics: Last 12 months, GitHub.");
-    expect(desc(svg)).toContain("from Nov 7, 2025 to Nov 6, 2026");
+    expect(desc(svg)).toContain("from Nov 2, 2025 to Nov 6, 2026");
     expect(svg).not.toContain("GitHub only"); // a single platform's complete history isn't "only" anything
     expect(svg.match(/>GitHub</g)!.length).toBeGreaterThanOrEqual(3); // each card names its source
   });
 
   it("shows 2 years when asked, from the same 3-year data", () => {
     const svg = render(combined, years(2));
-    expect(svg).toContain("Nov 7, 2024 – Nov 6, 2025");
-    expect(svg).not.toContain("Nov 8, 2023 – Nov 6, 2024");
+    expect(svg).toContain("Nov 2, 2024 – Nov 1, 2025");
+    expect(svg).not.toContain("Nov 3, 2023 – Nov 1, 2024");
   });
 
   it("explains, rather than fakes, history GitLab can't provide", () => {
@@ -152,7 +161,7 @@ describe("multi-year history", () => {
     const svg = render(combined, years(3), "compact");
     expect(svg).toMatch(/^<svg[^>]+width="400"/);
     expect(svg).toContain("Last 20 weeks");
-    for (const label of ["Nov 7, 2025 – Nov 6, 2026", "Nov 7, 2024 – Nov 6, 2025", "Nov 8, 2023 – Nov 6, 2024"]) {
+    for (const label of ["Nov 2, 2025 – Nov 6, 2026", "Nov 2, 2024 – Nov 1, 2025", "Nov 3, 2023 – Nov 1, 2024"]) {
       expect(svg).toContain(label);
     }
     // One heatmap (recent weeks) — roughly 140 cells, not 1,095.
@@ -171,10 +180,10 @@ describe("multi-year history", () => {
   it("a 1-year design of a 3-year dataset equals the 1-year graphic of the last 12 months", () => {
     const oneYear = combineSources(
       [
-        { ...github, coverage: undefined, days: github.days.filter((d) => d.date >= lastYear.start) },
-        { ...gitlab, coverage: undefined },
+        { ...github, coverage: newest, days: github.days.filter((d) => d.date >= newest.start) },
+        { ...gitlab, coverage: lastYear },
       ],
-      lastYear,
+      newest,
       "live",
     );
     expect(render(combined, years(1))).toBe(render(oneYear, years(1)));

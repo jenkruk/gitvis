@@ -12,17 +12,20 @@ import {
 import { getLayout, type LayoutId } from "./layouts";
 
 /** Header presets. "none" is the original header (title, date range, handles). */
-export type IdentityStyle = "none" | "compact" | "full";
+export type IdentityStyle = "none" | "compact" | "full" | "centered";
 export type BackgroundStyle = "solid" | "gradient" | "transparent";
 export type DateRangeDays = 30 | 90 | 365;
 export type Density = "compact" | "spacious";
 
-export const IDENTITY_STYLES: readonly IdentityStyle[] = ["none", "compact", "full"];
+export const IDENTITY_STYLES: readonly IdentityStyle[] = ["none", "compact", "full", "centered"];
 export const BACKGROUND_STYLES: readonly BackgroundStyle[] = ["solid", "gradient", "transparent"];
 export const DATE_RANGES: readonly DateRangeDays[] = [30, 90, 365];
 export const DENSITIES: readonly Density[] = ["spacious", "compact"];
 export const PANEL_STYLES: readonly PanelStyle[] = ["filled", "outlined", "borderless"];
 export type { PanelStyle };
+
+/** Header styles that show the professional title under the name. */
+export const hasTitle = (style: IdentityStyle): boolean => style === "full" || style === "centered";
 
 export const NAME_MAX_LENGTH = 40;
 export const TITLE_MAX_LENGTH = 60;

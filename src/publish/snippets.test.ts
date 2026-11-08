@@ -23,10 +23,11 @@ describe("publish snippets", () => {
     expect(altText(params.request)).toBe("GitVis contribution activity for GitHub @jenkruk and GitLab @contactkruk");
   });
 
-  it("produces a linked Markdown image for the selected mode", () => {
-    expect(readmeSnippet(origin, params, { theme: "selected", responsive: false })).toBe(
-      `[![${altText(params.request)}](${cardUrl(origin, params)})](${editUrl(origin, params)})`,
-    );
+  it("produces a plain Markdown image (GitHub links it to the image itself, in a new tab)", () => {
+    const md = readmeSnippet(origin, params, { theme: "selected", responsive: false });
+    expect(md).toBe(`![${altText(params.request)}](${cardUrl(origin, params)})`);
+    // Readers clicking a card never land in the studio.
+    expect(md).not.toContain(editUrl(origin, params));
   });
 
   it("serves the compact image to narrow screens first when responsive", () => {
@@ -57,7 +58,8 @@ describe("publish snippets", () => {
     expect(html).toMatch(/prefers-color-scheme: light\)" srcset="[^"]*mode=light/);
     expect(html).toContain(`<img alt="${altText(params.request)}"`);
     expect(html).not.toMatch(/&(?!amp;)/); // every & is escaped inside HTML attributes
-    expect(html.startsWith('<a href="https://gitvis.example/?v=1&amp;')).toBe(true);
+    // GitHub doesn't link a <picture> itself, so it links to the card image (never the studio).
+    expect(html.startsWith('<a href="https://gitvis.example/api/card?v=1&amp;')).toBe(true);
   });
 
   it("names downloads after the accounts", () => {
@@ -116,7 +118,8 @@ describe("README <picture> markup audit", () => {
     expect(fallback.searchParams.has("size")).toBe(false);
     expect(fallback.searchParams.get("mode")).toBe(params.config.mode);
     expect(img.getAttribute("alt")).toBe(altText(params.request));
-    expect(new URL(link.getAttribute("href")!).pathname).toBe("/");
+    expect(link.getAttribute("href")).toBe(img.getAttribute("src"));
+    expect(new URL(link.getAttribute("href")!).pathname).toBe("/api/card");
   });
 
   it("makes every media query that could match a phone resolve to the compact image first", () => {
@@ -140,10 +143,10 @@ describe("README <picture> markup audit", () => {
 });
 
 describe("Phase 4 snippet options", () => {
-  it("adds clickable Markdown profile links after the image", () => {
+  it("adds clickable Markdown profile links and a 'Get yours!' link to GitVis after the image", () => {
     const md = readmeSnippet(origin, params, { theme: "selected", responsive: false, profileLinks: true });
     expect(md.split("\n\n")[1]).toBe(
-      "[GitHub @jenkruk](https://github.com/jenkruk) · [GitLab @contactkruk](https://gitlab.com/contactkruk)",
+      "[GitHub @jenkruk](https://github.com/jenkruk) · [GitLab @contactkruk](https://gitlab.com/contactkruk) · [Get yours!](https://gitvis.example)",
     );
   });
 

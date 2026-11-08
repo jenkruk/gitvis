@@ -96,6 +96,15 @@ describe("colors and backgrounds", () => {
     expect(theme).toHaveAccessibleDescription(/always match the reader's theme/i);
   });
 
+  it("adds profile links under the README image by default", async () => {
+    const { user } = setup({ initialRequest: { github: "jenkruk" }, initialResponse: live });
+    await user.click(screen.getByRole("button", { name: "Continue to publish" }));
+    expect(screen.getByRole("checkbox", { name: /profile links under the image/i })).toBeChecked();
+    const snippet = (screen.getByRole("textbox", { name: /markdown/i }) as HTMLTextAreaElement).value;
+    expect(snippet).toContain("[GitHub @jenkruk](https://github.com/jenkruk)");
+    expect(snippet).not.toContain("https://gitvis.test/?"); // the image never links into the studio
+  });
+
   it("platform colors are labelled, reflected in the URL and resettable", async () => {
     const { user, search } = setup();
     const input = screen.getByLabelText("GitHub", { selector: "input[type=color]" });

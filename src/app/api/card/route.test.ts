@@ -27,6 +27,21 @@ beforeEach(() => {
 });
 
 describe("GET /api/card", () => {
+  it("links 'Get yours!' to the production site, never the request host", async () => {
+    vi.stubEnv("SITE_URL", "https://gitvis.example");
+    const svg = await (await get("v=1&github=jenkruk", { host: "preview-abc.vercel.app" })).text();
+    vi.unstubAllEnvs();
+    expect(svg).toContain('<a href="https://gitvis.example" target="_blank"><tspan cursor="pointer">');
+    expect(svg).not.toContain("preview-abc");
+  });
+
+  it("stays sandboxed (no scripts) while letting its links open a new tab", async () => {
+    const csp = (await get("v=1&github=jenkruk")).headers.get("Content-Security-Policy")!;
+    expect(csp).toContain("default-src 'none'");
+    expect(csp).toMatch(/sandbox allow-popups allow-popups-to-escape-sandbox$/);
+    expect(csp).not.toContain("allow-scripts");
+  });
+
   it("serves a GitHub-compatible, cache-friendly SVG", async () => {
     const res = await get("v=1&github=jenkruk&layout=minimal&palette=ember&mode=light&f=heatmap,total");
     expect(res.status).toBe(200);

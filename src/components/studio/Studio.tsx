@@ -67,7 +67,12 @@ export function Studio({
   );
   const connection = useContributions({ request: initialRequest, response: initialResponse });
   const [previewDevice, setPreviewDevice] = useState<PreviewDevice>("desktop");
-  const [publishOptions, setPublishOptions] = useState<SnippetOptions>({ theme: "selected", responsive: true });
+  const [publishOptions, setPublishOptions] = useState<SnippetOptions>({
+    theme: "selected",
+    responsive: true,
+    // On by default: in a README, real text links are the only way to click through to each profile.
+    profileLinks: true,
+  });
   const [exploringSample, setExploringSample] = useState(false);
   const [step, setStep] = useState<StepId>(
     () => initialStep ?? (initialRequest && initialResponse ? "design" : "connect"),

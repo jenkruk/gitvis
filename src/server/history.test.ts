@@ -140,25 +140,29 @@ function loaders(overrides: Partial<ContributionLoaders> = {}): ContributionLoad
 }
 
 describe("loadContributions with history", () => {
-  it("leaves 1-year requests exactly as before (no history call, no coverage)", async () => {
+  it("makes no history call for 1-year requests; each platform covers its own year", async () => {
     const l = loaders();
     const response = await loadContributions({ github: "a", gitlab: "b" }, l);
     expect(l.githubHistory).not.toHaveBeenCalled();
     expect(response.history).toBeUndefined();
-    expect(response.dataset!.sources.every((s) => s.coverage === undefined)).toBe(true);
+    expect(response.dataset!.sources.map((s) => s.coverage)).toEqual([
+      { start: "2025-11-02", end: "2026-11-06" },
+      { start: "2025-11-06", end: "2026-11-06" },
+    ]);
   });
 
   it("extends GitHub to 3 years and marks GitLab as covering only the last 12 months", async () => {
     const l = loaders();
     const response = await loadContributions({ github: "a", gitlab: "b" }, l, { years: 3 });
-    expect(l.githubHistory).toHaveBeenCalledWith("a", { start: "2023-11-08", end: "2025-11-07" });
+    expect(l.githubHistory).toHaveBeenCalledWith("a", { start: "2023-11-03", end: "2025-11-02" });
     expect(response.history).toEqual({ years: 3, status: "ok" });
     const { dataset } = response;
-    expect(dataset!.range).toEqual({ start: "2023-11-08", end: "2026-11-06" });
-    expect(dataset!.days).toHaveLength(1095);
+    // GitHub's own year (from Sunday Nov 2, 2025) plus two 365-day years before it (2024 is a leap year).
+    expect(dataset!.range).toEqual({ start: "2023-11-03", end: "2026-11-06" });
+    expect(dataset!.days).toHaveLength(1100);
     const [github, gitlab] = dataset!.sources;
     expect(github!.coverage).toEqual(dataset!.range);
-    expect(gitlab!.coverage).toEqual({ start: "2025-11-07", end: "2026-11-06" });
+    expect(gitlab!.coverage).toEqual({ start: "2025-11-06", end: "2026-11-06" });
     // The per-platform "last 12 months" total is unchanged.
     expect(response.results[0]).toMatchObject({ status: "ok", total: 2 });
     expect(dataset!.days.find((d) => d.date === addDays(TODAY, -500))!.byPlatform).toEqual({ github: 9 });
@@ -169,7 +173,7 @@ describe("loadContributions with history", () => {
     const response = await loadContributions({ gitlab: "b" }, l, { years: 3 });
     expect(l.githubHistory).not.toHaveBeenCalled();
     expect(response.history).toBeUndefined();
-    expect(response.dataset!.days).toHaveLength(365);
+    expect(response.dataset!.days).toHaveLength(366); // GitLab's own 12 months
   });
 
   it("reports a history failure separately and keeps the last 12 months", async () => {
@@ -181,7 +185,7 @@ describe("loadContributions with history", () => {
     });
     const response = await loadContributions({ github: "a" }, l, { years: 2 });
     expect(response.history).toEqual({ years: 2, status: "upstream", message: "down", retryable: true });
-    expect(response.dataset!.days).toHaveLength(365);
+    expect(response.dataset!.days).toHaveLength(370); // GitHub's own year
   });
 });
 
@@ -189,7 +193,7 @@ describe("published multi-year card", () => {
   it("renders the stacked calendars", async () => {
     const card = await renderCard(new URLSearchParams("v=1&github=jenkruk&gitlab=contactkruk&yrs=3"), loaders());
     expect(card.status).toBe("ok");
-    expect(card.svg).toContain("Nov 8, 2023 – Nov 6, 2024");
+    expect(card.svg).toContain("Nov 3, 2023 – Nov 1, 2024");
     expect(card.svg).toContain(">GitHub only · GitLab unavailable<");
     expect(card.svg).toContain(">Platform breakdown · Last 12 months<");
   });

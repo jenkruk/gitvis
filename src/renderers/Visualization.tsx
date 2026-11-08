@@ -1,13 +1,14 @@
-import { finalText, isFeatureVisible, type VisualizationConfig } from "@/config/config";
+import { finalText, hasTitle, isFeatureVisible, type VisualizationConfig } from "@/config/config";
 import { formatDate, toISODate } from "@/domain/dates";
 import { type ContributionDataset, PLATFORMS } from "@/domain/types";
 import { computeMetrics, type ContributionMetrics } from "@/metrics/metrics";
 import { applyPanelStyle, gradientEnd, panelBackdrops, resolveTheme, withPlatformHeatmap } from "@/theme/palettes";
+import { CenteredHeader, centeredHeaderHeight } from "./CenteredHeader";
 import { type AvatarImages, IdentityHeader, identityHeaderHeight } from "./IdentityHeader";
 import { LAYOUT_SECTIONS, SPACING } from "./layouts";
 import { CANVAS_WIDTHS, type CardSize, contentWidthFor, formatNumber, PADDING, stackSections } from "./primitives";
-import { Header, headerAttribution, headerHeight } from "./sections";
-import { describePeriod, type PreparedView, prepareView } from "./view";
+import { Credit, CREDIT_BOTTOM, CREDIT_HEIGHT, Header, headerAttribution, headerHeight } from "./sections";
+import { describePeriod, describeWindows, type PreparedView, prepareView } from "./view";
 
 export interface VisualizationProps {
   dataset: ContributionDataset;
@@ -22,6 +23,8 @@ export interface VisualizationProps {
   links?: boolean;
   /** Embedded avatar images (data: URIs) for the identity header. */
   avatars?: AvatarImages;
+  /** The GitVis site (production origin) that the credit's "Get yours!" links to; plain text without it. */
+  siteUrl?: string;
 }
 
 /** Multi-year additions to the text alternative (empty for a single period, so legacy text is unchanged). */
@@ -61,6 +64,7 @@ export function describeVisualization(dataset: ContributionDataset, metrics: Con
       : "",
     `${formatNumber(metrics.total)} contributions${where} from ${formatDate(dataset.range.start)} to ${formatDate(dataset.range.end)}.`,
     breakdown,
+    describeWindows(dataset),
     `${formatNumber(metrics.activeDays)} active days.`,
     streak,
     best,
@@ -75,7 +79,7 @@ function describeIdentity(config: VisualizationConfig): string {
   const name = finalText(config.identity.name);
   const title = finalText(config.identity.title);
   if (style === "none" || !name) return "";
-  return `Contribution activity for ${name}${style === "full" && title ? `, ${title}` : ""}.`;
+  return `Contribution activity for ${name}${hasTitle(style) && title ? `, ${title}` : ""}.`;
 }
 
 /**
@@ -94,6 +98,7 @@ export function Visualization({
   size = "full",
   links = true,
   avatars = {},
+  siteUrl,
 }: VisualizationProps) {
   const prepared = prepareView(fullDataset, config);
   // `dataset` = what the calendars and header show; metrics only cover what every platform reports.
@@ -136,16 +141,25 @@ export function Visualization({
           showPlatformLabels && identity.handles.length > 0,
           headerAttribution(dataset, identity.handles, contentWidthFor(size), compactCanvas).ownLine,
         )
-      : identityHeaderHeight(
-          dataset,
-          { ...identity, style: identity.style },
-          compactCanvas,
-          showPlatformLabels,
-          contentWidthFor(size),
-        );
+      : identity.style === "centered"
+        ? centeredHeaderHeight(
+            dataset,
+            { ...identity, style: identity.style },
+            compactCanvas,
+            showPlatformLabels,
+            contentWidthFor(size),
+          )
+        : identityHeaderHeight(
+            dataset,
+            { ...identity, style: identity.style },
+            compactCanvas,
+            showPlatformLabels,
+            contentWidthFor(size),
+          );
   const top = PADDING + header + spacing.sectionGap;
   const { nodes, bottom } = stackSections(sections, top, spacing.sectionGap);
-  const height = Math.ceil(bottom + PADDING - (sections.length === 0 ? spacing.sectionGap : 0));
+  const creditTop = bottom - (sections.length === 0 ? spacing.sectionGap : 0);
+  const height = Math.ceil(creditTop + CREDIT_HEIGHT + CREDIT_BOTTOM);
   const titleId = `${idPrefix}-title`;
   const descId = `${idPrefix}-desc`;
   const gradientId = `${idPrefix}-bg`;
@@ -159,6 +173,9 @@ export function Visualization({
       width={canvasWidth}
       height={height}
       viewBox={`0 0 ${canvasWidth} ${height}`}
+      // Arrow cursor everywhere (no text cursor over labels); only profile links show the hand.
+      // Profile-header designs only: the original header's output is frozen byte-for-byte.
+      cursor={identity.style === "none" ? undefined : "default"}
       role="img"
       aria-labelledby={titleId}
       aria-describedby={descId}
@@ -199,6 +216,19 @@ export function Visualization({
           links={links}
           handles={identity.handles}
         />
+      ) : identity.style === "centered" ? (
+        <CenteredHeader
+          dataset={dataset}
+          theme={theme}
+          identity={{ ...identity, style: identity.style }}
+          avatars={avatars}
+          y={PADDING}
+          width={contentWidthFor(size)}
+          compactCanvas={compactCanvas}
+          showHandles={showPlatformLabels}
+          links={links}
+          idPrefix={idPrefix}
+        />
       ) : (
         <IdentityHeader
           dataset={dataset}
@@ -214,6 +244,7 @@ export function Visualization({
         />
       )}
       {nodes}
+      <Credit theme={theme} y={creditTop} href={links ? siteUrl : undefined} />
     </svg>
   );
 }

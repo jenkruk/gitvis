@@ -8,7 +8,7 @@ import type { AvatarImages } from "@/renderers/IdentityHeader";
 
 /**
  * Loads avatars (as data: URIs from /api/avatar) for the preview, only for
- * platforms the user turned on with a Compact or Full header. Results are
+ * platforms the user turned on with a profile header. Results are
  * kept per username, so toggling options never refetches.
  */
 export function useAvatars(request: ConnectRequest | null, identity: IdentityConfig): AvatarImages {

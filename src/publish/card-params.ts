@@ -94,7 +94,12 @@ const FEATURE_CODES: Record<FeatureId, string> = {
  * Phase 4.2: pnl=filled · yrs=1 (yrs=2|3 require the full 365-day range)
  * Encoders write them only when they differ, so legacy-equivalent designs keep their exact URLs.
  */
-const IDENTITY_CODES: Record<IdentityStyle, string> = { none: "none", compact: "compact", full: "full" };
+const IDENTITY_CODES: Record<IdentityStyle, string> = {
+  none: "none",
+  compact: "compact",
+  full: "full",
+  centered: "centered",
+};
 const BACKGROUND_CODES: Record<BackgroundStyle, string> = {
   solid: "solid",
   gradient: "gradient",

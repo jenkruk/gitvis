@@ -2,13 +2,13 @@ import "server-only";
 import type { ConnectRequest, ContributionsResponse, HistoryStatus, PlatformResult } from "@/adapters/connect";
 import { type AdapterResult, isTransientError } from "@/adapters/types";
 import { combineSources } from "@/domain/combine";
-import { type DateRange, diffDays, type ISODate, isWithinRange, trailingYear } from "@/domain/dates";
-import { historyRange } from "@/domain/history";
+import { type DateRange, diffDays, type ISODate, isWithinRange } from "@/domain/dates";
+import { historyRange, newestPeriod, platformYear } from "@/domain/history";
 import type { HistoryOutcome } from "./history";
 import { type ContributionDataset, PLATFORM_IDS, type PlatformContributions } from "@/domain/types";
 
 export interface ContributionLoaders {
-  /** Each loader returns the platform's trailing year as of its (possibly cached) fetch. */
+  /** Each loader returns the platform's own year (see `platformYear`) as of its (possibly cached) fetch. */
   github: (username: string) => Promise<AdapterResult>;
   gitlab: (username: string) => Promise<AdapterResult>;
   /** Today's date in UTC. Injected for deterministic tests. */
@@ -35,11 +35,12 @@ export async function loadContributions(
   // History is fetched in parallel with the trailing year: image proxies are latency-sensitive.
   // The range is anchored on today; the rare one-day timezone extension is trimmed below.
   const wantsHistory = years > 1 && !!request.github && !!loaders.githubHistory;
+  const githubYear = platformYear("github", today);
   const pendingHistory = wantsHistory
     ? loaders.githubHistory!(request.github!, {
-        start: historyRange(today, years).start,
-        // Inclusive of the trailing year's first day: if the end shifts a day for timezones, no day is left uncovered.
-        end: trailingYear(today).start,
+        start: historyRange(githubYear, years).start,
+        // Inclusive of the newest year's first day: if the end shifts a day for timezones, no day is left uncovered.
+        end: githubYear.start,
       })
     : null;
 
@@ -53,8 +54,17 @@ export async function loadContributions(
     ),
   );
 
-  let sources = outcomes.flatMap((o) => (o.ok ? [o.data] : []));
-  const range = trailingYear(resolveEndDate(today, sources));
+  const end = resolveEndDate(
+    today,
+    outcomes.flatMap((o) => (o.ok ? [o.data] : [])),
+  );
+  // Each platform covers its own published year, so its numbers match its profile: GitHub's
+  // starts on a Sunday, a few days before GitLab's. Earlier days are unknown for GitLab.
+  let sources = outcomes.flatMap((o) => (o.ok ? [{ ...o.data, coverage: platformYear(o.data.platform, end) }] : []));
+  const range = newestPeriod(
+    sources.map((s) => s.platform),
+    end,
+  );
   let datasetRange = range;
   let history: HistoryStatus | undefined;
 
@@ -66,13 +76,11 @@ export async function loadContributions(
       history = { years, status: kind, message, retryable: isTransientError(kind) };
     } else if (github) {
       history = { years, status: "ok" };
-      datasetRange = historyRange(range.end, years);
+      datasetRange = historyRange(range, years);
       const earlier = outcome.days.filter((d) => d.date >= datasetRange.start && d.date < range.start);
-      // GitHub covers the whole span; GitLab publishes only the last 12 months — beyond that it's unknown.
+      // GitHub covers the whole span; GitLab publishes only its last 12 months — beyond that it's unknown.
       sources = sources.map((s) =>
-        s.platform === "github"
-          ? { ...s, days: [...earlier, ...s.days], coverage: datasetRange }
-          : { ...s, coverage: range },
+        s.platform === "github" ? { ...s, days: [...earlier, ...s.days], coverage: datasetRange } : s,
       );
     }
   }
@@ -86,7 +94,9 @@ export async function loadContributions(
       const { kind, message } = outcome.error;
       return { platform, username, status: kind, message, retryable: isTransientError(kind) };
     }
-    const total = outcome.data.days.reduce((sum, d) => (isWithinRange(d.date, range) ? sum + d.count : sum), 0);
+    // The platform's own yearly total, as its profile shows it.
+    const own = platformYear(platform, end);
+    const total = outcome.data.days.reduce((sum, d) => (isWithinRange(d.date, own) ? sum + d.count : sum), 0);
     const { privateCount, stale, fetchedAt } = outcome.data;
     return { platform, username, status: "ok", total, privateCount, stale, fetchedAt };
   });

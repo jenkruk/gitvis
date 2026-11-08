@@ -20,7 +20,12 @@ interface DesignControlsProps {
   dataset: ContributionDataset;
 }
 
-const IDENTITY_SUMMARY = { none: "Off", compact: "Compact identity", full: "Full profile" } as const;
+const IDENTITY_SUMMARY = {
+  none: "Off",
+  compact: "Compact identity",
+  full: "Full profile",
+  centered: "Centered profile",
+} as const;
 const BACKGROUND_SUMMARY = { solid: "Solid", gradient: "Gradient", transparent: "Transparent" } as const;
 const PANEL_SUMMARY = { filled: "", outlined: "Outlined panels", borderless: "Borderless panels" } as const;
 const YEARS_SUMMARY = { 1: "1 year", 2: "2 years", 3: "3 years" } as const;

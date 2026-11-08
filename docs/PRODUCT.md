@@ -45,7 +45,7 @@ Switching layouts never discards the user's feature, palette, or mode choices. A
 
 Combined contribution heatmap · Total contributions · Active days · Longest streak · Best day (off by default) · Current streak (off by default) · GitHub/GitLab breakdown · Activity trends · Platform labels and links.
 
-Metrics can be **reordered** (Move up / Move down buttons, keyboard-accessible and announced). The **date range** is 1 year (default), 2 years or 3 years: one calendar per 12-month period, newest first, each with its yearly total. Earlier years come from GitHub; GitLab publishes only the last 12 months, so for combined accounts earlier periods are clearly labelled "GitHub only", stats cover the period both platforms report (and say so), and GitLab-only accounts can't choose 2 or 3 years. Old links with 30- or 90-day ranges keep working unchanged. **Density** (Spacious or Compact) tightens cards and panels without changing the layout.
+Metrics can be **reordered** (Move up / Move down buttons, keyboard-accessible and announced). The **date range** is 1 year (default), 2 years or 3 years: one calendar per 12-month period, newest first, each with its yearly total. Earlier years come from GitHub; GitLab publishes only the last 12 months, so for combined accounts earlier periods are clearly labelled "GitHub only", stats cover the newest 12 months (and say so), and GitLab-only accounts can't choose 2 or 3 years. Old links with 30- or 90-day ranges keep working unchanged. **Density** (Spacious or Compact) tightens cards and panels without changing the layout.
 
 Features live in a registry (`src/config/features.ts`). Adding one is a data change plus a renderer, not an edit to every layout's settings.
 
@@ -72,7 +72,9 @@ The user's goal is to **paste one Markdown snippet into a GitHub README** and ne
 - **Live image URL** (`/api/card?v=1&…`). The URL holds the whole design: usernames, layout, palette, mode, features, and every personalization setting. It renders current data, refreshed about every 12 hours, with no GitHub Actions, accounts, database, or manual updates.
 - **Copy Markdown** in one click. It can match the reader's GitHub light or dark theme using a `<picture>` element.
 - **Published-image preview**: the actual image GitHub will fetch, shown before copying.
-- **Edit configuration link**: reopens the studio with every choice restored. The README image links there too.
+- **Edit configuration link**: reopens the studio with every choice restored. It's shown on the Publish screen; the README image never links there, because readers clicking a card want the accounts, not the editor.
+- **Clicking through to the accounts**: in a README, clicking the image opens it on its own, where each account's avatar and username link to its profile in a new tab. Profile links under the image (on by default) give README readers one-click links too, plus a "Get yours!" link to GitVis.
+- **Credit line**: every card ends with "Made with GitVis · created by Jen Kruk · Get yours!". Only "Get yours!" links (to the production site, new tab); the README never links the image itself to GitVis.
 - **Downloads**: SVG and PNG, both generated from the published image.
 - **Stability promise**: a URL generated today renders the same design in future versions. Version bumps are only for breaking changes, and old versions keep working.
 

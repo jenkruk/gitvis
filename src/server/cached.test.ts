@@ -59,7 +59,7 @@ describe("createLoaders (Runtime Cache snapshots)", () => {
       expect.any(Object),
       7 * 24 * 3600 + 12 * 3600,
     );
-    expect(snapshotKey("gitlab", "u", epoch)).toBe(`v1:gitlab:u:${epoch}`); // no build/deployment id
+    expect(snapshotKey("gitlab", "u", epoch)).toBe(`v2:gitlab:u:${epoch}`); // no build/deployment id
   });
 
   it("survives a 'deployment' (new loader instance, same store) and keeps serving last-known-good", async () => {

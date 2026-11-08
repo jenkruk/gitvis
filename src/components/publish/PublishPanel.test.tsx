@@ -77,7 +77,7 @@ describe("PublishPanel", () => {
     expect(screen.queryByRole("textbox", { name: "README Markdown" })).not.toBeInTheDocument();
   });
 
-  it("shows a linked Markdown image whose URLs restore the exact design", () => {
+  it("shows a Markdown image whose URL restores the exact design", () => {
     const config = {
       ...createDefaultConfig(),
       layout: "minimal" as const,
@@ -85,15 +85,14 @@ describe("PublishPanel", () => {
       mode: "light" as const,
     };
     const { markdown } = setup(config);
-    const match = /^\[!\[(.+)\]\((.+)\)\]\((.+)\)$/.exec(markdown().value)!;
+    // Not wrapped in a studio link: GitHub links a plain image to itself, in a new tab.
+    const match = /^!\[(.+)\]\((.+)\)$/.exec(markdown().value)!;
     expect(match[1]).toBe("GitVis contribution activity for GitHub @jenkruk");
-    for (const url of [new URL(match[2]!), new URL(match[3]!)]) {
-      expect(decodeCardParams(url.searchParams)).toEqual({
-        request: { github: "jenkruk" },
-        config,
-        issues: [],
-      });
-    }
+    expect(decodeCardParams(new URL(match[2]!).searchParams)).toEqual({
+      request: { github: "jenkruk" },
+      config,
+      issues: [],
+    });
     expect(new URL(match[2]!).pathname).toBe("/api/card");
   });
 

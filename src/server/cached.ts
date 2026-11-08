@@ -2,7 +2,8 @@ import "server-only";
 import { getCache } from "@vercel/functions";
 import { GITLAB_ORIGIN } from "@/adapters/gitlab";
 import { type AdapterError, adapterError, type AdapterResult, isTransientError } from "@/adapters/types";
-import { todayInTimeZone, trailingYear } from "@/domain/dates";
+import { todayInTimeZone } from "@/domain/dates";
+import { platformYear } from "@/domain/history";
 import type { PlatformId } from "@/domain/types";
 import type { ContributionLoaders } from "./contributions";
 import {
@@ -32,8 +33,11 @@ import { upstreamBudget } from "./rate-limit";
  * last-known-good is "likely", never guaranteed — see docs/ARCHITECTURE.md.
  */
 
-/** Bump when the stored Snapshot shape changes; old entries are then ignored and expire. */
-export const SNAPSHOT_SCHEMA = 1;
+/**
+ * Bump when the stored Snapshot shape (or what it covers) changes; old entries are then ignored and expire.
+ * v2: GitHub snapshots cover GitHub's own "last year" (from the Sunday a year back), not 365 days.
+ */
+export const SNAPSHOT_SCHEMA = 2;
 
 /** Not-found answers are re-checked after an hour so new or renamed accounts recover. */
 const NOT_FOUND_TTL_SECONDS = 3_600;
@@ -166,7 +170,7 @@ export function upstreamUrls() {
 const liveFetcher: Fetcher = (platform, username) => {
   const urls = upstreamUrls();
   return platform === "github"
-    ? fetchGitHubContributions(username, trailingYear(todayInTimeZone("UTC")), process.env.GITHUB_TOKEN, {
+    ? fetchGitHubContributions(username, platformYear("github", todayInTimeZone("UTC")), process.env.GITHUB_TOKEN, {
         url: urls.github,
       })
     : fetchGitLabContributions(username, { url: urls.gitlab });

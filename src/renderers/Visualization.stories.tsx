@@ -160,7 +160,7 @@ const identity = (style: (typeof IDENTITY_STYLES)[number]): VisualizationConfig 
     { type: "setAvatar", platform: "gitlab", enabled: true },
   );
 
-/** None / Compact identity / Full profile headers (GitLab avatar missing → monogram fallback). */
+/** None / Compact identity / Full profile / Centered profile headers (GitLab avatar missing → monogram fallback). */
 export const ProfileHeaders: Story = {
   render: (args: VisualizationProps) => (
     <div className="grid gap-6">

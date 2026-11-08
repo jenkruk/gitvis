@@ -304,6 +304,12 @@ describe("design step", () => {
   });
 });
 
+// What the server returns for Nov 6, 2026: each platform covers its own profile year
+// (GitHub's from Sunday Nov 2, 2025; GitLab's from Nov 6, 2025), and 3 years reach back to Nov 3, 2023.
+const GITHUB_YEAR = { start: toISODate("2025-11-02"), end: toISODate("2026-11-06") };
+const GITLAB_YEAR = { start: toISODate("2025-11-06"), end: toISODate("2026-11-06") };
+const THREE_YEARS = { start: toISODate("2023-11-03"), end: toISODate("2026-11-06") };
+
 describe("historical ranges", () => {
   const github = {
     platform: "github" as const,
@@ -312,11 +318,11 @@ describe("historical ranges", () => {
     days: [{ date: toISODate("2026-11-01"), count: 4 }],
   };
   const githubLive: ContributionsResponse = {
-    dataset: combineSources([github], trailingYear(toISODate("2026-11-06")), "live"),
+    dataset: combineSources([{ ...github, coverage: GITHUB_YEAR }], GITHUB_YEAR, "live"),
     results: [{ platform: "github", username: "jenkruk", status: "ok", total: 4 }],
   };
   const withHistory = (): ContributionsResponse => {
-    const range = { start: toISODate("2023-11-08"), end: toISODate("2026-11-06") };
+    const range = THREE_YEARS;
     return {
       dataset: combineSources(
         [{ ...github, coverage: range, days: [{ date: toISODate("2024-05-01"), count: 9 }, ...github.days] }],
@@ -335,11 +341,11 @@ describe("historical ranges", () => {
     await user.click(yearsGroup().getByRole("radio", { name: "2 years" }));
 
     expect(fetchMock).toHaveBeenCalledWith("/api/contributions?github=jenkruk&years=3", expect.anything());
-    expect(await within(preview()).findByText("Nov 7, 2024 – Nov 6, 2025")).toBeInTheDocument();
+    expect(await within(preview()).findByText("Nov 2, 2024 – Nov 1, 2025")).toBeInTheDocument();
     expect(new URLSearchParams(window.location.search).get("yrs")).toBe("2");
 
     await user.click(yearsGroup().getByRole("radio", { name: "3 years" }));
-    expect(within(preview()).getByText("Nov 8, 2023 – Nov 6, 2024")).toBeInTheDocument();
+    expect(within(preview()).getByText("Nov 3, 2023 – Nov 1, 2024")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -366,11 +372,11 @@ describe("historical ranges", () => {
     fetchMock.mockImplementation(async () => Response.json(withHistory()));
     await user.click(screen.getByRole("button", { name: "Try again" }));
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(await screen.findAllByText("Nov 8, 2023 – Nov 6, 2024")).not.toHaveLength(0);
+    expect(await screen.findAllByText("Nov 3, 2023 – Nov 1, 2024")).not.toHaveLength(0);
   });
 
   it("shows the by-period table with 'Not available' instead of zeros", async () => {
-    const range = { start: toISODate("2023-11-08"), end: toISODate("2026-11-06") };
+    const range = THREE_YEARS;
     const both: ContributionsResponse = {
       dataset: combineSources(
         [
@@ -378,7 +384,7 @@ describe("historical ranges", () => {
           {
             platform: "gitlab",
             username: "contactkruk",
-            coverage: trailingYear(toISODate("2026-11-06")),
+            coverage: GITLAB_YEAR,
             days: [{ date: toISODate("2026-11-01"), count: 175 }],
           },
         ],
@@ -434,7 +440,7 @@ describe("source attribution", () => {
   });
 
   it("labels the data table's reporting period for multi-year designs", async () => {
-    const range = { start: toISODate("2023-11-08"), end: toISODate("2026-11-06") };
+    const range = THREE_YEARS;
     const both: ContributionsResponse = {
       dataset: combineSources(
         [
@@ -447,7 +453,7 @@ describe("source attribution", () => {
           {
             platform: "gitlab",
             username: "contactkruk",
-            coverage: trailingYear(toISODate("2026-11-06")),
+            coverage: GITLAB_YEAR,
             days: [{ date: toISODate("2026-11-01"), count: 175 }],
           },
         ],

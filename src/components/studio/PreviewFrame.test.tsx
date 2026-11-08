@@ -32,8 +32,10 @@ describe("preview modes", () => {
 
     expect(within(group).getByRole("radio", { name: /mobile/i })).toBeChecked();
     expect(screen.getByTestId("preview-column")).toHaveStyle({ maxWidth: `${PREVIEW_DEVICES.mobile.width}px` });
-    expect(screen.getByText(/mobile-optimized image/, { selector: "p" })).toBeVisible();
     expect(screen.getByRole("img", { name: "Contribution activity" })).toHaveAttribute("width", "400");
+    // No technical readout under the preview; the readable compact image needs no warning either.
+    expect(screen.queryByText(/README column|smallest labels/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/too small to read/)).not.toBeInTheDocument();
   });
 });
 

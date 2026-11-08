@@ -29,18 +29,30 @@ const descOf = (svg: string) => /<desc[^>]*>([^<]*)<\/desc>/.exec(svg)?.[1];
 afterEach(() => vi.restoreAllMocks());
 
 describe("renderCard", () => {
+  // Each platform's own year: GitHub's from Sunday Nov 2, 2025; GitLab's from Nov 6, 2025.
   it.each([
-    ["github=jenkruk", "5 contributions on GitHub @jenkruk"],
-    ["gitlab=contactkruk", "5 contributions on GitLab @contactkruk"],
-    ["github=jenkruk&gitlab=contactkruk", "10 contributions across GitHub @jenkruk and GitLab @contactkruk"],
+    ["github=jenkruk", "5 contributions on GitHub @jenkruk from Nov 2, 2025 to Nov 6, 2026."],
+    ["gitlab=contactkruk", "5 contributions on GitLab @contactkruk from Nov 6, 2025 to Nov 6, 2026."],
+    [
+      "github=jenkruk&gitlab=contactkruk",
+      "10 contributions across GitHub @jenkruk and GitLab @contactkruk from Nov 2, 2025 to Nov 6, 2026.",
+    ],
   ])("renders %s with a meaningful accessible description", async (query, expected) => {
     const card = await render(`v=1&${query}`);
     expect(card.status).toBe("ok");
     expect(card.edgeMaxAge).toBe(3600);
     expect(card.svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg"')).toBe(true);
     expect(descOf(card.svg)).toContain(expected);
-    expect(descOf(card.svg)).toMatch(/Nov 7, 2025 to Nov 6, 2026\. .*active days\./);
+    expect(descOf(card.svg)).toMatch(/active days\./);
     expect(card.svg).not.toContain("Sample data");
+  });
+
+  it("says when the platforms count their years from different dates", async () => {
+    const card = await render("v=1&github=jenkruk&gitlab=contactkruk");
+    expect(descOf(card.svg)).toContain(
+      "GitHub counts from Nov 2, 2025 and GitLab from Nov 6, 2025, matching the yearly total on each profile.",
+    );
+    expect(descOf(await (await render("v=1&github=jenkruk")).svg)).not.toContain("counts from");
   });
 
   it("applies the requested design", async () => {

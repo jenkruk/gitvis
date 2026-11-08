@@ -88,6 +88,13 @@ export function todayInTimeZone(timeZone = "UTC", now: Date = new Date()): ISODa
   return toISODate(`${get("year")}-${get("month")}-${get("day")}`);
 }
 
+/** The same calendar date one year earlier; Feb 29 maps to Feb 28. */
+export function oneYearBefore(date: ISODate): ISODate {
+  const [y, m, d] = date.split("-").map(Number) as [number, number, number];
+  const lastDay = new Date(Date.UTC(y - 1, m, 0)).getUTCDate();
+  return fromUTCMs(Date.UTC(y - 1, m - 1, Math.min(d, lastDay)));
+}
+
 /** A one-year window ending on `end` (inclusive), e.g. 2025-11-07 … 2026-11-06. */
 export function trailingYear(end: ISODate): DateRange {
   return { start: addDays(end, -364), end };

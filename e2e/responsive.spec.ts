@@ -63,7 +63,8 @@ test.describe("mobile editing (375px)", () => {
     const graphic = page.getByRole("img", { name: "Contribution activity" });
     await expect(graphic).toHaveAttribute("width", "400");
     await expect(graphic.getByText("Last 20 weeks")).toBeAttached();
-    await expect(page.getByText(/mobile-optimized image · smallest labels/)).toBeVisible();
+    // The readable compact image needs no warning.
+    await expect(page.getByText(/too small to read/)).toHaveCount(0);
   });
 });
 

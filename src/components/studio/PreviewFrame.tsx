@@ -48,7 +48,6 @@ export function PreviewFrame({
 }) {
   const size = sizeForDevice(device, responsive);
   const scale = labelScale(device, size);
-  const smallestLabelPx = Math.round(10 * scale * 10) / 10;
   const { width } = PREVIEW_DEVICES[device];
 
   return (
@@ -108,17 +107,12 @@ export function PreviewFrame({
           />
         </div>
       </div>
-      <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
-        ≈{width}px README column · {size === "compact" ? "mobile-optimized image" : "full image"}
-        {" · smallest labels ≈"}
-        {smallestLabelPx}px
-        {scale < 0.6 && (
-          <strong className="font-medium text-amber-800 dark:text-amber-300">
-            {" "}
-            — too small to read; turn on the mobile-optimized image in Publish.
-          </strong>
-        )}
-      </p>
+      {/* Only speak up when it matters: a shrunken desktop image is unreadable on phones. */}
+      {scale < 0.6 && (
+        <p className="mt-2 text-xs font-medium text-amber-800 dark:text-amber-300">
+          On phones this image&apos;s text is too small to read. Turn on the mobile-optimized image in Publish.
+        </p>
+      )}
     </div>
   );
 }

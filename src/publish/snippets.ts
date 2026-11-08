@@ -54,21 +54,27 @@ export function profileLinksLine(request: ConnectRequest): string {
 export const NARROW_MEDIA = "(max-width: 600px)";
 
 /**
- * The README snippet. Without options it is a plain linked Markdown image.
- * Theme matching and/or a mobile image need an HTML <picture>; the first
- * matching <source> wins, so narrow-screen sources come first. Always links
- * to the Edit configuration URL.
+ * The README snippet. Without options it is a plain Markdown image, which GitHub
+ * itself links to the image (opening in a new tab). Theme matching and/or a
+ * mobile image need an HTML <picture>; the first matching <source> wins, so
+ * narrow-screen sources come first. GitHub doesn't link a <picture>, so it is
+ * wrapped in a link to the card image.
+ *
+ * Never links to the studio: readers clicking a card want the accounts, not our
+ * editor. Opened on its own, the card's GitHub/GitLab labels and avatars are
+ * real links to the profiles (GitHub's image proxy serves SVGs without a
+ * sandbox, verified November 2026); `profileLinks` adds README text links too.
  */
 export function readmeSnippet(origin: string, params: CardParams, options: SnippetOptions): string {
   const image = imageSnippet(origin, params, effectiveSnippetOptions(options, params.config));
   // A blank line ends an HTML block in GitHub Markdown, so the links line renders as Markdown.
-  return options.profileLinks ? `${image}\n\n${profileLinksLine(params.request)}` : image;
+  // "Get yours!" here is the README's clickable way to GitVis (links inside the image can't be clicked there).
+  return options.profileLinks ? `${image}\n\n${profileLinksLine(params.request)} · [Get yours!](${origin})` : image;
 }
 
 function imageSnippet(origin: string, params: CardParams, { theme, responsive }: SnippetOptions): string {
   const alt = altText(params.request);
-  const edit = editUrl(origin, params);
-  if (theme === "selected" && !responsive) return `[![${alt}](${cardUrl(origin, params)})](${edit})`;
+  if (theme === "selected" && !responsive) return `![${alt}](${cardUrl(origin, params)})`;
 
   const sources: [media: string, params: CardParams][] = [];
   if (responsive) {
@@ -86,7 +92,7 @@ function imageSnippet(origin: string, params: CardParams, { theme, responsive }:
 
   const attr = escapeMarkup;
   return [
-    `<a href="${attr(edit)}">`,
+    `<a href="${attr(cardUrl(origin, params))}">`,
     "  <picture>",
     ...sources.map(([media, p]) => `    <source media="${media}" srcset="${attr(cardUrl(origin, p))}">`),
     `    <img alt="${attr(alt)}" src="${attr(cardUrl(origin, params))}">`,

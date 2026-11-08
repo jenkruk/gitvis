@@ -10,7 +10,7 @@ import {
   normalizeGitHubYears,
 } from "@/adapters/github";
 import { type AdapterError, adapterError, type AdapterResult } from "@/adapters/types";
-import type { DateRange } from "@/domain/dates";
+import { addDays, type DateRange } from "@/domain/dates";
 
 export const GITHUB_GRAPHQL_URL = "https://api.github.com/graphql";
 
@@ -32,7 +32,7 @@ const fail = (kind: AdapterError["kind"], message: string): PostResult => ({
 /** One GraphQL POST with the shared, user-safe error mapping. Variables only — never string interpolation. */
 async function postGraphQL(
   query: string,
-  variables: Record<string, string>,
+  variables: Record<string, string | boolean>,
   token: string | undefined,
   { fetchImpl = fetch, timeoutMs = 5_000, url = GITHUB_GRAPHQL_URL }: FetchOptions,
 ): Promise<PostResult> {
@@ -70,7 +70,9 @@ async function postGraphQL(
 /**
  * Fetches a user's contribution calendar. `token` needs no scopes: a
  * fine-grained PAT with public-repository read access is sufficient.
- * `range` must span at most one year (GitHub API limit).
+ * `range` may exceed a year by up to a week (GitHub's "last year" starts on a
+ * Sunday): GitHub's calendar returns at most 365 days, so the earliest days are
+ * fetched as a second collection in the same request.
  */
 export async function fetchGitHubContributions(
   username: string,
@@ -78,9 +80,19 @@ export async function fetchGitHubContributions(
   token: string | undefined,
   options: FetchOptions = {},
 ): Promise<AdapterResult> {
+  const yearStart = addDays(range.end, -364);
+  const mainStart = range.start > yearStart ? range.start : yearStart;
+  const hasLead = range.start < mainStart;
   const result = await postGraphQL(
     GITHUB_CONTRIBUTIONS_QUERY,
-    { login: username, from: `${range.start}T00:00:00Z`, to: `${range.end}T23:59:59Z` },
+    {
+      login: username,
+      from: `${mainStart}T00:00:00Z`,
+      to: `${range.end}T23:59:59Z`,
+      leadFrom: `${range.start}T00:00:00Z`,
+      leadTo: `${addDays(mainStart, -1)}T23:59:59Z`,
+      hasLead,
+    },
     token,
     options,
   );

@@ -144,11 +144,13 @@ Deployment verification moved to Phase 3.2.
 
 ## Visual refinement milestone ✅
 
-- [x] Multi-year year cards: each 12-month period framed per panel style (Borderless: hairline separators), header pairs dates with that year's total, coverage labels
+- [x] Multi-year year cards: each 12-month period framed per panel style (Borderless: invisible frame, same padding), header pairs dates with that year's total, coverage labels
 - [x] Nine new palettes (24 total; six featured, "View all 24"), all contrast-tested across modes, backgrounds and panel styles
 - [x] Reporting-period labels for summary statistics ("Last 12 months · GitHub + GitLab"), in the graphic, `<desc>` and data table
 - [x] Mandatory source attribution in the v1 contract (decided pre-launch; no v2); long usernames wrap/shorten so attribution always fits
 - [x] Multi-year summary stats live inside the newest year's card, so they visibly belong to that year
+- [x] Totals match each profile: the newest period is each platform's own published year (GitHub from the Sunday a year back, GitLab from the same date), so the combined total equals the two profile totals; verified live (GitHub 650 + GitLab 177 = 827)
+- [x] Centered profile header (`hdr=centered`): name and dates centered, GitHub on the left, GitLab on the right
 
 ## Phase 4.3: Design-system depth
 

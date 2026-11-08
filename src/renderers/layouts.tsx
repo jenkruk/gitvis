@@ -10,7 +10,6 @@ import { Heatmap, measureHeatmap } from "./Heatmap";
 import {
   type CardContent,
   historyScale,
-  isBorderless,
   measureYearlySummary,
   YearCard,
   yearCardHeight,
@@ -146,14 +145,13 @@ function statsHeading(ctx: LayoutContext): Section | null {
 
 /**
  * Full-width images: one card per 12-month period, newest first, each with its
- * own header and the panel style's frame (Borderless: hairline separators).
+ * own header and the panel style's frame (Borderless: an invisible frame with the same padding).
  */
 function yearCards(ctx: LayoutContext, newestContent?: CardContent): Section[] {
   const periods = ctx.periods ?? [];
   const calendar = calendarOf(ctx);
   const scale = historyScale(calendar);
-  const borderless = isBorderless(ctx.theme);
-  const padding = borderless ? 0 : ctx.spacing.panelPadding;
+  const padding = ctx.spacing.panelPadding;
   return periods.map((period, i) => {
     const last = i === periods.length - 1;
     const content = i === 0 ? newestContent : undefined;
@@ -171,7 +169,6 @@ function yearCards(ctx: LayoutContext, newestContent?: CardContent): Section[] {
           padding={padding}
           showLegend={last}
           scale={scale}
-          separator={borderless && i > 0 ? ctx.spacing.sectionGap / 2 : undefined}
           content={content}
           current={i === 0}
         />
@@ -211,9 +208,8 @@ function statCardsBlock(ctx: LayoutContext, detailed: boolean, inCard = false): 
   };
 }
 
-/** Inner width of a year card (no padding when borderless). */
-const cardInnerWidth = (ctx: LayoutContext) =>
-  width(ctx) - (isBorderless(ctx.theme) ? 0 : ctx.spacing.panelPadding * 2);
+/** Inner width of a year card (every panel style keeps the same padding). */
+const cardInnerWidth = (ctx: LayoutContext) => width(ctx) - ctx.spacing.panelPadding * 2;
 
 /** The heatmap: year cards for multi-year full images, the single (or recent-weeks) calendar otherwise. */
 function heatmapSections(ctx: LayoutContext, detailed: boolean): (Section | null)[] {

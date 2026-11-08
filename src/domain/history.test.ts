@@ -1,12 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { combineSources, sliceToRange } from "./combine";
 import { addDays, toISODate, trailingYear } from "./dates";
-import { coveredSpan, historyRange, periodCount, periodSummaries } from "./history";
+import {
+  coveredSpan,
+  historyRange,
+  newestPeriod,
+  newestPeriodOf,
+  periodCount,
+  periodSummaries,
+  platformYear,
+} from "./history";
 import type { PlatformContributions } from "./types";
 
-const end = toISODate("2026-11-06");
-const threeYears = historyRange(end, 3);
-const lastYear = trailingYear(end);
+const end = toISODate("2026-11-06"); // a Friday
+/** GitHub's "last year": from Sunday Nov 2, 2025 (the week of Nov 6, 2025). */
+const githubYear = { start: toISODate("2025-11-02"), end };
+/** GitLab's "last 12 months": from Nov 6, 2025. */
+const lastYear = { start: toISODate("2025-11-06"), end };
+const threeYears = historyRange(githubYear, 3);
 
 const github: PlatformContributions = {
   platform: "github",
@@ -25,12 +36,40 @@ const gitlab: PlatformContributions = {
   days: [{ date: addDays(end, -10), count: 3 }],
 };
 
+describe("platform years", () => {
+  it("match each profile's own yearly window", () => {
+    expect(platformYear("github", end)).toEqual(githubYear);
+    expect(platformYear("gitlab", end)).toEqual(lastYear);
+    // Saturday Nov 7 and Sunday Nov 8: GitHub still counts from Sunday Nov 2 (verified on github.com).
+    expect(platformYear("github", toISODate("2026-11-07")).start).toBe("2025-11-02");
+    expect(platformYear("github", toISODate("2026-11-08")).start).toBe("2025-11-02");
+    expect(platformYear("gitlab", toISODate("2026-11-08")).start).toBe("2025-11-08");
+  });
+
+  it("handle leap days", () => {
+    expect(platformYear("gitlab", toISODate("2028-02-29")).start).toBe("2027-02-28");
+    expect(platformYear("gitlab", toISODate("2029-03-01")).start).toBe("2028-03-01");
+  });
+
+  it("start the newest period at the earliest platform's year", () => {
+    expect(newestPeriod(["github", "gitlab"], end)).toEqual(githubYear);
+    expect(newestPeriod(["gitlab"], end)).toEqual(lastYear);
+    expect(newestPeriod([], end)).toEqual(trailingYear(end));
+  });
+});
+
 describe("historyRange", () => {
-  it("equals the trailing year for one period and spans 365-day periods otherwise", () => {
-    expect(historyRange(end, 1)).toEqual(trailingYear(end));
-    expect(historyRange(end, 3)).toEqual({ start: addDays(end, -1094), end });
-    expect(periodCount(historyRange(end, 3))).toBe(3);
-    expect(periodCount(trailingYear(end))).toBe(1);
+  it("is the newest period for one year and adds 365-day periods before it", () => {
+    expect(historyRange(githubYear, 1)).toEqual(githubYear);
+    expect(historyRange(githubYear, 3)).toEqual({ start: addDays(githubYear.start, -730), end });
+    expect(periodCount(combineSources([github], threeYears, "live"))).toBe(3);
+    expect(periodCount(combineSources([github], githubYear, "live"))).toBe(1);
+  });
+
+  it("clips the newest period to shorter (legacy and sample) datasets", () => {
+    const legacy = combineSources([{ ...github, coverage: undefined }], trailingYear(end), "live");
+    expect(newestPeriodOf(legacy)).toEqual(trailingYear(end));
+    expect(periodCount(legacy)).toBe(1);
   });
 });
 
@@ -67,15 +106,24 @@ describe("periodSummaries", () => {
   const periods = periodSummaries(dataset);
 
   it("lists 12-month periods newest first", () => {
+    const before = (days: number) => addDays(githubYear.start, -days);
     expect(periods.map((p) => p.range)).toEqual([
-      lastYear,
-      { start: addDays(end, -729), end: addDays(end, -365) },
-      { start: addDays(end, -1094), end: addDays(end, -730) },
+      githubYear,
+      { start: before(365), end: before(1) },
+      { start: before(730), end: before(366) },
     ]);
   });
 
-  it("totals the newest period across both platforms", () => {
+  it("totals the newest period across both platforms, each over its own year", () => {
     expect(periods[0]).toMatchObject({ complete: true, total: 5 });
+    // A GitHub contribution before GitLab's year starts still counts (it's in GitHub's year).
+    const early = { ...github, days: [...github.days, { date: toISODate("2025-11-03"), count: 4 }] };
+    const p = periodSummaries(combineSources([early, gitlab], threeYears, "live"));
+    expect(p[0]).toMatchObject({ complete: true, total: 9 });
+    expect(p[0]!.platforms).toEqual([
+      { platform: "github", status: "complete", total: 6 },
+      { platform: "gitlab", status: "complete", total: 3 },
+    ]);
   });
 
   it("never presents GitHub-only history as a complete cross-platform total", () => {

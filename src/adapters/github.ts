@@ -8,34 +8,56 @@ import { type AdapterError, type AdapterResult, displayUsername } from "./types"
  * sufficient. Always pass the username as a variable, never by interpolation.
  */
 export const GITHUB_CONTRIBUTIONS_QUERY = /* GraphQL */ `
-  query GitVisContributions($login: String!, $from: DateTime, $to: DateTime) {
+  query GitVisContributions(
+    $login: String!
+    $from: DateTime
+    $to: DateTime
+    $leadFrom: DateTime
+    $leadTo: DateTime
+    $hasLead: Boolean!
+  ) {
     user(login: $login) {
       contributionsCollection(from: $from, to: $to) {
-        restrictedContributionsCount
-        contributionCalendar {
-          totalContributions
-          weeks {
-            contributionDays {
-              date
-              contributionCount
-            }
-          }
+        ...GitVisCollection
+      }
+      lead: contributionsCollection(from: $leadFrom, to: $leadTo) @include(if: $hasLead) {
+        ...GitVisCollection
+      }
+    }
+  }
+
+  fragment GitVisCollection on ContributionsCollection {
+    restrictedContributionsCount
+    contributionCalendar {
+      totalContributions
+      weeks {
+        contributionDays {
+          date
+          contributionCount
         }
       }
     }
   }
 `;
 
+interface GitHubCollection {
+  restrictedContributionsCount: number;
+  contributionCalendar: {
+    totalContributions: number;
+    weeks: { contributionDays: { date: string; contributionCount: number }[] }[];
+  };
+}
+
 export interface GitHubContributionsResponse {
   data?: {
     user: {
-      contributionsCollection: {
-        restrictedContributionsCount: number;
-        contributionCalendar: {
-          totalContributions: number;
-          weeks: { contributionDays: { date: string; contributionCount: number }[] }[];
-        };
-      };
+      contributionsCollection: GitHubCollection;
+      /**
+       * The first days of GitHub's "last year" (it starts on a Sunday, up to a week
+       * more than a year back). GitHub's calendar returns at most 365 days, so they
+       * come from a second collection in the same request.
+       */
+      lead?: GitHubCollection | null;
     } | null;
   } | null;
   errors?: { type?: string; message: string }[];
@@ -62,7 +84,8 @@ export function normalizeGitHubContributions(username: string, response: GitHubC
     };
   }
 
-  const { contributionCalendar: calendar, restrictedContributionsCount } = collection;
+  const collections = [response.data?.user?.lead, collection].filter((c): c is GitHubCollection => !!c);
+  const restricted = collections.reduce((n, c) => n + c.restrictedContributionsCount, 0);
   return {
     ok: true,
     data: {
@@ -70,11 +93,15 @@ export function normalizeGitHubContributions(username: string, response: GitHubC
       username,
       profileUrl: PLATFORMS.github.profileUrl(username),
       days: normalizeDailyCounts(
-        calendar.weeks.flatMap((w) => w.contributionDays.map((d) => ({ date: d.date, count: d.contributionCount }))),
+        collections.flatMap((c) =>
+          c.contributionCalendar.weeks.flatMap((w) =>
+            w.contributionDays.map((d) => ({ date: d.date, count: d.contributionCount })),
+          ),
+        ),
       ),
-      reportedTotal: calendar.totalContributions,
+      reportedTotal: collections.reduce((n, c) => n + c.contributionCalendar.totalContributions, 0),
       // 0 is ambiguous (none, or the user hasn't opted in); only surface a positive count.
-      privateCount: restrictedContributionsCount > 0 ? restrictedContributionsCount : undefined,
+      privateCount: restricted > 0 ? restricted : undefined,
     },
   };
 }

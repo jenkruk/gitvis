@@ -36,9 +36,7 @@ function daysOf(view: ContributionDataset, period: PeriodSummary) {
   return view.days.filter((d) => isWithinRange(d.date, period.range));
 }
 
-export const isBorderless = (theme: ThemeTokens) => theme.panelFill === "none" && theme.panelStroke === "none";
-
-/** Height of one year card; `padding` is the card's inner padding (0 for borderless). */
+/** Height of one year card; `padding` is the card's inner padding. */
 export function yearCardHeight(
   view: ContributionDataset,
   period: PeriodSummary,
@@ -63,7 +61,6 @@ export function YearCard({
   padding,
   showLegend,
   scale,
-  separator,
   content,
   current = false,
 }: {
@@ -76,8 +73,6 @@ export function YearCard({
   padding: number;
   showLegend: boolean;
   scale: readonly [number, number, number];
-  /** Borderless only: a hairline this many px above the card, between years. */
-  separator?: number;
   /** Rendered inside the card, under its header (the newest year's summary stats). */
   content?: CardContent;
   /** The newest year: its total is the headline number (larger), replacing a separate Contributions stat. */
@@ -93,9 +88,6 @@ export function YearCard({
   return (
     <g>
       <Panel x={x} y={y} width={width} height={height} theme={theme} />
-      {separator !== undefined && (
-        <line x1={x} x2={x + width} y1={y - separator} y2={y - separator} stroke={theme.border} />
-      )}
       <text x={left} y={top + 14} {...strong}>
         {rangeLabel(period.range)}
       </text>

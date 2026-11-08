@@ -48,8 +48,55 @@ describe("fetchGitHubContributions", () => {
     expect(url).toBe(GITHUB_GRAPHQL_URL);
     expect((init!.headers as Record<string, string>).Authorization).toBe("Bearer token-123");
     const body = JSON.parse(init!.body as string);
-    expect(body.variables).toEqual({ login: "jenkruk", from: "2025-11-07T00:00:00Z", to: "2026-11-06T23:59:59Z" });
+    expect(body.variables).toMatchObject({
+      login: "jenkruk",
+      from: "2025-11-07T00:00:00Z",
+      to: "2026-11-06T23:59:59Z",
+      hasLead: false,
+    });
     expect(body.query).not.toContain("jenkruk");
+  });
+
+  it("fetches the days before GitHub's 365-day calendar limit as a second collection", async () => {
+    // GitHub's "last year" from Sunday Nov 2, 2025: its calendar returns only the last 365 days,
+    // so Nov 2–6 come from an aliased collection in the same request.
+    const withLead = {
+      data: {
+        user: {
+          ...ok.data.user,
+          lead: {
+            restrictedContributionsCount: 1,
+            contributionCalendar: {
+              totalContributions: 6,
+              weeks: [{ contributionDays: [{ date: "2025-11-04", contributionCount: 6 }] }],
+            },
+          },
+        },
+      },
+    };
+    const fetchImpl = respond(200, withLead);
+    const githubYear = { start: toISODate("2025-11-02"), end: toISODate("2026-11-06") };
+    const result = await fetchGitHubContributions("jenkruk", githubYear, "token-123", { fetchImpl });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(fetchImpl.mock.calls[0]![1]!.body as string);
+    expect(body.variables).toEqual({
+      login: "jenkruk",
+      from: "2025-11-07T00:00:00Z",
+      to: "2026-11-06T23:59:59Z",
+      leadFrom: "2025-11-02T00:00:00Z",
+      leadTo: "2025-11-06T23:59:59Z",
+      hasLead: true,
+    });
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        days: [
+          { date: "2025-11-04", count: 6 },
+          { date: "2026-11-02", count: 3 },
+        ],
+      },
+    });
   });
 
   it("maps a rejected token to not_configured without leaking details", async () => {

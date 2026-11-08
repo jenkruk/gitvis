@@ -4,6 +4,7 @@ import {
   type BackgroundStyle,
   type ConfigAction,
   type Density,
+  hasTitle,
   type IdentityStyle,
   NAME_MAX_LENGTH,
   type PanelStyle,
@@ -30,6 +31,7 @@ const HEADER_PRESETS: { id: IdentityStyle; label: string; description: string }[
   { id: "none", label: "None", description: "Standard title row." },
   { id: "compact", label: "Compact identity", description: "Small avatars and your name." },
   { id: "full", label: "Full profile", description: "Large avatars, name and title." },
+  { id: "centered", label: "Centered profile", description: "Name and dates centered, an account on each side." },
 ];
 
 /** Profile header preset plus independent handle, avatar, name and title options. */
@@ -38,7 +40,7 @@ export function IdentityPicker({ config, dispatch }: Props) {
   const off = identity.style === "none";
   return (
     <ControlGroup legend="Profile header">
-      <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
         {HEADER_PRESETS.map((preset) => (
           <RadioCard
             key={preset.id}
@@ -60,7 +62,7 @@ export function IdentityPicker({ config, dispatch }: Props) {
         <legend className="text-sm font-medium">Avatars</legend>
         <p id="identity-avatars-hint" className={hint}>
           {off
-            ? "Shown with the Compact or Full header."
+            ? "Shown with a profile header."
             : "Your public profile image, embedded in the graphic (no external loading)."}
         </p>
         <div className="mt-2 grid grid-cols-2 gap-2">
@@ -84,7 +86,7 @@ export function IdentityPicker({ config, dispatch }: Props) {
           label="Display name"
           value={identity.name}
           max={NAME_MAX_LENGTH}
-          hintText={off ? "Shown with the Compact or Full header." : "Replaces the “Contribution activity” title."}
+          hintText={off ? "Shown with a profile header." : "Replaces the “Contribution activity” title."}
           onChange={(name) => dispatch({ type: "setName", name })}
         />
         <TextField
@@ -92,7 +94,9 @@ export function IdentityPicker({ config, dispatch }: Props) {
           label="Professional title"
           value={identity.title}
           max={TITLE_MAX_LENGTH}
-          hintText={identity.style === "full" ? "Shown under your name." : "Shown with the Full profile header."}
+          hintText={
+            hasTitle(identity.style) ? "Shown under your name." : "Shown with the Full or Centered profile header."
+          }
           onChange={(title) => dispatch({ type: "setTitle", title })}
         />
       </div>

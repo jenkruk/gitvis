@@ -113,6 +113,26 @@ describe("Phase 4 URL params", () => {
   });
 });
 
+describe("centered profile header (hdr=centered)", () => {
+  it("golden: v=1&github=jenkruk&hdr=centered decodes to the centered header", () => {
+    const { config, issues } = decode("v=1&github=jenkruk&hdr=centered");
+    expect(issues).toEqual([]);
+    expect(config.identity.style).toBe("centered");
+  });
+
+  it("round-trips with avatars, name and title", () => {
+    const config = [
+      { type: "setIdentityStyle", style: "centered" },
+      { type: "setAvatar", platform: "github", enabled: true },
+      { type: "setName", name: "Combined Activity" },
+      { type: "setTitle", title: "Engineer" },
+    ].reduce((c, a) => configReducer(c, a as Parameters<typeof configReducer>[1]), createDefaultConfig());
+    const query = encodeCardParams({ request: { github: "jenkruk", gitlab: "contactkruk" }, config }).toString();
+    expect(query).toContain("hdr=centered&av=github&name=Combined+Activity&title=Engineer");
+    expect(decodeCardParams(new URLSearchParams(query)).config).toEqual(config);
+  });
+});
+
 describe("Phase 4.2 panel style (pnl)", () => {
   it("is absent for filled panels, so existing URLs never change", () => {
     expect(decode("v=1&github=jenkruk").config.panel).toBe("filled");

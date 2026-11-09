@@ -30,10 +30,7 @@ export async function GET(request: NextRequest) {
     "X-Content-Type-Options": "nosniff",
     // The SVG contains no scripts or external resources; lock it down when opened directly.
     // img-src data: lets embedded avatar images render when the SVG is opened directly.
-    // The sandbox still blocks scripts and forms; popups are allowed only so its profile
-    // links (target="_blank") can open in a new tab.
-    "Content-Security-Policy":
-      "default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox allow-popups allow-popups-to-escape-sandbox",
+    "Content-Security-Policy": "default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox",
   });
 
   if (etagMatches(request.headers.get("if-none-match"), etag)) return new Response(null, { status: 304, headers });

@@ -81,7 +81,7 @@ export const FEATURES = [
   },
   {
     id: "platformLabels",
-    label: "Account labels & links",
+    label: "Account labels",
     description: "The platform and username behind every contribution shown (source attribution).",
     group: "context",
     defaultEnabled: true,

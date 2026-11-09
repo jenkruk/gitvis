@@ -18,6 +18,8 @@ import { renderSvgMarkup } from "./svg-markup";
  * Second pre-launch exception (Nov 8, 2026, still undeployed): every card gained the
  * "Made with GitVis · created by Jen Kruk" credit line, so all snapshots
  * were re-recorded once. The only differences are the credit <text> and the taller card (+36px).
+ * In the same pre-launch window the graphic lost all links (profile links live under the image in
+ * the README snippet instead): header handles became plain <tspan>s and the root got cursor="default".
  */
 const LEGACY_URLS: Record<string, string> = {
   "dashboard-default": "v=1&github=jenkruk&gitlab=contactkruk",

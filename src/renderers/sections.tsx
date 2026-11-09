@@ -47,7 +47,6 @@ export function Header({
   width,
   showPlatformLabels,
   compact = false,
-  links = true,
   handles = PLATFORM_IDS,
 }: {
   dataset: ContributionDataset;
@@ -56,8 +55,6 @@ export function Header({
   width: number;
   showPlatformLabels: boolean;
   compact?: boolean;
-  /** Profile <a> links; off inside role="img" previews, where links are unreachable by assistive tech. */
-  links?: boolean;
   /** Platforms whose @handle is shown (default: all connected). */
   handles?: readonly PlatformId[];
 }) {
@@ -81,13 +78,8 @@ export function Header({
           <tspan dx={4}>@{attribution.display(source)}</tspan>
         </>
       );
-      return links && source.profileUrl ? (
-        <a key={source.platform} href={source.profileUrl} target="_blank">
-          {label}
-        </a>
-      ) : (
-        <tspan key={source.platform}>{label}</tspan>
-      );
+      // No links in the graphic: it's an image in READMEs. Links live under it in the snippet.
+      return <tspan key={source.platform}>{label}</tspan>;
     });
 
   return (
@@ -586,7 +578,7 @@ export function Footnote({ theme, y, width }: { theme: ThemeTokens; y: number; w
 export const CREDIT_HEIGHT = 44;
 /** Space below the credit's baseline: it sits near the card's bottom edge. */
 export const CREDIT_BOTTOM = 16;
-const CREDIT_SIZE = 12;
+const CREDIT_SIZE = 14;
 
 /**
  * "Made with GitVis · created by Jen Kruk" on every card, as plain text. The

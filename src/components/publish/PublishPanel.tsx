@@ -290,27 +290,11 @@ function PublishContent({
             </span>
           </label>
 
-          <label className={optionCard}>
-            <input
-              type="checkbox"
-              checked={options.profileLinks ?? false}
-              onChange={(e) => onOptionsChange({ ...options, profileLinks: e.target.checked })}
-              aria-describedby="publish-links-hint"
-              className="mt-0.5 size-5 shrink-0 accent-zinc-900 dark:accent-zinc-100"
-            />
-            <span>
-              <span className="block text-sm font-medium">Profile links under the image</span>
-              <span id="publish-links-hint" className="block text-xs text-zinc-600 dark:text-zinc-400">
-                Adds a clickable GitLab profile link (your README is already on GitHub). A &ldquo;Get yours!&rdquo; link
-                to GitVis is always added on its own line.
-              </span>
-            </span>
-          </label>
-
           <CopyField
             id={MARKDOWN_ID}
             label="README Markdown"
             buttonLabel="Copy Markdown"
+            hint="Ends with a “Get yours!” link and, if you connected GitLab, a link to your GitLab profile. The image itself isn’t a link."
             value={snippet}
             multiline
             announce={announce}
@@ -319,7 +303,7 @@ function PublishContent({
             id="publish-edit-url"
             label="Edit link"
             buttonLabel="Copy edit link"
-            hint="Reopens GitVis with these accounts and design. The README image links here too."
+            hint="Reopens GitVis with these accounts and design."
             value={edit}
             announce={announce}
           />

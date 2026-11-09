@@ -19,8 +19,6 @@ export interface VisualizationProps {
   idPrefix?: string;
   /** "full" (840px, default) or "compact" (400px reflowed layout for narrow screens). */
   size?: CardSize;
-  /** Render profile links (published files). The studio preview turns them off: links nested in role="img" are inaccessible. */
-  links?: boolean;
   /** Embedded avatar images (data: URIs) for the identity header. */
   avatars?: AvatarImages;
 }
@@ -94,7 +92,6 @@ export function Visualization({
   metrics: provided,
   idPrefix = "gitvis",
   size = "full",
-  links = true,
   avatars = {},
 }: VisualizationProps) {
   const prepared = prepareView(fullDataset, config);
@@ -170,9 +167,8 @@ export function Visualization({
       width={canvasWidth}
       height={height}
       viewBox={`0 0 ${canvasWidth} ${height}`}
-      // Arrow cursor everywhere (no text cursor over labels); only profile links show the hand.
-      // Profile-header designs only: the original header's output is frozen byte-for-byte.
-      cursor={identity.style === "none" ? undefined : "default"}
+      // The graphic has no links (it's an image in READMEs); the arrow cursor everywhere, no text cursor over labels.
+      cursor="default"
       role="img"
       aria-labelledby={titleId}
       aria-describedby={descId}
@@ -210,7 +206,6 @@ export function Visualization({
           width={contentWidthFor(size)}
           showPlatformLabels={showPlatformLabels}
           compact={compactCanvas}
-          links={links}
           handles={identity.handles}
         />
       ) : identity.style === "centered" ? (
@@ -223,7 +218,6 @@ export function Visualization({
           width={contentWidthFor(size)}
           compactCanvas={compactCanvas}
           showHandles={showPlatformLabels}
-          links={links}
           idPrefix={idPrefix}
         />
       ) : (
@@ -236,7 +230,6 @@ export function Visualization({
           width={contentWidthFor(size)}
           compactCanvas={compactCanvas}
           showHandles={showPlatformLabels}
-          links={links}
           idPrefix={idPrefix}
         />
       )}

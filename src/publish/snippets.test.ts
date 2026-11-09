@@ -23,11 +23,13 @@ describe("publish snippets", () => {
     expect(altText(params.request)).toBe("GitVis contribution activity for GitHub @jenkruk and GitLab @contactkruk");
   });
 
-  it("produces a plain Markdown image (GitHub links it to the image itself, in a new tab)", () => {
+  it("always uses an unlinked <picture>, even without variants (GitHub would link a Markdown image)", () => {
     const md = readmeSnippet(origin, params, { theme: "selected", responsive: false });
-    expect(md.split("\n\n")[0]).toBe(`![${altText(params.request)}](${cardUrl(origin, params)})`);
-    // Readers clicking a card never land in the studio.
-    expect(md).not.toContain(editUrl(origin, params));
+    expect(md.split("\n\n")[0]).toBe(
+      `<picture>\n  <img alt="${altText(params.request)}" src="${cardUrl(origin, params).replaceAll("&", "&amp;")}">\n</picture>`,
+    );
+    expect(md).not.toContain("![");
+    expect(md).not.toContain(editUrl(origin, params).replaceAll("&", "&amp;"));
   });
 
   it("serves the compact image to narrow screens first when responsive", () => {
@@ -58,8 +60,7 @@ describe("publish snippets", () => {
     expect(html).toMatch(/prefers-color-scheme: light\)" srcset="[^"]*mode=light/);
     expect(html).toContain(`<img alt="${altText(params.request)}"`);
     expect(html).not.toMatch(/&(?!amp;)/); // every & is escaped inside HTML attributes
-    // GitHub doesn't link a <picture> itself, so it links to the card image (never the studio).
-    expect(html.startsWith('<a href="https://gitvis.example/api/card?v=1&amp;')).toBe(true);
+    expect(html.startsWith("<picture>")).toBe(true); // not wrapped in a link
   });
 
   it("names downloads after the accounts", () => {
@@ -86,19 +87,15 @@ describe("README <picture> markup audit", () => {
   it.each(variants)("is valid, GitHub-safe and accessible for %o", (options) => {
     const html = readmeSnippet(origin, params, options);
     const doc = new DOMParser().parseFromString(html, "text/html");
-    const link = doc.body.firstElementChild!;
-    expect(link.tagName).toBe("A");
-    expect(link.children).toHaveLength(1);
-
-    const picture = link.firstElementChild!;
-    expect(picture.tagName).toBe("PICTURE");
+    const picture = doc.body.firstElementChild!;
+    expect(picture.tagName).toBe("PICTURE"); // unlinked: clicking the image does nothing
     const children = [...picture.children];
     // HTML content model: zero or more <source>, then exactly one <img>, last.
     expect(children.at(-1)!.tagName).toBe("IMG");
     expect(children.slice(0, -1).every((c) => c.tagName === "SOURCE")).toBe(true);
     expect(children.length).toBeGreaterThan(1);
 
-    for (const el of [link, picture, ...children]) {
+    for (const el of [picture, ...children]) {
       for (const attr of el.getAttributeNames()) expect(GITHUB_ALLOWED[el.tagName]).toContain(attr);
     }
 
@@ -118,8 +115,6 @@ describe("README <picture> markup audit", () => {
     expect(fallback.searchParams.has("size")).toBe(false);
     expect(fallback.searchParams.get("mode")).toBe(params.config.mode);
     expect(img.getAttribute("alt")).toBe(altText(params.request));
-    expect(link.getAttribute("href")).toBe(img.getAttribute("src"));
-    expect(new URL(link.getAttribute("href")!).pathname).toBe("/api/card");
   });
 
   it("makes every media query that could match a phone resolve to the compact image first", () => {
@@ -142,27 +137,42 @@ describe("README <picture> markup audit", () => {
   });
 });
 
-describe("Phase 4 snippet options", () => {
-  it("adds the GitLab profile link and, on its own line, 'Get yours!' (no GitHub link: the README is on GitHub)", () => {
-    const md = readmeSnippet(origin, params, { theme: "selected", responsive: false, profileLinks: true });
-    expect(md.split("\n\n").slice(1)).toEqual([
-      "[GitLab @contactkruk](https://gitlab.com/contactkruk)",
-      "[Get yours!](https://gitvis.example)",
+/** Attributes GitHub keeps on the link block's elements. */
+const GITHUB_ALLOWED_LINKS: Record<string, string[]> = { P: ["align"], A: ["href"] };
+
+describe("links under the image", () => {
+  const links = (snippet: string) => {
+    const [, block] = snippet.split("\n\n");
+    return new DOMParser().parseFromString(block!, "text/html").body;
+  };
+
+  it("puts 'Get yours!' on the left and the GitLab profile on the right, and nothing else", () => {
+    const body = links(readmeSnippet(origin, params, { theme: "selected", responsive: true }));
+    const paragraphs = [...body.children];
+    expect(paragraphs.map((p) => [p.getAttribute("align"), p.textContent])).toEqual([
+      ["left", "Get yours!"],
+      ["right", "GitLab @contactkruk"],
     ]);
-    expect(md).not.toContain("github.com");
+    expect([...body.querySelectorAll("a")].map((a) => a.getAttribute("href"))).toEqual([
+      "https://gitvis.example",
+      "https://gitlab.com/contactkruk",
+    ]);
+    for (const el of body.querySelectorAll("*")) {
+      for (const attr of el.getAttributeNames()) expect(GITHUB_ALLOWED_LINKS[el.tagName]).toContain(attr);
+    }
   });
 
-  it("always adds 'Get yours!', even without profile links or a GitLab account", () => {
+  it("has no GitHub link (the README is on GitHub) and only 'Get yours!' without GitLab", () => {
     const githubOnly = { ...params, request: { github: "jenkruk" } };
-    expect(readmeSnippet(origin, githubOnly, { theme: "selected", responsive: false, profileLinks: true })).toMatch(
-      /\)\n\n\[Get yours!\]\(https:\/\/gitvis\.example\)$/,
-    );
-    expect(readmeSnippet(origin, params, { theme: "selected", responsive: false }).split("\n\n")).toHaveLength(2);
+    const snippet = readmeSnippet(origin, githubOnly, { theme: "auto", responsive: true });
+    expect(snippet).not.toContain("github.com");
+    expect(links(snippet).textContent).toBe("Get yours!");
   });
 
-  it("separates the links from a <picture> block with a blank line so GitHub renders them as Markdown", () => {
-    const html = readmeSnippet(origin, params, { theme: "auto", responsive: true, profileLinks: true });
-    expect(html).toMatch(/<\/a>\n\n\[GitLab @contactkruk\]/);
+  it("are the snippet's only links, separated from the image by a blank line", () => {
+    const snippet = readmeSnippet(origin, params, { theme: "auto", responsive: true });
+    expect(snippet).toMatch(/<\/picture>\n\n<p align="left">/);
+    expect(snippet.match(/<a /g)).toHaveLength(2);
   });
 
   it("forces theme matching for transparent backgrounds", () => {

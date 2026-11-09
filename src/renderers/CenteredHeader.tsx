@@ -2,7 +2,7 @@ import { finalText, type IdentityConfig } from "@/config/config";
 import { formatDate } from "@/domain/dates";
 import { type ContributionDataset, PLATFORMS, type PlatformContributions, type PlatformId } from "@/domain/types";
 import type { ThemeTokens } from "@/theme/palettes";
-import { type AvatarImages, Avatar, ProfileLink } from "./IdentityHeader";
+import { type AvatarImages, Avatar } from "./IdentityHeader";
 import { FONT_STACK, PADDING } from "./primitives";
 import { hasStatusBadge, seriesColor, STATUS_BADGE_HEIGHT, StatusBadge } from "./sections";
 import { maxCharsFor, wrapText } from "./text";
@@ -138,7 +138,6 @@ export interface CenteredHeaderProps {
   width: number;
   compactCanvas: boolean;
   showHandles: boolean;
-  links: boolean;
   idPrefix: string;
 }
 
@@ -151,7 +150,6 @@ export function CenteredHeader({
   width,
   compactCanvas,
   showHandles,
-  links,
   idPrefix,
 }: CenteredHeaderProps) {
   const font = { fontFamily: FONT_STACK };
@@ -218,20 +216,8 @@ export function CenteredHeader({
             <tspan dx={4}>@{side.handle}</tspan>
           </text>
         );
-        const href = links ? side.source.profileUrl : undefined;
         return (
-          <ProfileLink key={platform} href={href}>
-            {href && (
-              // Invisible hit area: the whole account section (avatar, gaps between letters) is clickable.
-              <rect
-                x={left ? edge : edge - side.width}
-                y={top}
-                width={side.width}
-                height={side.height}
-                fill="#000"
-                fillOpacity={0}
-              />
-            )}
+          <g key={platform}>
             {side.avatar && (
               <Avatar
                 platform={platform}
@@ -245,7 +231,7 @@ export function CenteredHeader({
               />
             )}
             {label}
-          </ProfileLink>
+          </g>
         );
       })}
     </g>

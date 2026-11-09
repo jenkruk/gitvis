@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { finalText, type IdentityConfig } from "@/config/config";
 import { formatDate } from "@/domain/dates";
 import { type ContributionDataset, PLATFORMS, type PlatformId } from "@/domain/types";
@@ -47,7 +46,6 @@ export interface IdentityHeaderProps {
   width: number;
   compactCanvas: boolean;
   showHandles: boolean;
-  links: boolean;
   idPrefix: string;
 }
 
@@ -149,17 +147,6 @@ export function Avatar({
   );
 }
 
-/** Wraps an element in a link to a profile (new tab) when there is one; links only work when the SVG is opened on its own. */
-export function ProfileLink({ href, children }: { href?: string; children: ReactNode }) {
-  return href ? (
-    <a href={href} target="_blank">
-      <g cursor="pointer">{children}</g>
-    </a>
-  ) : (
-    <>{children}</>
-  );
-}
-
 /** Compact Identity / Full Profile headers: avatars, display name, title, handles and range. */
 export function IdentityHeader({
   dataset,
@@ -170,7 +157,6 @@ export function IdentityHeader({
   width,
   compactCanvas,
   showHandles,
-  links,
   idPrefix,
 }: IdentityHeaderProps) {
   const font = { fontFamily: FONT_STACK };
@@ -213,30 +199,23 @@ export function IdentityHeader({
         <tspan dx={4}>@{attribution.display(source)}</tspan>
       </>
     );
-    return links && source.profileUrl ? (
-      <a key={source.platform} href={source.profileUrl} target="_blank">
-        <tspan cursor="pointer">{label}</tspan>
-      </a>
-    ) : (
-      <tspan key={source.platform}>{label}</tspan>
-    );
+    return <tspan key={source.platform}>{label}</tspan>;
   });
 
   return (
     <g>
       {avatarSources.map((source, i) => (
-        <ProfileLink key={source.platform} href={links ? source.profileUrl : undefined}>
-          <Avatar
-            platform={source.platform}
-            username={source.username}
-            image={avatars[source.platform]}
-            theme={theme}
-            x={PADDING + i * overlap}
-            y={avatarY}
-            size={g.avatar}
-            clipId={`${idPrefix}-avatar-${source.platform}`}
-          />
-        </ProfileLink>
+        <Avatar
+          key={source.platform}
+          platform={source.platform}
+          username={source.username}
+          image={avatars[source.platform]}
+          theme={theme}
+          x={PADDING + i * overlap}
+          y={avatarY}
+          size={g.avatar}
+          clipId={`${idPrefix}-avatar-${source.platform}`}
+        />
       ))}
       <text
         x={textX}

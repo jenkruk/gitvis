@@ -31,11 +31,6 @@ export interface SnippetOptions {
   theme: ReadmeTheme;
   /** Serve the reflowed compact image on narrow screens (phones). */
   responsive: boolean;
-  /**
-   * Add real Markdown profile links under the image (GitLab; the README is already
-   * on GitHub). Links drawn inside an SVG don't work when GitHub shows it as an <img>; these do.
-   */
-  profileLinks?: boolean;
 }
 
 /** Transparent graphics must follow the reader's theme, or light text would sit on a light page (and vice versa). */
@@ -43,45 +38,41 @@ export function effectiveSnippetOptions(options: SnippetOptions, config: Visuali
   return config.background === "transparent" ? { ...options, theme: "auto" } : options;
 }
 
-/**
- * "[GitLab @user](…)": profile links for connected platforms other than GitHub.
- * The README itself lives on the user's GitHub profile, so a GitHub link would
- * only point back to the page the reader is on. Empty for GitHub-only accounts.
- */
-export function profileLinksLine(request: ConnectRequest): string {
-  return PLATFORM_IDS.filter((p) => p !== "github" && request[p])
-    .map((p) => `[${PLATFORMS[p].label} @${request[p]}](${PLATFORMS[p].profileUrl(request[p]!)})`)
-    .join(" · ");
-}
-
 /** Below this viewport width readers get the compact image (GitHub's mobile layout). */
 export const NARROW_MEDIA = "(max-width: 600px)";
 
 /**
- * The README snippet. Without options it is a plain Markdown image, which GitHub
- * itself links to the image (opening in a new tab). Theme matching and/or a
- * mobile image need an HTML <picture>; the first matching <source> wins, so
- * narrow-screen sources come first. GitHub doesn't link a <picture>, so it is
- * wrapped in a link to the card image.
+ * The README snippet: the card as an unlinked image, then the only two links —
+ * "Get yours!" (left) and the user's GitLab profile (right, when a GitLab
+ * account is connected). The README lives on GitHub, so there's no GitHub link.
  *
- * Never links to the studio: readers clicking a card want the accounts, not our
- * editor. Opened on its own, the card's GitHub/GitLab labels and avatars are
- * real links to the profiles (GitHub's image proxy serves SVGs without a
- * sandbox, verified November 2026); `profileLinks` adds README text links too.
+ * The image is always an HTML <picture>: GitHub links a plain Markdown image to
+ * itself, but leaves a <picture> unlinked (verified November 2026). The first
+ * matching <source> wins, so narrow-screen sources come first. The graphic itself
+ * contains no links either. GitHub strips link colors and `target`, so these links
+ * use GitHub's own style and open in the same tab.
  */
 export function readmeSnippet(origin: string, params: CardParams, options: SnippetOptions): string {
   const image = imageSnippet(origin, params, effectiveSnippetOptions(options, params.config));
-  // A blank line ends an HTML block in GitHub Markdown, so the links line renders as Markdown.
-  // Blank lines end the HTML block and keep each link line its own paragraph, so GitHub renders them as
-  // Markdown and "Get yours!" stays separate from the user's own profile link.
-  const links = options.profileLinks ? profileLinksLine(params.request) : "";
-  return [image, links, `[Get yours!](${origin})`].filter(Boolean).join("\n\n");
+  // A blank line ends the <picture> HTML block; the links are their own block.
+  return `${image}\n\n${linksSnippet(origin, params.request)}`;
+}
+
+/** "Get yours!" on the left; the GitLab profile link right-aligned below it, when there is one. */
+function linksSnippet(origin: string, request: ConnectRequest): string {
+  const attr = escapeMarkup;
+  const lines = [`<p align="left"><a href="${attr(origin)}">Get yours!</a></p>`];
+  if (request.gitlab) {
+    const label = `${PLATFORMS.gitlab.label} @${request.gitlab}`;
+    lines.push(
+      `<p align="right"><a href="${attr(PLATFORMS.gitlab.profileUrl(request.gitlab))}">${attr(label)}</a></p>`,
+    );
+  }
+  return lines.join("\n");
 }
 
 function imageSnippet(origin: string, params: CardParams, { theme, responsive }: SnippetOptions): string {
   const alt = altText(params.request);
-  if (theme === "selected" && !responsive) return `![${alt}](${cardUrl(origin, params)})`;
-
   const sources: [media: string, params: CardParams][] = [];
   if (responsive) {
     if (theme === "auto") {
@@ -98,12 +89,10 @@ function imageSnippet(origin: string, params: CardParams, { theme, responsive }:
 
   const attr = escapeMarkup;
   return [
-    `<a href="${attr(cardUrl(origin, params))}">`,
-    "  <picture>",
-    ...sources.map(([media, p]) => `    <source media="${media}" srcset="${attr(cardUrl(origin, p))}">`),
-    `    <img alt="${attr(alt)}" src="${attr(cardUrl(origin, params))}">`,
-    "  </picture>",
-    "</a>",
+    "<picture>",
+    ...sources.map(([media, p]) => `  <source media="${media}" srcset="${attr(cardUrl(origin, p))}">`),
+    `  <img alt="${attr(alt)}" src="${attr(cardUrl(origin, params))}">`,
+    "</picture>",
   ].join("\n");
 }
 

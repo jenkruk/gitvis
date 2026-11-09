@@ -27,11 +27,9 @@ beforeEach(() => {
 });
 
 describe("GET /api/card", () => {
-  it("stays sandboxed (no scripts) while letting its links open a new tab", async () => {
+  it("is fully sandboxed: no scripts, no popups (the graphic has no links)", async () => {
     const csp = (await get("v=1&github=jenkruk")).headers.get("Content-Security-Policy")!;
-    expect(csp).toContain("default-src 'none'");
-    expect(csp).toMatch(/sandbox allow-popups allow-popups-to-escape-sandbox$/);
-    expect(csp).not.toContain("allow-scripts");
+    expect(csp).toBe("default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox");
   });
 
   it("serves a GitHub-compatible, cache-friendly SVG", async () => {

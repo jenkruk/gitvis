@@ -77,7 +77,7 @@ describe("PublishPanel", () => {
     expect(screen.queryByRole("textbox", { name: "README Markdown" })).not.toBeInTheDocument();
   });
 
-  it("shows a Markdown image whose URL restores the exact design", () => {
+  it("shows an unlinked README image whose URL restores the exact design", () => {
     const config = {
       ...createDefaultConfig(),
       layout: "minimal" as const,
@@ -85,15 +85,14 @@ describe("PublishPanel", () => {
       mode: "light" as const,
     };
     const { markdown } = setup(config);
-    // Not wrapped in a studio link: GitHub links a plain image to itself, in a new tab.
-    const match = /^!\[(.+)\]\((.+)\)$/.exec(markdown().value.split("\n\n")[0]!)!;
-    expect(match[1]).toBe("GitVis contribution activity for GitHub @jenkruk");
-    expect(decodeCardParams(new URL(match[2]!).searchParams)).toEqual({
-      request: { github: "jenkruk" },
-      config,
-      issues: [],
-    });
-    expect(new URL(match[2]!).pathname).toBe("/api/card");
+    const doc = new DOMParser().parseFromString(markdown().value.split("\n\n")[0]!, "text/html");
+    const img = doc.querySelector("picture > img")!;
+    expect(doc.body.firstElementChild!.tagName).toBe("PICTURE"); // the image itself isn't a link
+    expect(img.getAttribute("alt")).toBe("GitVis contribution activity for GitHub @jenkruk");
+    const url = new URL(img.getAttribute("src")!);
+    expect(url.pathname).toBe("/api/card");
+    expect(decodeCardParams(url.searchParams)).toEqual({ request: { github: "jenkruk" }, config, issues: [] });
+    expect(markdown()).toHaveAccessibleDescription(/get yours!/i);
   });
 
   it("shows the real published image with the same alt text", () => {

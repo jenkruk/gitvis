@@ -55,7 +55,7 @@ Features live in a registry (`src/config/features.ts`). Adding one is a data cha
 - Each part is independent: show one avatar, both or none; add a display name (≤ 40 characters) and a professional title (≤ 60).
 - **Source attribution is always on:** every published graphic names the platform and username of each account whose contributions it shows ("GitHub @jenkruk · GitLab @contactkruk"), in every layout and header style. This is attribution, not identity verification — no sign-in.
 - **Avatars are embedded in the image** as data, never linked, so the graphic never depends on an external image loading inside GitHub's proxy. If an avatar can't be fetched, a monogram in the platform color takes its place.
-- **Profile links** can be added under the image in the README snippet (SVG links don't work inside GitHub's `<img>`).
+- **No links in the graphic.** In a README it's an image, so nothing inside it can be clicked. The README snippet carries the only links, under the image.
 
 ### Color studio
 
@@ -73,8 +73,8 @@ The user's goal is to **paste one Markdown snippet into a GitHub README** and ne
 - **Copy Markdown** in one click. It can match the reader's GitHub light or dark theme using a `<picture>` element.
 - **Published-image preview**: the actual image GitHub will fetch, shown before copying.
 - **Edit configuration link**: reopens the studio with every choice restored. It's shown on the Publish screen; the README image never links there, because readers clicking a card want the accounts, not the editor.
-- **Clicking through to the accounts**: in a README, clicking the image opens it on its own, where each account's avatar and username link to its profile in a new tab. The profile link under the image (on by default) gives README readers a one-click GitLab link; there's no GitHub link because the README is already on GitHub. README links use GitHub's own link style (GitHub strips colors and styling).
-- **Credit line**: every card ends with plain-text "Made with GitVis · created by Jen Kruk". Every README snippet ends with a separate "Get yours!" link to the production site; the image itself never links to GitVis.
+- **Links under the image**: the snippet shows the card as an unlinked `<picture>` (clicking it does nothing), then "Get yours!" on the left and, when GitLab is connected, the user's GitLab profile on the right. There's no GitHub link because the README is already on GitHub. GitHub strips link colors and `target`, so these use GitHub's link style and open in the same tab.
+- **Credit line**: every card ends with plain-text "Made with GitVis · created by Jen Kruk". The "Get yours!" link to the production site lives under the image in the README snippet.
 - **Downloads**: SVG and PNG, both generated from the published image.
 - **Stability promise**: a URL generated today renders the same design in future versions. Version bumps are only for breaking changes, and old versions keep working.
 

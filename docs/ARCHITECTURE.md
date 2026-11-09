@@ -351,8 +351,8 @@ Unfilled panels put their content directly on whatever is behind them, so `apply
 - **Compact image** (`size=compact`, 400px): reflowed, not shrunk.
   - Stat cards in 2 columns, the last 20 weeks of heatmap (cells ≈ GitHub's 10px on a phone), stacked charts, and wrapped text.
   - `size` is an optional v1 parameter. It's absent from full-size URLs, so every previously published URL is unchanged.
-- Profile links (`<a>`) are rendered in published SVGs, where they work when the file is opened directly, but not in the studio's `role="img"` preview, where nested links are unreachable by assistive tech (axe `nested-interactive`).
-- **Profile links** (optional): a line of Markdown links under the image (`[GitHub @user](…) · [GitLab @user](…)`), because links inside an SVG don't work through GitHub's `<img>`.
+- The graphic contains **no links** (`<a>`): in READMEs it's an image, so they could never be clicked. The SVG sets `cursor="default"`, and the card route's CSP is a plain `sandbox` (no popups).
+- **Links under the image** (always): `<p align="left">` "Get yours!" (production origin) and, when GitLab is connected, `<p align="right">` the GitLab profile. No GitHub link: the README is on GitHub. The image is always an unlinked `<picture>`, since GitHub auto-links a plain Markdown image but not a `<picture>`.
 - **Transparent background** forces theme matching (`effectiveSnippetOptions`), so the light variant is never shown on a dark page.
 - SVG download fetches the published card. PNG rasterizes that same SVG on a `<canvas>` at 2× (no dependency).
 

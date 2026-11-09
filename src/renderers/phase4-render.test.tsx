@@ -121,48 +121,24 @@ describe("centered profile header", () => {
     expect(svg).toMatch(new RegExp(`x="${CANVAS_WIDTHS.full - 24}"[^>]*text-anchor="end"[^>]*>.*@contactkruk`));
   });
 
-  it("shows the arrow cursor everywhere except over profile links", () => {
-    const svg = render(centered);
-    expect(svg).toMatch(/^<svg [^>]*cursor="default"/);
-    expect(svg.match(/cursor="pointer"/g)).toHaveLength(2); // the GitHub and GitLab sections only
-    // Compact/Full headers: the username links get the hand too.
-    const compact = render(with_({ type: "setIdentityStyle", style: "compact" }));
-    expect(compact).toMatch(/<a href="https:\/\/gitlab\.com\/contactkruk" target="_blank"><tspan cursor="pointer">/);
-    // The original header's output is frozen, so it's left unchanged.
-    expect(render(createDefaultConfig())).not.toContain("cursor=");
-  });
-
-  it("makes each account section one link to its profile, with a pointer cursor, except in the preview", () => {
-    const svg = render(centered, { avatars: { github: AVATAR, gitlab: AVATAR } });
-    for (const [url, platform, handle] of [
-      ["https://github.com/jenkruk", "github", "@jenkruk"],
-      ["https://gitlab.com/contactkruk", "gitlab", "@contactkruk"],
-    ]) {
-      const link = new RegExp(
-        `<a href="${url!.replaceAll(".", "\\.")}" target="_blank"><g cursor="pointer">(.*?)</g></a>`,
-      ).exec(svg);
-      expect(link).not.toBeNull();
-      // Invisible hit area + avatar + label, all inside the one link.
-      expect(link![1]).toMatch(/^<rect [^>]*fill="#000" fill-opacity="0"/);
-      expect(link![1]).toContain(`clip-path="url(#gitvis-avatar-${platform})"`);
-      expect(link![1]).toContain(handle);
+  it("contains no links in any header style, and shows the arrow cursor everywhere", () => {
+    for (const style of ["none", "compact", "full", "centered"] as const) {
+      const svg = render(
+        with_(
+          { type: "setIdentityStyle", style },
+          { type: "setAvatar", platform: "github", enabled: true },
+          { type: "setAvatar", platform: "gitlab", enabled: true },
+        ),
+        { avatars: { github: AVATAR, gitlab: AVATAR } },
+      );
+      expect(svg).not.toContain("<a ");
+      expect(svg).not.toMatch(/href="https?:/);
+      expect(svg).not.toContain('cursor="pointer"');
+      expect(svg).toMatch(/^<svg [^>]*cursor="default"/);
+      // Attribution stays: both accounts are still named.
+      expect(svg).toContain("@jenkruk");
+      expect(svg).toContain("@contactkruk");
     }
-    const preview = render(centered, { avatars: { github: AVATAR, gitlab: AVATAR }, links: false });
-    expect(preview).not.toContain("<a ");
-    expect(preview).not.toContain('cursor="pointer"');
-    expect(preview).not.toContain('fill-opacity="0"');
-    // The other profile headers link their avatars too.
-    const full = render(
-      with_({ type: "setIdentityStyle", style: "full" }, { type: "setAvatar", platform: "gitlab", enabled: true }),
-    );
-    expect(full).toMatch(/<a href="https:\/\/gitlab\.com\/contactkruk" target="_blank"><g cursor="pointer"><g><circle/);
-  });
-
-  it("links each handle to its profile and keeps attribution without avatars", () => {
-    const svg = render(with_({ type: "setIdentityStyle", style: "centered" }));
-    expect(svg).toContain('href="https://github.com/jenkruk"');
-    expect(svg).toContain('href="https://gitlab.com/contactkruk"');
-    expect(svg).not.toContain("<image");
   });
 
   it("describes the identity for screen readers, including the title", () => {
@@ -207,7 +183,7 @@ describe("credit line", () => {
         const svg = render({ ...createDefaultConfig(), layout }, { size });
         // Last element, left-aligned at the content edge, after the footnote.
         expect(svg).toMatch(
-          /<text x="24" y="[\d.]+" font-size="12"[^>]*>Made with GitVis · created by Jen Kruk<\/text><\/svg>$/,
+          /<text x="24" y="[\d.]+" font-size="14"[^>]*>Made with GitVis · created by Jen Kruk<\/text><\/svg>$/,
         );
         expect(svg).not.toContain("Get yours");
       }

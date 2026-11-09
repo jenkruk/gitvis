@@ -108,7 +108,7 @@ Deployment verification moved to Phase 3.2.
 - [ ] Headers in production: `vercel-cdn-cache-control` stripped, `no-cache` + ETag, `x-vercel-cache` HIT, 304 on a HIT.
 - [ ] Snapshots survive a redeploy (`x-gitvis-data-as-of` unchanged; Runtime Cache reads without writes).
 - [ ] Preview publishes production URLs; preview `/api/card` returns 401.
-- [ ] A real README embed through camo: light, dark, mobile compact; the link restores the design.
+- [ ] A real README embed through camo: light, dark, mobile compact; the links under the image work.
 - [ ] After more than 13h with no traffic, the first view has fresh data.
 - [ ] WAF rule 1 logging, then enforcing; `/api/card` never challenged.
 

@@ -102,7 +102,6 @@ export function PreviewFrame({
             metrics={metrics}
             idPrefix="preview"
             size={size}
-            links={false}
             avatars={avatars}
           />
         </div>

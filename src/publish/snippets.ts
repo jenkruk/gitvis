@@ -38,8 +38,7 @@ export function effectiveSnippetOptions(options: SnippetOptions, config: Visuali
 
 /**
  * The README snippet: the card as an unlinked image, then its only links:
- * "Get Yours" right under the card's credit line and, on the same line,
- * "Open source on GitHub" (the GitVis repo).
+ * "Get Yours · open source on GitHub" right under the card's credit line.
  *
  * The image is always an HTML <picture>: GitHub links a plain Markdown image to
  * itself, but leaves a <picture> unlinked (verified November 2026). The graphic
@@ -54,12 +53,24 @@ export function readmeSnippet(origin: string, params: CardParams, options: Snipp
 
 export type LabelTarget = { cta: true } | { repo: true } | { gitlab: string };
 
+/**
+ * Bump whenever a label URL's image changes. /api/label is cached for up to a
+ * year by Vercel, browsers and GitHub's image proxy, so an unchanged URL keeps
+ * showing the old image (v1 labels were text-width and showed up mid-line).
+ */
+export const LABEL_VERSION = "2";
+
 /** GitVis's image of a link's text, in GitHub's dark or light theme (see /api/label). */
 export function labelUrl(
   origin: string,
   target: LabelTarget,
   mode: ColorMode,
-  { inset = false, color, span = "half" }: { inset?: boolean; color?: string; span?: "half" | "full" } = {},
+  {
+    inset = false,
+    color,
+    span = "half",
+    line = false,
+  }: { inset?: boolean; color?: string; span?: "half" | "full"; line?: boolean } = {},
 ): string {
   const query = new URLSearchParams(
     "cta" in target ? { cta: "1" } : "repo" in target ? { repo: "1" } : { gitlab: target.gitlab },
@@ -68,6 +79,9 @@ export function labelUrl(
   if (span !== "half") query.set("span", span);
   if (color) query.set("color", color.replace("#", "").toLowerCase());
   if (inset) query.set("inset", "1");
+  if (line) query.set("line", "1");
+  // Label images are cached for a long time: a new version gets new URLs.
+  query.set("v", LABEL_VERSION);
   return `${origin}/api/label?${query}`;
 }
 
@@ -78,21 +92,21 @@ export function linkColor(config: VisualizationConfig, mode: ColorMode): string 
 }
 
 /**
- * One line under the card, exactly as wide as it: "Get Yours" starting right
- * under the card's "Made with GitVis" credit, and "Open source on GitHub" (the
- * GitVis repo) ending at the card's right content edge. GitHub keeps no widths,
- * colors or padding in READMEs, so both are images GitVis draws, each half the
- * card's width with its text inset by the card's padding, in the card's GitLab
- * color; side by side and centered (like the card) they span exactly the card.
- * README columns narrower than the card stack them. Alt text is each link's text.
- * No whitespace between or inside the links (it would render as gaps or
- * underlined spaces).
+ * "Get Yours · open source on GitHub", left-aligned right under the card's
+ * "Made with GitVis" credit. GitHub keeps no widths, colors or padding in
+ * READMEs, and the line has two links, so it's two images GitVis draws: "Get
+ * Yours" (inset like the credit, just wide enough for its text) and "· open
+ * source on GitHub" filling the rest of the card's width. Together they're
+ * exactly as wide as the card and centered like it, so the line starts under
+ * the credit. In the card's GitLab color. Alt text is each link's text. No
+ * whitespace between or inside the links (it would render as gaps or underlined
+ * spaces). README columns narrower than the card wrap the second link.
  */
 function linksSnippet(origin: string, params: CardParams): string {
   const attr = escapeMarkup;
   // The links use the graphic's GitLab color, in the reader's theme.
   const url = (target: LabelTarget, mode: ColorMode) =>
-    labelUrl(origin, target, mode, { inset: true, color: linkColor(params.config, mode) });
+    labelUrl(origin, target, mode, { line: true, color: linkColor(params.config, mode) });
   const label = (href: string, target: LabelTarget, alt: string) =>
     `<a href="${attr(href)}"><picture>` +
     `<source media="(prefers-color-scheme: dark)" srcset="${attr(url(target, "dark"))}">` +

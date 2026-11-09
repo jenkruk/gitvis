@@ -14,7 +14,9 @@ import {
 import { cardLimiter, clientKey, tooManyRequests } from "@/server/rate-limit";
 
 /**
- * GET /api/label?cta=1|repo=1|gitlab=<username>&mode=dark|light[&span=half|full][&color=rrggbb][&inset=1]
+ * GET /api/label?cta=1|repo=1|gitlab=<username>&mode=dark|light[&line=1][&span=half|full][&color=rrggbb][&inset=1][&v=N]
+ * line=1: the "Get Yours · open source on GitHub" line under the credit (current snippets).
+ * v: bumped whenever a URL's image changes, so long-cached older images are never reused.
  * The README snippet's links ("Get Yours", "Open source on GitHub"; GitLab labels
  * for older snippets) drawn as SVGs half (or all) of the card's width, so
  * side by side they're exactly as wide as the card and line up with it (see
@@ -33,11 +35,15 @@ export function GET(request: NextRequest) {
   const inset = params.get("inset");
   const color = params.get("color");
   const span = (params.get("span") ?? "half") as LinkLabelSpan;
+  const line = params.get("line");
+  const version = params.get("v");
   const valid =
     LINK_LABEL_MODES.includes(mode) &&
     (inset === null || inset === "1") &&
     (color === null || /^[0-9a-f]{6}$/i.test(color)) &&
     span in LINK_LABEL_SPANS &&
+    (line === null || (line === "1" && (cta || repo))) &&
+    (version === null || /^[1-9]\d{0,2}$/.test(version)) &&
     // Exactly one label per URL: fixed text, or a validated username — never free text.
     (cta || repo ? !(cta && repo) && gitlab === undefined : gitlab !== undefined && isValidGitLabUsername(gitlab));
   if (!valid) {
@@ -50,10 +56,25 @@ export function GET(request: NextRequest) {
     );
   }
 
-  const kind: LinkLabelKind = cta ? "cta" : repo ? "repo" : "gitlab";
-  const text = cta ? "Get Yours" : repo ? "Open source on GitHub" : `${PLATFORMS.gitlab.label} @${gitlab}`;
+  const onLine = line === "1";
+  const kind: LinkLabelKind = cta ? "cta" : repo ? (onLine ? "repoLine" : "repo") : "gitlab";
+  const text = cta
+    ? "Get Yours"
+    : repo
+      ? onLine
+        ? "· open source on GitHub"
+        : "Open source on GitHub"
+      : `${PLATFORMS.gitlab.label} @${gitlab}`;
   const svg = renderSvgMarkup(
-    createElement(LinkLabel, { kind, text, mode, span, color: color ? `#${color}` : undefined, inset: inset === "1" }),
+    createElement(LinkLabel, {
+      kind,
+      text,
+      mode,
+      span,
+      color: color ? `#${color}` : undefined,
+      inset: inset === "1",
+      line: onLine,
+    }),
   );
   return new Response(svg, {
     headers: {

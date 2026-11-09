@@ -9,6 +9,7 @@ import {
   downloadName,
   editUrl,
   effectiveSnippetOptions,
+  LABEL_VERSION,
   labelUrl,
   linkColor,
   readmeSnippet,
@@ -167,7 +168,7 @@ describe("links under the image", () => {
     }
   });
 
-  it("spans exactly the card: two half-width labels, text inset to the card's content edges, for every background", () => {
+  it("is the 'Get Yours · open source on GitHub' line under the credit, versioned, for every background", () => {
     for (const background of ["solid", "gradient", "transparent"] as const) {
       const design = { ...params, config: { ...params.config, background } };
       const all = urls(readmeSnippet(origin, design, { theme: "auto" }));
@@ -178,8 +179,8 @@ describe("links under the image", () => {
         "repo",
       ]);
       for (const q of all) {
-        expect(q.get("span")).toBeNull(); // half (the default)
-        expect(q.get("inset")).toBe("1");
+        expect(q.get("line")).toBe("1");
+        expect(q.get("v")).toBe(LABEL_VERSION); // fresh URLs whenever the images change
       }
     }
   });
@@ -190,12 +191,12 @@ describe("links under the image", () => {
     expect(snippet.match(/<a /g)).toHaveLength(2);
   });
 
-  it("builds label URLs for fixed text or a username only", () => {
+  it("builds versioned label URLs for fixed text or a username only", () => {
     expect(labelUrl(origin, { gitlab: "a.b_c" }, "dark")).toBe(
-      "https://gitvis.example/api/label?gitlab=a.b_c&mode=dark",
+      `https://gitvis.example/api/label?gitlab=a.b_c&mode=dark&v=${LABEL_VERSION}`,
     );
-    expect(labelUrl(origin, { cta: true }, "light", { inset: true, color: "#5BAE9E" })).toBe(
-      "https://gitvis.example/api/label?cta=1&mode=light&color=5bae9e&inset=1",
+    expect(labelUrl(origin, { repo: true }, "light", { line: true, color: "#5BAE9E" })).toBe(
+      `https://gitvis.example/api/label?repo=1&mode=light&color=5bae9e&line=1&v=${LABEL_VERSION}`,
     );
   });
 

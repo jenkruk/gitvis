@@ -63,6 +63,20 @@ describe("GET /api/label", () => {
     expect(attr(attrs!, "text-anchor")).toBe("end");
   });
 
+  it("draws the 'Get Yours · open source on GitHub' line: together exactly the card's width", async () => {
+    const cta = await (await get("cta=1&mode=dark&line=1&v=2")).text();
+    const repo = await (await get("repo=1&mode=dark&line=1&v=2")).text();
+    expect(width(cta) + width(repo)).toBe(840);
+    // "Get Yours" starts where the credit does (the card's padding); the second link follows right after it.
+    expect(attr(textOf(cta)[1]!, "x")).toBe(String(LINK_LABEL_INSET));
+    expect(width(cta)).toBeLessThan(LINK_LABEL_INSET + 90);
+    const [, repoAttrs, repoText] = textOf(repo);
+    expect(repoText).toBe("· open source on GitHub");
+    expect(attr(repoAttrs!, "text-anchor")).toBe("start");
+    expect(Number(attr(repoAttrs!, "x"))).toBeLessThan(10);
+    expect(Number(attr(repoAttrs!, "font-size"))).toBeLessThan(16); // smaller than "Get Yours"
+  });
+
   it("is half the card's width by default, and the full width with span=full", async () => {
     expect(width(await (await get("gitlab=contactkruk&mode=dark")).text())).toBe(420);
     expect(width(await (await get("cta=1&mode=dark")).text())).toBe(420);
@@ -100,6 +114,9 @@ describe("GET /api/label", () => {
     "cta=1&repo=1",
     "repo=1&gitlab=contactkruk",
     "repo=yes",
+    "gitlab=contactkruk&line=1",
+    "cta=1&line=yes",
+    "cta=1&v=latest",
   ])("rejects %s (no free text, one label per URL)", async (query) => {
     const res = await get(query);
     expect(res.status).toBe(400);

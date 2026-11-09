@@ -20,12 +20,30 @@ export const LINK_LABEL_KINDS = {
   gitlab: { fontSize: 13, fontWeight: 400, align: "right" },
   /** "Open source on GitHub" (the GitVis repo): smaller, at the card's right edge. */
   repo: { fontSize: 13, fontWeight: 400, align: "right" },
+  /** "· open source on GitHub", right after "Get Yours" on the line under the credit. */
+  repoLine: { fontSize: 14, fontWeight: 400, align: "left" },
 } as const;
 export type LinkLabelKind = keyof typeof LINK_LABEL_KINDS;
 
 /** How much of the card's width a label spans: half (beside the other link) or all of it (alone). */
 export const LINK_LABEL_SPANS = { half: CANVAS_WIDTH / 2, full: CANVAS_WIDTH } as const;
 export type LinkLabelSpan = keyof typeof LINK_LABEL_SPANS;
+
+/**
+ * The line under the credit: "Get Yours · open source on GitHub", left-aligned
+ * under "Made with GitVis". Two links, so two images: "Get Yours" (inset like the
+ * credit, just wide enough for its text) and the rest of the card's width, with
+ * "· open source on GitHub" right at its start. Together they're exactly the
+ * card's width, so the line stays under the card when both are centered.
+ * "Get Yours" at 16px/600 measures 69–75px across the system font stack.
+ */
+const LINE_CTA_TEXT_WIDTH = 76;
+export const LINE_WIDTHS = {
+  cta: PADDING + LINE_CTA_TEXT_WIDTH,
+  repoLine: CANVAS_WIDTH - PADDING - LINE_CTA_TEXT_WIDTH,
+} as const;
+/** Space before "·": SVG drops leading whitespace, so the gap is drawn as an offset. */
+const LINE_GAP = 5;
 
 /** GitHub's page backgrounds, which the labels sit on. */
 export const README_BACKGROUNDS: Record<LinkLabelMode, string> = { dark: "#0d1117", light: "#ffffff" };
@@ -53,6 +71,7 @@ export function LinkLabel({
   color,
   span = "half",
   inset = false,
+  line = false,
 }: {
   kind: LinkLabelKind;
   text: string;
@@ -61,10 +80,12 @@ export function LinkLabel({
   color?: string;
   span?: LinkLabelSpan;
   inset?: boolean;
+  /** Part of the "Get Yours · open source on GitHub" line (cta or repoLine). */
+  line?: boolean;
 }) {
   const { fontSize, fontWeight, align } = LINK_LABEL_KINDS[kind];
-  const width = LINK_LABEL_SPANS[span];
-  const edge = inset ? LINK_LABEL_INSET : 0;
+  const width = line ? LINE_WIDTHS[kind === "cta" ? "cta" : "repoLine"] : LINK_LABEL_SPANS[span];
+  const edge = line ? (kind === "cta" ? LINK_LABEL_INSET : LINE_GAP) : inset ? LINK_LABEL_INSET : 0;
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

@@ -73,8 +73,8 @@ The user's goal is to **paste one Markdown snippet into a GitHub README** and ne
 - **Copy Markdown** in one click. It can match the reader's GitHub light or dark theme using a `<picture>` element.
 - **Published-image preview**: the actual image GitHub will fetch, shown before copying.
 - **Edit configuration link**: reopens the studio with every choice restored. It's shown on the Publish screen; the README image never links there, because readers clicking a card want the accounts, not the editor.
-- **Links under the image**: the snippet shows the card as an unlinked `<picture>` (clicking it does nothing), then "Get yours!" on the left and, when GitLab is connected, the user's GitLab profile on the right. There's no GitHub link because the README is already on GitHub. GitHub strips link colors and `target`, so these use GitHub's link style and open in the same tab.
-- **Credit line**: every card ends with plain-text "Made with GitVis · created by Jen Kruk". The "Get yours!" link to the production site lives under the image in the README snippet.
+- **Links under the image**: the snippet shows the card as an unlinked `<picture>` (clicking it does nothing), then one line: "Get Yours" on the left and, when GitLab is connected, the user's GitLab profile on the right, smaller, underlined, and white on dark pages (dark text on light pages). GitHub strips colors and layout from READMEs, so the GitLab link is a tiny image GitVis draws (`/api/label`), floated right; its alt text is the link text. There's no GitHub link because the README is already on GitHub. GitHub strips `target`, so these links open in the same tab.
+- **Credit line**: every card ends with plain-text "Made with GitVis · created by Jen Kruk". The "Get Yours" link to the production site lives under the image in the README snippet.
 - **Downloads**: SVG and PNG, both generated from the published image.
 - **Stability promise**: a URL generated today renders the same design in future versions. Version bumps are only for breaking changes, and old versions keep working.
 

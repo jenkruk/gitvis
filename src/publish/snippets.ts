@@ -43,7 +43,7 @@ export const NARROW_MEDIA = "(max-width: 600px)";
 
 /**
  * The README snippet: the card as an unlinked image, then the only two links —
- * "Get yours!" (left) and the user's GitLab profile (right, when a GitLab
+ * "Get Yours" (left) and the user's GitLab profile (right, when a GitLab
  * account is connected). The README lives on GitHub, so there's no GitHub link.
  *
  * The image is always an HTML <picture>: GitHub links a plain Markdown image to
@@ -55,20 +55,49 @@ export const NARROW_MEDIA = "(max-width: 600px)";
 export function readmeSnippet(origin: string, params: CardParams, options: SnippetOptions): string {
   const image = imageSnippet(origin, params, effectiveSnippetOptions(options, params.config));
   // A blank line ends the <picture> HTML block; the links are their own block.
-  return `${image}\n\n${linksSnippet(origin, params.request)}`;
+  return `${image}\n\n${linksSnippet(origin, params)}`;
 }
 
-/** "Get yours!" on the left; the GitLab profile link right-aligned below it, when there is one. */
-function linksSnippet(origin: string, request: ConnectRequest): string {
+export type LabelTarget = { cta: true } | { gitlab: string };
+
+/** GitVis's image of a link's text, in GitHub's dark or light theme (see /api/label). */
+export function labelUrl(origin: string, target: LabelTarget, mode: "dark" | "light", inset = false): string {
+  const query = new URLSearchParams("cta" in target ? { cta: "1" } : { gitlab: target.gitlab });
+  query.set("mode", mode);
+  if (inset) query.set("inset", "1");
+  return `${origin}/api/label?${query}`;
+}
+
+/**
+ * One line under the card: "Get Yours" on the left and, when GitLab is
+ * connected, the GitLab profile on the right (smaller). GitHub keeps no colors,
+ * sizes or padding in READMEs and only images can float, so both are small images
+ * GitVis draws (white and underlined on dark pages); their alt text is the link
+ * text. Transparent cards hide their padding, so the labels are inset to line up
+ * with the card's content instead of the image edge. The float comes first so it
+ * sits on the same line.
+ */
+function linksSnippet(origin: string, params: CardParams): string {
+  const { request, config } = params;
+  const inset = config.background === "transparent";
   const attr = escapeMarkup;
-  const lines = [`<p align="left"><a href="${attr(origin)}">Get yours!</a></p>`];
-  if (request.gitlab) {
-    const label = `${PLATFORMS.gitlab.label} @${request.gitlab}`;
-    lines.push(
-      `<p align="right"><a href="${attr(PLATFORMS.gitlab.profileUrl(request.gitlab))}">${attr(label)}</a></p>`,
-    );
-  }
-  return lines.join("\n");
+  const label = (href: string, target: LabelTarget, alt: string, align?: "right") => [
+    `  <a href="${attr(href)}">`,
+    "    <picture>",
+    `      <source media="(prefers-color-scheme: dark)" srcset="${attr(labelUrl(origin, target, "dark", inset))}">`,
+    `      <img${align ? ` align="${align}"` : ""} alt="${attr(alt)}" src="${attr(labelUrl(origin, target, "light", inset))}">`,
+    "    </picture>",
+    "  </a>",
+  ];
+  const gitlab = request.gitlab
+    ? label(
+        PLATFORMS.gitlab.profileUrl(request.gitlab),
+        { gitlab: request.gitlab },
+        `${PLATFORMS.gitlab.label} @${request.gitlab}`,
+        "right",
+      )
+    : [];
+  return ['<p align="left">', ...gitlab, ...label(origin, { cta: true }, "Get Yours"), "</p>"].join("\n");
 }
 
 function imageSnippet(origin: string, params: CardParams, { theme, responsive }: SnippetOptions): string {

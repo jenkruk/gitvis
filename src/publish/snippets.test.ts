@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultConfig } from "@/config/config";
 import { decodeCardParams } from "./card-params";
-import { altText, cardUrl, downloadName, editUrl, readmeSnippet, type SnippetOptions } from "./snippets";
+import { altText, cardUrl, downloadName, editUrl, labelUrl, readmeSnippet, type SnippetOptions } from "./snippets";
 
 const origin = "https://gitvis.example";
 const params = { request: { github: "jenkruk", gitlab: "contactkruk" }, config: createDefaultConfig() };
+/** The card image block (the snippet's first paragraph; the links follow after a blank line). */
+const card = (snippet: string) => snippet.split("\n\n")[0]!;
 
 describe("publish snippets", () => {
   it("builds card and edit URLs that decode back to the same design", () => {
@@ -33,7 +35,7 @@ describe("publish snippets", () => {
   });
 
   it("serves the compact image to narrow screens first when responsive", () => {
-    const html = readmeSnippet(origin, params, { theme: "selected", responsive: true });
+    const html = card(readmeSnippet(origin, params, { theme: "selected", responsive: true }));
     const sources = [...html.matchAll(/<source media="([^"]+)" srcset="([^"]+)"/g)];
     expect(sources.map((s) => s[1])).toEqual(["(max-width: 600px)"]);
     expect(sources[0]![2]).toContain("size=compact");
@@ -42,7 +44,7 @@ describe("publish snippets", () => {
   });
 
   it("orders narrow + theme sources so the first match is always right", () => {
-    const html = readmeSnippet(origin, params, { theme: "auto", responsive: true });
+    const html = card(readmeSnippet(origin, params, { theme: "auto", responsive: true }));
     expect([...html.matchAll(/<source media="([^"]+)"/g)].map((s) => s[1])).toEqual([
       "(max-width: 600px) and (prefers-color-scheme: dark)",
       "(max-width: 600px) and (prefers-color-scheme: light)",
@@ -138,7 +140,13 @@ describe("README <picture> markup audit", () => {
 });
 
 /** Attributes GitHub keeps on the link block's elements. */
-const GITHUB_ALLOWED_LINKS: Record<string, string[]> = { P: ["align"], A: ["href"] };
+const GITHUB_ALLOWED_LINKS: Record<string, string[]> = {
+  P: ["align"],
+  A: ["href"],
+  PICTURE: [],
+  SOURCE: ["media", "srcset"],
+  IMG: ["align", "alt", "src"],
+};
 
 describe("links under the image", () => {
   const links = (snippet: string) => {
@@ -146,27 +154,62 @@ describe("links under the image", () => {
     return new DOMParser().parseFromString(block!, "text/html").body;
   };
 
-  it("puts 'Get yours!' on the left and the GitLab profile on the right, and nothing else", () => {
+  const labelLink = (a: Element) => ({
+    href: a.getAttribute("href"),
+    alt: a.querySelector("picture > img")!.getAttribute("alt"),
+    align: a.querySelector("picture > img")!.getAttribute("align"),
+    light: a.querySelector("picture > img")!.getAttribute("src"),
+    dark: a.querySelector("source")!.getAttribute("srcset"),
+    media: a.querySelector("source")!.getAttribute("media"),
+  });
+
+  it("puts 'Get Yours' (left) and the GitLab profile (right-floated) on one line, both as label images", () => {
     const body = links(readmeSnippet(origin, params, { theme: "selected", responsive: true }));
-    const paragraphs = [...body.children];
-    expect(paragraphs.map((p) => [p.getAttribute("align"), p.textContent])).toEqual([
-      ["left", "Get yours!"],
-      ["right", "GitLab @contactkruk"],
-    ]);
-    expect([...body.querySelectorAll("a")].map((a) => a.getAttribute("href"))).toEqual([
-      "https://gitvis.example",
-      "https://gitlab.com/contactkruk",
-    ]);
+    expect([...body.children].map((p) => p.tagName)).toEqual(["P"]); // one paragraph = one line
+    const line = body.firstElementChild!;
+    expect(line.getAttribute("align")).toBe("left");
+    const [gitlab, getYours] = [...line.querySelectorAll(":scope > a")].map(labelLink);
+    // The float comes first so it shares the line; alt text is each link's text.
+    expect(gitlab).toEqual({
+      href: "https://gitlab.com/contactkruk",
+      alt: "GitLab @contactkruk",
+      align: "right",
+      light: labelUrl(origin, { gitlab: "contactkruk" }, "light"),
+      dark: labelUrl(origin, { gitlab: "contactkruk" }, "dark"),
+      media: "(prefers-color-scheme: dark)",
+    });
+    expect(getYours).toEqual({
+      href: "https://gitvis.example",
+      alt: "Get Yours",
+      align: null,
+      light: labelUrl(origin, { cta: true }, "light"),
+      dark: labelUrl(origin, { cta: true }, "dark"),
+      media: "(prefers-color-scheme: dark)",
+    });
     for (const el of body.querySelectorAll("*")) {
       for (const attr of el.getAttributeNames()) expect(GITHUB_ALLOWED_LINKS[el.tagName]).toContain(attr);
     }
   });
 
-  it("has no GitHub link (the README is on GitHub) and only 'Get yours!' without GitLab", () => {
+  it("insets the labels to line up with a transparent card's content", () => {
+    const transparent = { ...params, config: { ...params.config, background: "transparent" as const } };
+    const srcs = [
+      ...links(readmeSnippet(origin, transparent, { theme: "auto", responsive: true })).querySelectorAll("img, source"),
+    ].map((el) => el.getAttribute("src") ?? el.getAttribute("srcset"));
+    expect(srcs).toHaveLength(4);
+    expect(srcs.every((url) => new URL(url!).searchParams.get("inset") === "1")).toBe(true);
+    // Visible backgrounds: the card's border is at the image edge, so no inset.
+    expect(readmeSnippet(origin, params, { theme: "auto", responsive: true })).not.toContain("inset=1");
+  });
+
+  it("has no GitHub link (the README is on GitHub) and only 'Get Yours' without GitLab", () => {
     const githubOnly = { ...params, request: { github: "jenkruk" } };
     const snippet = readmeSnippet(origin, githubOnly, { theme: "auto", responsive: true });
     expect(snippet).not.toContain("github.com");
-    expect(links(snippet).textContent).toBe("Get yours!");
+    expect(snippet).not.toContain("gitlab");
+    expect([...links(snippet).querySelectorAll("a")].map((a) => a.querySelector("img")!.getAttribute("alt"))).toEqual([
+      "Get Yours",
+    ]);
   });
 
   it("are the snippet's only links, separated from the image by a blank line", () => {
@@ -175,6 +218,17 @@ describe("links under the image", () => {
     expect(snippet.match(/<a /g)).toHaveLength(2);
   });
 
+  it("builds label URLs for fixed text or a username only", () => {
+    expect(labelUrl(origin, { gitlab: "a.b_c" }, "dark")).toBe(
+      "https://gitvis.example/api/label?gitlab=a.b_c&mode=dark",
+    );
+    expect(labelUrl(origin, { cta: true }, "light", true)).toBe(
+      "https://gitvis.example/api/label?cta=1&mode=light&inset=1",
+    );
+  });
+});
+
+describe("transparent backgrounds", () => {
   it("forces theme matching for transparent backgrounds", () => {
     const transparent = { ...params, config: { ...params.config, background: "transparent" as const } };
     const html = readmeSnippet(origin, transparent, { theme: "selected", responsive: false });

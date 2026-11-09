@@ -185,7 +185,7 @@ describe("credit line", () => {
         expect(svg).toMatch(
           /<text x="24" y="[\d.]+" font-size="14"[^>]*>Made with GitVis · created by Jen Kruk<\/text><\/svg>$/,
         );
-        expect(svg).not.toContain("Get yours");
+        expect(svg).not.toContain("Get Yours");
       }
     }
   });

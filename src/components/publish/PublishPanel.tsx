@@ -294,7 +294,7 @@ function PublishContent({
             id={MARKDOWN_ID}
             label="README Markdown"
             buttonLabel="Copy Markdown"
-            hint="Ends with a “Get yours!” link and, if you connected GitLab, a link to your GitLab profile. The image itself isn’t a link."
+            hint="Ends with a “Get Yours” link and, if you connected GitLab, a link to your GitLab profile. The image itself isn’t a link."
             value={snippet}
             multiline
             announce={announce}

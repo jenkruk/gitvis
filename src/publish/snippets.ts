@@ -47,7 +47,7 @@ export function effectiveSnippetOptions(options: SnippetOptions, config: Visuali
  */
 export function readmeSnippet(origin: string, params: CardParams, options: SnippetOptions): string {
   const image = imageSnippet(origin, params, effectiveSnippetOptions(options, params.config));
-  // A blank line ends the <picture> HTML block; the links are their own block.
+  // A blank line ends the card's HTML block; the links are their own block.
   return `${image}\n\n${linksSnippet(origin, params)}`;
 }
 
@@ -58,10 +58,11 @@ export function labelUrl(
   origin: string,
   target: LabelTarget,
   mode: ColorMode,
-  { inset = false, color }: { inset?: boolean; color?: string } = {},
+  { inset = false, color, span = "half" }: { inset?: boolean; color?: string; span?: "half" | "full" } = {},
 ): string {
   const query = new URLSearchParams("cta" in target ? { cta: "1" } : { gitlab: target.gitlab });
   query.set("mode", mode);
+  if (span !== "half") query.set("span", span);
   if (color) query.set("color", color.replace("#", "").toLowerCase());
   if (inset) query.set("inset", "1");
   return `${origin}/api/label?${query}`;
@@ -74,42 +75,43 @@ export function linkColor(config: VisualizationConfig, mode: ColorMode): string 
 }
 
 /**
- * One line under the card: "Get Yours" on the left and, when GitLab is
- * connected, the GitLab profile on the right (smaller). GitHub keeps no colors,
- * sizes or padding in READMEs and only images can float, so both are small images
- * GitVis draws (in the graphic's GitLab color); their alt text is the link
- * text. Transparent cards hide their padding, so the labels are inset to line up
- * with the card's content instead of the image edge. The float comes first so it
- * sits on the same line.
+ * The links line, exactly as wide as the card: "Get Yours" at the card's left
+ * content edge and, when GitLab is connected, the GitLab profile at its right.
+ * GitHub keeps no widths, colors or padding in READMEs, so both links are images
+ * GitVis draws, each half the card's width; side by side and centered (like the
+ * card) they span exactly the card. Without GitLab, "Get Yours" spans it alone.
+ * README columns narrower than the card stack the halves on two lines, still
+ * aligned to the card's edges. Alt text is each link's text. No whitespace
+ * between or inside the links, which would render as gaps or underlined spaces.
  */
 function linksSnippet(origin: string, params: CardParams): string {
   const { request, config } = params;
   const inset = config.background === "transparent";
+  const span = request.gitlab ? "half" : "full";
+  const attr = escapeMarkup;
   // The links use the graphic's GitLab color, in the reader's theme.
   const url = (target: LabelTarget, mode: ColorMode) =>
-    labelUrl(origin, target, mode, { inset, color: linkColor(config, mode) });
-  const attr = escapeMarkup;
-  const label = (href: string, target: LabelTarget, alt: string, align?: "right") => [
-    `  <a href="${attr(href)}">`,
-    "    <picture>",
-    `      <source media="(prefers-color-scheme: dark)" srcset="${attr(url(target, "dark"))}">`,
-    `      <img${align ? ` align="${align}"` : ""} alt="${attr(alt)}" src="${attr(url(target, "light"))}">`,
-    "    </picture>",
-    "  </a>",
-  ];
-  const gitlab = request.gitlab
-    ? label(
+    labelUrl(origin, target, mode, { inset, span, color: linkColor(config, mode) });
+  const label = (href: string, target: LabelTarget, alt: string) =>
+    `<a href="${attr(href)}"><picture>` +
+    `<source media="(prefers-color-scheme: dark)" srcset="${attr(url(target, "dark"))}">` +
+    `<img alt="${attr(alt)}" src="${attr(url(target, "light"))}">` +
+    `</picture></a>`;
+  const links = [label(origin, { cta: true }, "Get Yours")];
+  if (request.gitlab) {
+    links.push(
+      label(
         PLATFORMS.gitlab.profileUrl(request.gitlab),
         { gitlab: request.gitlab },
         `${PLATFORMS.gitlab.label} @${request.gitlab}`,
-        "right",
-      )
-    : [];
-  return ['<p align="left">', ...gitlab, ...label(origin, { cta: true }, "Get Yours"), "</p>"].join("\n");
+      ),
+    );
+  }
+  return ['<p align="center">', `  ${links.join("")}`, "</p>"].join("\n");
 }
 
 /**
- * Always the full 840px image (GitHub scales it to fit narrow screens). Phone
+ * Always the full 840px image, centered (GitHub scales it to fit narrow screens). Phone
  * images aren't offered: GitHub's <themed-picture> rewrites theme media queries
  * for signed-in readers and drops width conditions, which served the phone image
  * on desktops (verified Nov 2026). `size=compact` URLs still render for old links.
@@ -125,11 +127,14 @@ function imageSnippet(origin: string, params: CardParams, { theme }: SnippetOpti
       : [];
 
   const attr = escapeMarkup;
+  // Centered, like the links line below it, so the two always line up.
   return [
-    "<picture>",
-    ...sources.map(([media, p]) => `  <source media="${media}" srcset="${attr(cardUrl(origin, p))}">`),
-    `  <img alt="${attr(alt)}" src="${attr(cardUrl(origin, params))}">`,
-    "</picture>",
+    '<p align="center">',
+    "  <picture>",
+    ...sources.map(([media, p]) => `    <source media="${media}" srcset="${attr(cardUrl(origin, p))}">`),
+    `    <img alt="${attr(alt)}" src="${attr(cardUrl(origin, params))}">`,
+    "  </picture>",
+    "</p>",
   ].join("\n");
 }
 

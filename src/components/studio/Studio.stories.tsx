@@ -3,10 +3,6 @@ import type { ContributionsResponse } from "@/adapters/connect";
 import { configWith, createSampleHistoryDataset, renderSampleCard, sampleDataset } from "@/stories/fixtures";
 import { Studio } from "./Studio";
 
-/**
- * The guided studio (Connect → Design → Publish). Stories start on a given
- * step; use the viewport toolbar for phone, tablet and desktop states.
- */
 const meta = {
   title: "Studio/Guided studio",
   component: Studio,
@@ -24,7 +20,6 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-// Sample data stands in for a connected account (the graphic keeps its "Sample data" badge).
 const connected: ContributionsResponse = {
   dataset: sampleDataset,
   results: [
@@ -57,10 +52,6 @@ export const Step2Phone: Story = {
   globals: { viewport: { value: "phone" } },
 };
 
-/**
- * Storybook has no /api/card, so `renderCard` renders the published URL offline with the
- * production decoder and renderer. The URLs and Markdown shown are the real ones.
- */
 export const Step3Publish: Story = {
   name: "Step 3 · Publish",
   args: { ...withAccounts, initialStep: "publish", renderCard: renderSampleCard },
@@ -87,7 +78,6 @@ export const Step3Phone: Story = {
   globals: { viewport: { value: "phone" } },
 };
 
-/** Design with 3 years of (sample) history loaded: the period table and yearly calendars. */
 export const Step2History: Story = {
   name: "Step 2 · Design, 3 years of history",
   args: {

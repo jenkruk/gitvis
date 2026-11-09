@@ -12,10 +12,8 @@ import {
 } from "./history";
 import type { PlatformContributions } from "./types";
 
-const end = toISODate("2026-11-06"); // a Friday
-/** GitHub's "last year": from Sunday Nov 2, 2025 (the week of Nov 6, 2025). */
+const end = toISODate("2026-11-06");
 const githubYear = { start: toISODate("2025-11-02"), end };
-/** GitLab's "last 12 months": from Nov 6, 2025. */
 const lastYear = { start: toISODate("2025-11-06"), end };
 const threeYears = historyRange(githubYear, 3);
 
@@ -25,8 +23,8 @@ const github: PlatformContributions = {
   coverage: threeYears,
   days: [
     { date: end, count: 2 },
-    { date: addDays(end, -400), count: 5 }, // period 2
-    { date: addDays(end, -800), count: 7 }, // period 3
+    { date: addDays(end, -400), count: 5 },
+    { date: addDays(end, -800), count: 7 },
   ],
 };
 const gitlab: PlatformContributions = {
@@ -40,7 +38,6 @@ describe("platform years", () => {
   it("match each profile's own yearly window", () => {
     expect(platformYear("github", end)).toEqual(githubYear);
     expect(platformYear("gitlab", end)).toEqual(lastYear);
-    // Saturday Nov 7 and Sunday Nov 8: GitHub still counts from Sunday Nov 2 (verified on github.com).
     expect(platformYear("github", toISODate("2026-11-07")).start).toBe("2025-11-02");
     expect(platformYear("github", toISODate("2026-11-08")).start).toBe("2025-11-02");
     expect(platformYear("gitlab", toISODate("2026-11-08")).start).toBe("2025-11-08");
@@ -78,7 +75,7 @@ describe("coverage", () => {
 
   it("marks days outside a platform's coverage as unknown, not zero", () => {
     const old = dataset.days.find((d) => d.date === addDays(end, -400))!;
-    expect(old.byPlatform).toEqual({ github: 5 }); // no gitlab key at all
+    expect(old.byPlatform).toEqual({ github: 5 });
     const recentQuiet = dataset.days.find((d) => d.date === addDays(end, -1))!;
     expect(recentQuiet.byPlatform).toEqual({ github: 0, gitlab: 0 });
   });
@@ -116,7 +113,6 @@ describe("periodSummaries", () => {
 
   it("totals the newest period across both platforms, each over its own year", () => {
     expect(periods[0]).toMatchObject({ complete: true, total: 5 });
-    // A GitHub contribution before GitLab's year starts still counts (it's in GitHub's year).
     const early = { ...github, days: [...github.days, { date: toISODate("2025-11-03"), count: 4 }] };
     const p = periodSummaries(combineSources([early, gitlab], threeYears, "live"));
     expect(p[0]).toMatchObject({ complete: true, total: 9 });

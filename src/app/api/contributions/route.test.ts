@@ -68,7 +68,6 @@ describe("years", () => {
     const res = await get("gitlab=contactkruk&years=3");
     expect(res.status).toBe(200);
     const body = await res.json();
-    // GitLab's own 12 months: from the same date a year back (366 days, 367 across a Feb 29).
     expect(body.dataset.range.start).toBe(oneYearBefore(body.dataset.range.end));
     expect(body.history).toBeUndefined();
   });

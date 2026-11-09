@@ -7,24 +7,13 @@ import { FONT_STACK, PADDING } from "./primitives";
 import { hasStatusBadge, seriesColor, STATUS_BADGE_HEIGHT, StatusBadge } from "./sections";
 import { maxCharsFor, wrapText } from "./text";
 
-/*
- * Centered profile header: name, title and date range centered; GitHub's
- * avatar + handle on the left edge, GitLab's on the right. On the compact
- * (400px) canvas the accounts sit in a row below the centered text instead.
- * Attribution stays mandatory: an over-long username is shortened with an
- * ellipsis only when its side can't fit it (the full name is in <desc>).
- */
-
 const META_SIZE = 11;
 const TITLE_SIZE = 13;
 const LINE = 19;
 const AVATAR_GAP = 8;
 const HANDLE_HEIGHT = 14;
-/** Space between a side column and the centered text (full canvas). */
 const SIDE_GUTTER = 16;
-/** Widest a side column may get on the full canvas, so the center keeps room for the name. */
 const SIDE_MAX = 200;
-/** "● " + " " + "@" around the platform label and username, in average glyphs. */
 const HANDLE_CHROME = 4;
 const GLYPH_EM = 0.58;
 
@@ -36,7 +25,6 @@ interface Side {
   source: PlatformContributions;
   align: "left" | "right";
   avatar: boolean;
-  /** Username as displayed, or null when the handle isn't shown. */
   handle: string | null;
   width: number;
   height: number;
@@ -90,7 +78,6 @@ function layout(
   const columns = sides(dataset, identity, showHandles, avatarSize, sideBudget);
   const sideWidth = Math.max(0, ...columns.map((s) => s.width));
   const sideHeight = Math.max(0, ...columns.map((s) => s.height));
-  // Symmetric margins keep the text centered on the card even with one account.
   const centerWidth = compactCanvas || sideWidth === 0 ? width : width - 2 * (sideWidth + SIDE_GUTTER);
 
   const title = finalText(identity.title);

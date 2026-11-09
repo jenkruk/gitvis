@@ -3,7 +3,6 @@ import { LOGO_CELLS, LOGO_VIEWBOX } from "./logo-mark";
 import { GITVIS_REPO_URL } from "@/config/site";
 
 function LogoMark() {
-  // 3×3 contribution-grid mark; decorative (the wordmark carries the name). Also the app icon.
   return (
     <svg
       width={LOGO_VIEWBOX}
@@ -54,7 +53,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       <footer className="border-t border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-4 text-xs text-zinc-600 sm:px-6 dark:text-zinc-400">
           <p>GitVis combines public contribution counts. It never reads private repository contents.</p>
-          {/* min-h-6: a 24px touch target (WCAG 2.5.8), like every other control. */}
           <p>
             Open source (MIT) ·{" "}
             <a

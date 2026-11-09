@@ -16,7 +16,6 @@ import { FeatureToggles, LayoutPicker, ModePicker, PalettePicker, PresetPicker }
 interface DesignControlsProps {
   config: VisualizationConfig;
   dispatch: Dispatch<ConfigAction>;
-  /** The data being previewed (range-sliced), for feature-visibility notes. */
   dataset: ContributionDataset;
 }
 
@@ -30,7 +29,6 @@ const BACKGROUND_SUMMARY = { solid: "Solid", gradient: "Gradient", transparent: 
 const PANEL_SUMMARY = { filled: "", outlined: "Outlined panels", borderless: "Borderless panels" } as const;
 const YEARS_SUMMARY = { 1: "1 year", 2: "2 years", 3: "3 years" } as const;
 
-/** One-line, plain-text state of each collapsed section, so users can scan without opening them. */
 export function sectionSummaries(config: VisualizationConfig, dataset: ContributionDataset) {
   const shown = FEATURES.filter((f) => isFeatureVisible(f.id, config, dataset)).length;
   const custom = Object.keys(config.platformColors).length > 0;
@@ -46,18 +44,12 @@ export function sectionSummaries(config: VisualizationConfig, dataset: Contribut
   };
 }
 
-/**
- * Step 2 controls. The essentials (starting preset, layout, curated palettes)
- * are always visible; everything else lives in collapsed sections. All of it
- * reuses the existing pickers, so no customization feature is lost.
- */
 export function DesignControls({ config, dispatch, dataset }: DesignControlsProps) {
   const summaries = sectionSummaries(config, dataset);
   return (
     <div className="space-y-8">
       <PresetPicker config={config} dispatch={dispatch} />
       <LayoutPicker config={config} dispatch={dispatch} />
-      {/* Light/dark is a core choice: kept visible, directly above the palettes it previews. */}
       <ModePicker config={config} dispatch={dispatch} />
       <PalettePicker config={config} dispatch={dispatch} />
 

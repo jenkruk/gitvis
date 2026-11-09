@@ -4,7 +4,6 @@ import { configReducer, createDefaultConfig, type VisualizationConfig } from "@/
 import { configWith, sampleDataset } from "@/stories/fixtures";
 import { DesignControls } from "./DesignControls";
 
-/** Step 2's control column, wired to the real reducer. Advanced sections start collapsed. */
 function Controls({ initial }: { initial: VisualizationConfig }) {
   const [config, dispatch] = useReducer(configReducer, initial);
   return (

@@ -3,10 +3,6 @@ import type { CombinedDay } from "@/domain/types";
 
 export type HeatLevel = 0 | 1 | 2 | 3 | 4;
 
-/**
- * Quartile thresholds over *active* days, so a single outlier doesn't wash out
- * the rest of the year. Returns [q1, q2, q3]; level 4 is anything above q3.
- */
 export function heatmapThresholds(counts: readonly number[]): [number, number, number] {
   const active = counts.filter((c) => c > 0).sort((a, b) => a - b);
   if (active.length === 0) return [0, 0, 0];
@@ -25,7 +21,6 @@ export function heatLevel(count: number, [q1, q2, q3]: readonly [number, number,
 export interface HeatmapCell {
   day: CombinedDay;
   column: number;
-  /** 0 = Sunday … 6 = Saturday */
   row: number;
   level: HeatLevel;
 }
@@ -36,12 +31,7 @@ export interface HeatmapGrid {
   monthLabels: { label: string; column: number }[];
 }
 
-/** Lays days out as week columns (Sunday-first rows) with month labels. */
-export function buildHeatmapGrid(
-  days: readonly CombinedDay[],
-  /** Shared scale across several calendars (multi-year); defaults to this calendar's own quartiles. */
-  scale?: readonly [number, number, number],
-): HeatmapGrid {
+export function buildHeatmapGrid(days: readonly CombinedDay[], scale?: readonly [number, number, number]): HeatmapGrid {
   const first = days[0];
   if (!first) return { cells: [], columns: 0, monthLabels: [] };
 
@@ -57,7 +47,6 @@ export function buildHeatmapGrid(
   const starts = cells.filter((c, i) => i === 0 || c.day.date.endsWith("-01"));
   const monthLabels = starts
     .map((c) => ({ label: formatDate(c.day.date, "month"), column: c.column }))
-    // Drop a label that would collide with the next one (e.g. a partial first month).
     .filter((label, i, all) => {
       const next = all[i + 1];
       return !next || next.column - label.column >= 3;
@@ -77,7 +66,6 @@ export interface HeatmapGeometry {
   height: number;
 }
 
-/** Fits the grid to `width`, capping cell size so short ranges don't balloon. */
 export function heatmapGeometry(columns: number, width: number, showLegend: boolean): HeatmapGeometry {
   const labelWidth = 28;
   const gap = 3;

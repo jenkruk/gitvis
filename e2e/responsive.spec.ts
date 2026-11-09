@@ -1,7 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { expandAll, expectNoHorizontalScroll, stepHeading, uniqueUser, upstream } from "./helpers";
 
-/** Interactive targets meet WCAG 2.5.8 (≥ 24×24 CSS px); visually hidden 1px elements are ignored. */
 async function undersizedTargets(page: Page) {
   return page.evaluate(() =>
     [...document.querySelectorAll("button, a[href], summary, label:has(input)")]
@@ -23,7 +22,6 @@ test.describe("mobile editing (375px)", () => {
     await expandAll(page);
     expect(await undersizedTargets(page)).toEqual([]);
 
-    // Text outside the graphic is never smaller than 11px.
     const smallestText = await page.evaluate(() => {
       const sizes = [...document.body.querySelectorAll("*")]
         .filter((el) => !el.closest("svg") && [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent?.trim()))
@@ -32,11 +30,11 @@ test.describe("mobile editing (375px)", () => {
     });
     expect(smallestText).toBeGreaterThanOrEqual(11);
 
-    await page.locator('label[for="feature-longestStreak"]').tap(); // the visible switch row
+    await page.locator('label[for="feature-longestStreak"]').tap();
     await expect(page.getByRole("switch", { name: /longest streak/i })).not.toBeChecked();
     await expect(
       page.getByRole("img", { name: "Contribution activity" }).getByText("Longest streak", { exact: true }),
-    ).toHaveCount(0); // the card label (the <desc> still summarizes it)
+    ).toHaveCount(0);
     await expectNoHorizontalScroll(page);
   });
 
@@ -46,12 +44,10 @@ test.describe("mobile editing (375px)", () => {
     const region = page.locator("#preview-region");
     const collapsed = (await region.boundingBox())!.height;
     expect(collapsed).toBeLessThanOrEqual(812 * 0.6 + 1);
-    // Not sticky on phones, so it can never cover a focused control.
     expect(await region.evaluate((el) => getComputedStyle(el.closest("section")!).position)).toBe("static");
 
     await page.getByRole("button", { name: "Expand preview" }).tap();
     await expect(page.getByRole("button", { name: "Collapse preview" })).toHaveAttribute("aria-expanded", "true");
-    // Half-pixel tolerance: layout heights can differ by sub-pixel rounding when they're equal.
     expect((await region.boundingBox())!.height).toBeGreaterThanOrEqual(collapsed - 0.5);
   });
 
@@ -86,18 +82,15 @@ for (const width of [320, 375, 768, 1280]) {
     await upstream(request, user, { count: 2 });
     await page.goto(`/?v=1&github=${user}&gitlab=${user}&hdr=full&name=Avery%20Example`);
 
-    // Design: every section, the data table and (below desktop) the full preview open.
     await expect(stepHeading(page)).toHaveText(/design your graphic/i);
     await expandAll(page);
     if (width < 1024) await page.getByRole("button", { name: "Expand preview" }).click();
     await expectNoHorizontalScroll(page);
 
-    // Connect, with its explainer open.
     await page.getByRole("button", { name: "Change accounts" }).click();
     await expandAll(page);
     await expectNoHorizontalScroll(page);
 
-    // Publish, with the Markdown options open.
     await page.getByRole("button", { name: /step 3: publish/i }).click();
     await expandAll(page);
     await expect(page.getByRole("textbox", { name: "README Markdown" })).toBeVisible();

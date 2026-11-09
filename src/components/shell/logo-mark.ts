@@ -1,10 +1,4 @@
-/**
- * The GitVis mark: a 3×3 contribution grid. Single source for the header logo
- * and the app icons (src/app/icon.svg, favicon.ico, apple-icon.png — kept in
- * sync by logo-mark.test.ts).
- */
 export const LOGO_VIEWBOX = 24;
-/** Tailwind emerald-500, the header mark's color. */
 export const LOGO_COLOR = "#10b981";
 
 export const LOGO_CELLS = [0.35, 0.6, 1, 0.6, 1, 0.35, 1, 0.35, 0.6].map((opacity, i) => ({
@@ -15,7 +9,6 @@ export const LOGO_CELLS = [0.35, 0.6, 1, 0.6, 1, 0.35, 1, 0.35, 0.6].map((opacit
   opacity,
 }));
 
-/** Standalone SVG markup of the mark (the source of src/app/icon.svg). */
 export function logoSvg(): string {
   const rects = LOGO_CELLS.map(
     (c) =>

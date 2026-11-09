@@ -4,11 +4,6 @@ import { PLATFORM_IDS, type PlatformId } from "@/domain/types";
 import { serverAvatarLoader } from "@/server/avatars";
 import { avatarLimiter, clientKey, tooManyRequests } from "@/server/rate-limit";
 
-/**
- * GET /api/avatar?platform=github|gitlab&username=…
- * Returns { dataUri: string | null } for the studio preview. Uses the same
- * allowlisted, size-capped, cached loader as published images.
- */
 export async function GET(request: NextRequest) {
   const limit = avatarLimiter.hit(clientKey(request.headers));
   if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);

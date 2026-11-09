@@ -21,20 +21,13 @@ import { PreviewFrame } from "./PreviewFrame";
 import { useAvatars } from "./useAvatars";
 
 export interface StudioProps {
-  /** Labeled sample data shown until an account loads. */
   sampleDataset: ContributionDataset;
-  /** From the URL, pre-loaded on the server so shared links render with data. */
   initialRequest?: ConnectRequest | null;
   initialResponse?: ContributionsResponse | null;
-  /** Design restored from an Edit link; defaults otherwise. */
   initialConfig?: VisualizationConfig;
-  /** Absolute origin used in published URLs, e.g. https://gitvis.app */
   origin: string;
-  /** True on Vercel preview deployments: published URLs point at production. */
   isPreviewDeployment?: boolean;
-  /** Overrides the starting step (Storybook, tests). Otherwise: Design for shared links, Connect for new visitors. */
   initialStep?: StepId;
-  /** Offline published-card source for Storybook (see PublishPanel). Production omits it. */
   renderCard?: (cardUrl: string) => string;
 }
 
@@ -45,12 +38,6 @@ const secondaryButton =
 const linkButton =
   "inline-flex min-h-6 items-center rounded-sm font-medium underline underline-offset-4 hover:text-zinc-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:hover:text-zinc-50";
 
-/**
- * The guided studio: Connect → Design → Publish. One reducer holds the whole
- * design and lives above the steps, so moving between them never loses a
- * setting. The query string is the Edit link; the hash records the step, so
- * reloads and the browser's Back button keep your place.
- */
 export function Studio({
   sampleDataset,
   initialRequest = null,
@@ -61,7 +48,6 @@ export function Studio({
   initialStep,
   renderCard,
 }: StudioProps) {
-  // Every studio design attributes its sources, even when opened from a legacy v1 link without labels.
   const [config, dispatch] = useReducer(configReducer, initialConfig, (c) =>
     withAttribution(c ?? createDefaultConfig()),
   );
@@ -84,7 +70,6 @@ export function Studio({
     availableRef.current = available;
   });
 
-  // Focus the new step's heading after a user-initiated step change (never on first render).
   const connectHeading = useRef<HTMLHeadingElement>(null);
   const designHeading = useRef<HTMLHeadingElement>(null);
   const publishHeading = useRef<HTMLHeadingElement>(null);
@@ -104,7 +89,6 @@ export function Studio({
     }
   }, []);
 
-  // Restore the step from the hash on load, and follow Back/Forward.
   useEffect(() => {
     function fromHash(focus: boolean) {
       const hash = window.location.hash.slice(1);
@@ -118,7 +102,6 @@ export function Studio({
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  // Keep the address bar equal to the Edit link (plus the step), so a reload or shared URL restores everything.
   useEffect(() => {
     const search = studioSearch(connection.request, config);
     const next = `${window.location.pathname}${search ? `?${search}` : ""}#${step}`;
@@ -127,16 +110,13 @@ export function Studio({
     }
   }, [connection.request, config, step]);
 
-  // Multi-year designs load all available history at once, so switching 2 ↔ 3 years never refetches.
   const yearsToLoad = config.years > 1 ? MAX_HISTORY_YEARS : 1;
 
   async function handleConnect(request: ConnectRequest) {
     const response = await connection.connect(request, yearsToLoad);
-    // Everything loaded → straight to Design. Partial failures stay here so they can be fixed or retried.
     if (response?.dataset && response.results.every((r) => r.status === "ok")) goTo("design");
   }
 
-  // Same derivation as the published graphic: calendars show `view`, metrics cover what every platform reports.
   const prepared = useMemo(
     () => prepareView(dataset, { years: config.years, range: config.range }),
     [dataset, config.years, config.range],
@@ -144,7 +124,6 @@ export function Studio({
   const { view, metricsView } = prepared;
   const metrics = useMemo(() => computeMetrics(metricsView), [metricsView]);
 
-  // Choosing 2 or 3 years after connecting fetches earlier GitHub history once.
   const { connect: reconnect, request: connectedRequest, response: connectedResponse } = connection;
   const needsHistory =
     config.years > 1 &&
@@ -168,7 +147,6 @@ export function Studio({
         <StepNav active={step} available={available} onSelect={goTo} />
       </div>
 
-      {/* Connect and Design stay mounted (hidden) so typed values and open sections survive navigation. */}
       <StepSection id="connect" active={step} headingRef={connectHeading} title="Connect your accounts">
         <div className="max-w-3xl">
           <ConnectPanel
@@ -218,7 +196,6 @@ export function Studio({
           </p>
         )}
         <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(320px,400px)_1fr] lg:items-start">
-          {/* Preview first in the DOM so phones see feedback above the controls; the grid moves it right on desktop. */}
           <section
             aria-labelledby="preview-heading"
             className="min-w-0 lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1"
@@ -226,7 +203,6 @@ export function Studio({
             <h3 id="preview-heading" className="sr-only">
               Live preview
             </h3>
-            {/* Right above the graphic it resets; shares the row with the loading note. */}
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               {loading && (
                 <p className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300">
@@ -275,7 +251,6 @@ export function Studio({
         </div>
       </StepSection>
 
-      {/* Publish mounts only when shown, so the real image isn't re-fetched on every design change. */}
       {step === "publish" && (
         <StepSection id="publish" active={step} headingRef={publishHeading} title="Publish to your README">
           <div className="max-w-4xl">
@@ -341,11 +316,6 @@ function StepSection({
   );
 }
 
-/**
- * Below the desktop breakpoint the preview starts at a capped height with an
- * Expand button, so the controls stay close. It's never sticky on phones,
- * where a pinned preview could cover the focused control (WCAG 2.4.11).
- */
 function CollapsiblePreview({ children }: { children: ReactNode }) {
   const [expanded, setExpanded] = useState(false);
   const regionId = "preview-region";
@@ -380,7 +350,6 @@ function CollapsiblePreview({ children }: { children: ReactNode }) {
   );
 }
 
-/** Whose data the preview shows, with a way back to Connect. */
 function SourceLine({
   id,
   dataset,

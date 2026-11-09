@@ -18,7 +18,6 @@ import {
 
 const origin = "https://gitvis.example";
 const params = { request: { github: "jenkruk", gitlab: "contactkruk" }, config: createDefaultConfig() };
-/** The card image block (the snippet's first paragraph; the links follow after a blank line). */
 const card = (snippet: string) => snippet.split("\n\n")[0]!;
 
 describe("publish snippets", () => {
@@ -53,7 +52,6 @@ describe("publish snippets", () => {
       expect(html).not.toContain("size=compact");
       expect(html).not.toContain("max-width");
     }
-    // Transparent cards always match the reader's theme.
     const transparent = { ...params.config, background: "transparent" as const };
     expect(effectiveSnippetOptions({ theme: "selected" }, transparent)).toEqual({ theme: "auto" });
   });
@@ -66,8 +64,8 @@ describe("publish snippets", () => {
     expect(html).toMatch(/prefers-color-scheme: dark\)" srcset="[^"]*mode=dark/);
     expect(html).toMatch(/prefers-color-scheme: light\)" srcset="[^"]*mode=light/);
     expect(html).toContain(`<img alt="${altText(params.request)}"`);
-    expect(html).not.toMatch(/&(?!amp;)/); // every & is escaped inside HTML attributes
-    expect(html.startsWith('<p align="center">\n  <picture>')).toBe(true); // centered, not wrapped in a link
+    expect(html).not.toMatch(/&(?!amp;)/);
+    expect(html.startsWith('<p align="center">\n  <picture>')).toBe(true);
   });
 
   it("names downloads after the accounts", () => {
@@ -76,7 +74,6 @@ describe("publish snippets", () => {
   });
 });
 
-/** Attributes GitHub's README HTML sanitizer keeps on these elements (others are stripped). */
 const GITHUB_ALLOWED: Record<string, string[]> = {
   P: ["align"],
   A: ["href"],
@@ -92,12 +89,11 @@ describe("README <picture> markup audit", () => {
     const html = readmeSnippet(origin, params, options);
     const doc = new DOMParser().parseFromString(html, "text/html");
     const block = doc.body.firstElementChild!;
-    expect(block.tagName).toBe("P"); // centered, like the links line
+    expect(block.tagName).toBe("P");
     expect(block.getAttribute("align")).toBe("center");
     const picture = block.firstElementChild!;
-    expect(picture.tagName).toBe("PICTURE"); // unlinked: clicking the image does nothing
+    expect(picture.tagName).toBe("PICTURE");
     const children = [...picture.children];
-    // HTML content model: zero or more <source>, then exactly one <img>, last.
     expect(children.at(-1)!.tagName).toBe("IMG");
     expect(children.slice(0, -1).every((c) => c.tagName === "SOURCE")).toBe(true);
 
@@ -111,10 +107,9 @@ describe("README <picture> markup audit", () => {
       expect(url.origin).toBe(origin);
       expect(url.pathname).toBe("/api/card");
       expect(decodeCardParams(url.searchParams).issues).toEqual([]);
-      expect(url.searchParams.has("size")).toBe(false); // always the full image
+      expect(url.searchParams.has("size")).toBe(false);
     }
 
-    // Fallback <img>: full-size image in the selected mode (for clients that ignore <source>).
     const img = children.at(-1)!;
     const fallback = new URL(img.getAttribute("src")!);
     expect(fallback.searchParams.has("size")).toBe(false);
@@ -123,7 +118,6 @@ describe("README <picture> markup audit", () => {
   });
 });
 
-/** Attributes GitHub keeps on the link block's elements. */
 const GITHUB_ALLOWED_LINKS: Record<string, string[]> = {
   P: ["align"],
   A: ["href"],
@@ -157,10 +151,8 @@ describe("links under the image", () => {
       { href: "https://gitvis.example", alt: "Get Yours", media: "(prefers-color-scheme: dark)" },
       { href: GITVIS_REPO_URL, alt: "Open source on GitHub", media: "(prefers-color-scheme: dark)" },
     ]);
-    // No profile links (the README is on GitHub; the GitLab link was dropped).
     expect(snippet).not.toContain("gitlab.com");
     expect(snippet).not.toContain('github.com/jenkruk"');
-    // Side by side with nothing between them, and no underlined spaces inside.
     expect(snippet).toMatch(/<\/picture><\/a><a href="https:\/\/github\.com\/jenkruk\/gitvis">/);
     expect(snippet).not.toMatch(/<a [^>]*>\s+<|>\s+<\/a>/);
     for (const el of body.querySelectorAll("*")) {
@@ -180,7 +172,7 @@ describe("links under the image", () => {
       ]);
       for (const q of all) {
         expect(q.get("line")).toBe("1");
-        expect(q.get("v")).toBe(LABEL_VERSION); // fresh URLs whenever the images change
+        expect(q.get("v")).toBe(LABEL_VERSION);
       }
     }
   });

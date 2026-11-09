@@ -182,7 +182,7 @@ describe("features move the layout", () => {
 
   it("turning off the last feature Minimal lacks moves to Minimal", () => {
     const dataRich = on(minimal, "activityTrends");
-    expect(off(dataRich, "activityTrends").layout).toBe("dataRich"); // breakdown still shown
+    expect(off(dataRich, "activityTrends").layout).toBe("dataRich");
     expect(off(dataRich, "activityTrends", "platformBreakdown").layout).toBe("minimal");
     expect(off({ ...createDefaultConfig(), layout: "dashboard" }, "platformBreakdown").layout).toBe("minimal");
   });

@@ -15,21 +15,14 @@ export function isStepId(value: string): value is StepId {
 
 interface StepNavProps {
   active: StepId;
-  /** Steps the user may open right now (completed or currently reachable). */
   available: Record<StepId, boolean>;
   onSelect: (step: StepId) => void;
 }
 
-/**
- * Progress through Connect → Design → Publish. Each step is a real button:
- * reachable steps can be revisited, unreachable ones are disabled, and the
- * current one carries aria-current="step".
- */
 export function StepNav({ active, available, onSelect }: StepNavProps) {
   const activeIndex = STEP_IDS.indexOf(active);
   return (
     <nav aria-label="Progress">
-      {/* All three labels stay readable at 320px: tighter spacing (and no connectors below 360px) on phones. */}
       <ol className="flex items-center gap-0.5 sm:gap-2">
         {STEP_IDS.map((id, index) => {
           const current = id === active;

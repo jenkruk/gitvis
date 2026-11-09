@@ -4,11 +4,9 @@ import { wrapText } from "./text";
 
 export interface ErrorCardProps {
   theme: ThemeTokens;
-  /** User-safe, fixed strings only — never raw upstream bodies or stack traces. */
   title: string;
   message: string;
   hint?: string;
-  /** Canvas width; compact images use a narrower card. */
   width?: number;
   idPrefix?: string;
 }
@@ -17,7 +15,6 @@ const TITLE = { size: 16, lineHeight: 22 };
 const MESSAGE = { size: 13, lineHeight: 18 };
 const HINT = { size: 11, lineHeight: 16 };
 
-/** A published image that explains what went wrong instead of showing a broken-image icon. */
 export function ErrorCard({ theme, title, message, hint, width = CANVAS_WIDTH, idPrefix = "gitvis" }: ErrorCardProps) {
   const font = { fontFamily: FONT_STACK };
   const textX = PADDING + 18;

@@ -1,26 +1,6 @@
 import "server-only";
 import { type AdapterError, type AdapterResult, isTransientError } from "@/adapters/types";
 
-/**
- * Explicit freshness policy for contribution data — independent of how the
- * underlying cache handler implements revalidation (see docs/ARCHITECTURE.md
- * "Freshness policy").
- *
- * Time is divided into fixed windows ("epochs") of `ttlMs` (default 12h). Data
- * is cached as one immutable snapshot per (platform, username, epoch):
- *
- * - The first request in a new epoch does a BLOCKING upstream fetch, so a
- *   graphic that hasn't been viewed for days still shows fresh data
- *   (max age = one epoch), with no reliance on background revalidation.
- * - If that fetch fails transiently, we look up snapshots from earlier epochs
- *   (lookup only — a past epoch never triggers a fetch) and serve the newest
- *   successful one, marked stale, as long as it is younger than `maxStaleMs`.
- * - Beyond `maxStaleMs` the failure is reported honestly instead.
- *
- * Cached functions never throw for expected outcomes: production builds
- * redact messages of errors thrown from "use cache" scopes, so outcomes are
- * returned as data (with short cache lifetimes for failures).
- */
 export interface FreshnessPolicy {
   ttlMs: number;
   maxStaleMs: number;
@@ -29,7 +9,6 @@ export interface FreshnessPolicy {
 const HOUR = 3_600_000;
 export const DEFAULT_POLICY: FreshnessPolicy = { ttlMs: 12 * HOUR, maxStaleMs: 7 * 24 * HOUR };
 
-/** Test/ops overrides via env (seconds). Invalid values fall back to defaults. */
 export function policyFromEnv(env: Record<string, string | undefined> = process.env): FreshnessPolicy {
   const seconds = (value: string | undefined) => {
     const n = Number(value);
@@ -46,30 +25,18 @@ export function epochOf(nowMs: number, policy: FreshnessPolicy): number {
 
 export interface Snapshot {
   result: AdapterResult;
-  /** ISO timestamp of the upstream fetch. */
   fetchedAt: string;
 }
 
 export type SnapshotOutcome =
-  /** Data (or a stable answer such as not_found) fetched during that epoch. */
-  | { kind: "snapshot"; snapshot: Snapshot }
-  /** Nothing was stored for a past epoch (or the epoch rolled over mid-request). */
-  | { kind: "missing" }
-  /** The current epoch's fetch failed; cached only for seconds. */
-  | { kind: "failed"; error: AdapterError };
+  { kind: "snapshot"; snapshot: Snapshot } | { kind: "missing" } | { kind: "failed"; error: AdapterError };
 
-/**
- * Reads the outcome for an epoch. For the current epoch it may fetch upstream;
- * for past epochs it only looks up.
- */
 export type SnapshotReader = (epoch: number) => Promise<SnapshotOutcome>;
 
-/** Failures where last-known-good data is preferable to an error. */
 function allowsFallback(error: AdapterError): boolean {
   return isTransientError(error.kind) || error.kind === "not_configured";
 }
 
-/** Attaches freshness metadata to successful results. */
 function withFreshness(snapshot: Snapshot, stale: boolean): AdapterResult {
   if (!snapshot.result.ok) return snapshot.result;
   return { ok: true, data: { ...snapshot.result.data, fetchedAt: snapshot.fetchedAt, ...(stale ? { stale } : {}) } };
@@ -82,7 +49,6 @@ export async function loadWithFreshness(
   platform: AdapterError["platform"],
   now: () => number = Date.now,
 ): Promise<AdapterResult> {
-  // Unexpected exceptions (bugs, cache-store outages) degrade to a generic failure.
   const safeRead = async (epoch: number): Promise<SnapshotOutcome> => {
     try {
       return await read(epoch);
@@ -95,7 +61,6 @@ export async function loadWithFreshness(
   let epoch = epochOf(now(), policy);
   let outcome = await safeRead(epoch);
   if (outcome.kind === "missing") {
-    // The epoch rolled over between computing the key and running the fetch: retry once.
     epoch = epochOf(now(), policy);
     outcome = await safeRead(epoch);
   }

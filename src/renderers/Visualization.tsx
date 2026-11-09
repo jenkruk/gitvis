@@ -13,17 +13,12 @@ import { describePeriod, describeWindows, type PreparedView, prepareView } from 
 export interface VisualizationProps {
   dataset: ContributionDataset;
   config: VisualizationConfig;
-  /** Pass precomputed metrics to avoid recomputation; derived from `dataset` otherwise. */
   metrics?: ContributionMetrics;
-  /** Unique per page when several SVGs are rendered together (ARIA ids). */
   idPrefix?: string;
-  /** "full" (840px, default) or "compact" (400px reflowed layout for narrow screens). */
   size?: CardSize;
-  /** Embedded avatar images (data: URIs) for the identity header. */
   avatars?: AvatarImages;
 }
 
-/** Multi-year additions to the text alternative (empty for a single period, so legacy text is unchanged). */
 export function describeHistory({
   periods,
   statsLabel,
@@ -35,7 +30,6 @@ export function describeHistory({
   return parts.join(" ");
 }
 
-/** Text alternative summarising the data the graphic shows. */
 export function describeVisualization(dataset: ContributionDataset, metrics: ContributionMetrics): string {
   const labelFor = (s: ContributionDataset["sources"][number]) => `${PLATFORMS[s.platform].label} @${s.username}`;
   const names = dataset.sources.map(labelFor);
@@ -69,7 +63,6 @@ export function describeVisualization(dataset: ContributionDataset, metrics: Con
     .join(" ");
 }
 
-/** Phase 4: prefixes the description with the display name/title when set (unchanged otherwise). */
 function describeIdentity(config: VisualizationConfig): string {
   const { style } = config.identity;
   const name = finalText(config.identity.name);
@@ -78,14 +71,6 @@ function describeIdentity(config: VisualizationConfig): string {
   return `Contribution activity for ${name}${hasTitle(style) && title ? `, ${title}` : ""}.`;
 }
 
-/**
- * The complete, self-contained SVG graphic. Pure: no hooks, no browser APIs,
- * inline presentation attributes only — safe for renderToStaticMarkup embeds.
- *
- * `dataset` may be the full year; the configured date range is applied here.
- * If `metrics` is passed it must describe the range-sliced dataset
- * (use `sliceToRecentDays(dataset, config.range)`).
- */
 export function Visualization({
   dataset: fullDataset,
   config,
@@ -95,7 +80,6 @@ export function Visualization({
   avatars = {},
 }: VisualizationProps) {
   const prepared = prepareView(fullDataset, config);
-  // `dataset` = what the calendars and header show; metrics only cover what every platform reports.
   const { view: dataset, metricsView, periods, statsLabel, statsPeriod, historyNote } = prepared;
   const metrics = provided ?? computeMetrics(metricsView);
   const custom = config.platformColors;
@@ -104,9 +88,7 @@ export function Visualization({
     config.mode,
     custom.github || custom.gitlab ? { series: [custom.github, custom.gitlab] } : {},
   );
-  // Unfilled panels: content colors are checked against what's actually behind them.
   const panelled = applyPanelStyle(base, config.panel, panelBackdrops(base, config.background, config.mode));
-  // Custom platform colors also color the heatmap by platform (after contrast adjustment above).
   const theme = custom.github || custom.gitlab ? withPlatformHeatmap(panelled) : panelled;
   const spacing = SPACING[config.density];
   const canvasWidth = CANVAS_WIDTHS[size];
@@ -167,7 +149,6 @@ export function Visualization({
       width={canvasWidth}
       height={height}
       viewBox={`0 0 ${canvasWidth} ${height}`}
-      // The graphic has no links (it's an image in READMEs); the arrow cursor everywhere, no text cursor over labels.
       cursor="default"
       role="img"
       aria-labelledby={titleId}

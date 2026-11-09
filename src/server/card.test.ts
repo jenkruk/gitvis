@@ -29,7 +29,6 @@ const descOf = (svg: string) => /<desc[^>]*>([^<]*)<\/desc>/.exec(svg)?.[1];
 afterEach(() => vi.restoreAllMocks());
 
 describe("renderCard", () => {
-  // Each platform's own year: GitHub's from Sunday Nov 2, 2025; GitLab's from Nov 6, 2025.
   it.each([
     ["github=jenkruk", "5 contributions on GitHub @jenkruk from Nov 2, 2025 to Nov 6, 2026."],
     ["gitlab=contactkruk", "5 contributions on GitLab @contactkruk from Nov 6, 2025 to Nov 6, 2026."],
@@ -93,9 +92,8 @@ describe("renderCard", () => {
     const card = await render(`gitlab=${longName}`, loaders({ gitlab: async () => result }));
     expect(card.status).toBe("not_found");
     const lines = [...card.svg.matchAll(/<tspan[^>]*>([^<]*)<\/tspan>/g)].map((m) => m[1]!);
-    // Every rendered line fits the 840px card at the conservative glyph estimate.
     for (const line of lines) expect(line.length).toBeLessThanOrEqual(100);
-    expect(card.svg).not.toContain("b".repeat(40)); // the username is truncated in the message
+    expect(card.svg).not.toContain("b".repeat(40));
   });
 
   it("labels last-known-good data in the image and keeps it short-lived at the edge", async () => {
@@ -171,7 +169,7 @@ describe("renderCard avatars", () => {
     expect(withAvatars.svg).toContain(`href="${AVATAR}"`);
 
     loadAvatars.mockClear();
-    await renderCard(new URLSearchParams("v=1&github=jenkruk&av=github"), loaders(), loadAvatars); // hdr=none
+    await renderCard(new URLSearchParams("v=1&github=jenkruk&av=github"), loaders(), loadAvatars);
     expect(loadAvatars).not.toHaveBeenCalled();
   });
 

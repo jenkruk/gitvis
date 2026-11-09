@@ -19,7 +19,6 @@ test.describe("published card", () => {
     const { res, svg } = await getCard(request, `github=${user}&gitlab=${user}&${PERSONALIZED}`);
     expect(res.status()).toBe(200);
     expect(res.headers()["content-security-policy"]).toContain("img-src data:");
-    // Both avatars are embedded inline — never an external URL the README viewer must fetch.
     expect(svg.match(/<image [^>]*href="data:image\/png;base64,/g)).toHaveLength(2);
     expect(svg).not.toMatch(/<image [^>]*href="https?:/);
     expect(svg).toContain("Avery Example");
@@ -108,7 +107,6 @@ test.describe("studio", () => {
     await page.goto(`/?v=1&github=${user}`);
     const graphic = page.getByRole("img", { name: /^Contribution activity/ }).first();
 
-    // The starting preset is a shortcut for the full profile header.
     await page.locator("label", { has: page.getByRole("radio", { name: /developer profile card/i }) }).click();
     await page.locator("summary", { hasText: "Identity" }).click();
     await expect(page.getByRole("radio", { name: /full profile/i })).toBeChecked();
@@ -133,7 +131,7 @@ test.describe("studio", () => {
     await page.keyboard.press("ArrowRight");
     await expect(page.getByRole("radio", { name: "Outlined" })).toBeChecked();
     await expect(page).toHaveURL(/[?&]pnl=outlined/);
-    await expect(page.getByRole("radio", { name: "Solid" })).toBeChecked(); // independent of the background
+    await expect(page.getByRole("radio", { name: "Solid" })).toBeChecked();
     await expect(page.locator("summary", { hasText: "Colors & Background" })).toContainText("Outlined panels");
     await expectAccessible(page, "outlined panels");
 

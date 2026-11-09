@@ -68,7 +68,6 @@ test.describe("states", () => {
     await page.getByRole("textbox", { name: /gitlab username/i }).fill(down);
     await page.getByRole("button", { name: "See my contributions" }).click();
 
-    // A partial failure stays on Connect, explains itself and offers both retry and continuing.
     await expect(page.getByRole("status").filter({ hasText: /GitLab responded with an error/ })).toBeAttached();
     await expect(page.getByRole("button", { name: "Retry GitLab" })).toBeVisible();
     await expect(stepHeading(page)).toHaveText(/connect your accounts/i);
@@ -88,8 +87,8 @@ test.describe("states", () => {
     await page.getByRole("textbox", { name: /gitlab username/i }).fill(user);
     await page.getByRole("button", { name: "See my contributions" }).click();
     const running = () => page.evaluate(() => document.getAnimations().filter((a) => a.playState === "running").length);
-    expect(await running()).toBe(0); // no spinners
+    expect(await running()).toBe(0);
     await expect(stepHeading(page)).toHaveText(/design your graphic/i);
-    expect(await running()).toBe(0); // and no step transition
+    expect(await running()).toBe(0);
   });
 });

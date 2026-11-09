@@ -2,12 +2,7 @@ import { normalizeDailyCounts } from "@/domain/combine";
 import { type DailyCount, PLATFORMS } from "@/domain/types";
 import { type AdapterError, type AdapterResult, displayUsername } from "./types";
 
-/**
- * Requires a server-side token (GitHub GraphQL rejects anonymous requests).
- * A fine-grained PAT with public read-only access and no extra permissions is
- * sufficient. Always pass the username as a variable, never by interpolation.
- */
-export const GITHUB_CONTRIBUTIONS_QUERY = /* GraphQL */ `
+export const GITHUB_CONTRIBUTIONS_QUERY = `
   query GitVisContributions(
     $login: String!
     $from: DateTime
@@ -52,11 +47,6 @@ export interface GitHubContributionsResponse {
   data?: {
     user: {
       contributionsCollection: GitHubCollection;
-      /**
-       * The first days of GitHub's "last year" (it starts on a Sunday, up to a week
-       * more than a year back). GitHub's calendar returns at most 365 days, so they
-       * come from a second collection in the same request.
-       */
       lead?: GitHubCollection | null;
     } | null;
   } | null;
@@ -100,17 +90,11 @@ export function normalizeGitHubContributions(username: string, response: GitHubC
         ),
       ),
       reportedTotal: collections.reduce((n, c) => n + c.contributionCalendar.totalContributions, 0),
-      // 0 is ambiguous (none, or the user hasn't opted in); only surface a positive count.
       privateCount: restricted > 0 ? restricted : undefined,
     },
   };
 }
 
-/*
- * History: complete calendar years, several per request via aliases. Dates are
- * passed as variables ($from0/$to0…) — only the alias count is generated, from
- * a server-computed integer — and the login is always a variable.
- */
 export const MAX_HISTORY_YEARS_PER_REQUEST = 4;
 
 export function githubYearsQuery(count: number): string {
@@ -148,7 +132,6 @@ export interface GitHubYearsResponse {
 export type HistoryResult =
   { ok: true; years: { year: number; days: DailyCount[] }[] } | { ok: false; error: AdapterError };
 
-/** Normalizes an aliased history response; every requested year must be present and well-formed. */
 export function normalizeGitHubYears(
   username: string,
   years: readonly number[],

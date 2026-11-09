@@ -8,26 +8,14 @@ import { heatmapThresholds } from "./heatmap-model";
 import { FONT_STACK, formatNumber, Panel } from "./primitives";
 import { periodCoverage, periodTotal, rangeLabel } from "./view";
 
-/*
- * Multi-year history: one card per 12-month period, newest first. Each card has
- * its own header — dates and that period's total on one line, the accounts it
- * covers ("GitHub + GitLab", "GitHub only · GitLab unavailable") below — so it's
- * obvious which total belongs to which calendar. Cards follow the panel style:
- * Filled/Outlined draw the panel; Borderless draws no box and is separated by a
- * hairline instead. No hatching: words carry coverage.
- */
-
 const HEADER_HEIGHT = 40;
-/** Space between in-card content (the newest year's stats) and its calendar. */
 const CONTENT_GAP = 14;
 
-/** Content placed inside a card between its header and calendar (the newest year's summary stats). */
 export interface CardContent {
   height: number;
   render: (x: number, y: number, width: number) => ReactNode;
 }
 
-/** Shared across every year so a dark cell means the same in each calendar. */
 export function historyScale(view: ContributionDataset): [number, number, number] {
   return heatmapThresholds(view.days.map((d) => d.total));
 }
@@ -36,7 +24,6 @@ function daysOf(view: ContributionDataset, period: PeriodSummary) {
   return view.days.filter((d) => isWithinRange(d.date, period.range));
 }
 
-/** Height of one year card; `padding` is the card's inner padding. */
 export function yearCardHeight(
   view: ContributionDataset,
   period: PeriodSummary,
@@ -73,9 +60,7 @@ export function YearCard({
   padding: number;
   showLegend: boolean;
   scale: readonly [number, number, number];
-  /** Rendered inside the card, under its header (the newest year's summary stats). */
   content?: CardContent;
-  /** The newest year: its total is the headline number (larger), replacing a separate Contributions stat. */
   current?: boolean;
 }) {
   const inner = width - padding * 2;
@@ -92,7 +77,6 @@ export function YearCard({
         {rangeLabel(period.range)}
       </text>
       {current && period.platforms.some((p) => p.status === "complete") ? (
-        // Headline total, centred across the two header lines: "809" large, "contributions" small.
         <text x={left + inner} y={top + 29} textAnchor="end" fontFamily={FONT_STACK}>
           <tspan fontSize={22} fontWeight={700} fill={theme.text}>
             {formatNumber(period.total)}
@@ -123,8 +107,6 @@ export function YearCard({
     </g>
   );
 }
-
-/* Phones: a readable list of yearly summaries instead of three shrunken calendars. */
 
 const SUMMARY_ROW = 52;
 const SUMMARY_GAP = 12;

@@ -12,7 +12,6 @@ interface HeatmapStoryArgs {
   showLegend: boolean;
 }
 
-/** The production heatmap, wrapped in the minimal SVG it needs to render on its own. */
 function HeatmapFrame({ palette, mode, days, width, showLegend }: HeatmapStoryArgs) {
   const theme = resolveTheme(palette, mode);
   const data = sliceToRecentDays(sampleDataset, days).days;

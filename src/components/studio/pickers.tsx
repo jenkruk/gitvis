@@ -50,11 +50,8 @@ const PRESET_ICONS: Record<StartingPresetId, typeof PanelTop> = {
   profile: IdCard,
 };
 
-/** Contribution graphic vs. developer profile card: a shortcut over the identity settings. */
 export function PresetPicker({ config, dispatch }: PickerProps) {
   const selected = presetOf(config);
-  // Remember the last profile-card header (e.g. Compact, or avatars turned off) so switching
-  // Graphic → Profile restores the user's own choices instead of the preset defaults.
   const lastProfile = useRef<Extract<ConfigAction, { type: "applyPreset" }>["restore"]>(undefined);
   const { style, avatars } = config.identity;
   useEffect(() => {
@@ -164,10 +161,6 @@ function PaletteSwatch({ palette, mode }: { palette: PaletteId; mode: ColorMode 
   );
 }
 
-/**
- * Six curated palettes first; "View all" reveals the rest. The selected
- * palette is always listed, so an Edit link with any palette shows its choice.
- */
 export function PalettePicker({ config, dispatch }: PickerProps) {
   const [showAll, setShowAll] = useState(false);
   const listId = useId();
@@ -213,7 +206,6 @@ export function PalettePicker({ config, dispatch }: PickerProps) {
 
 const GROUP_ORDER: FeatureGroup[] = ["visuals", "stats", "context"];
 
-/** Registry-driven: always-on features (source attribution) aren't offered as switches. */
 const toggleable = (group: FeatureGroup) =>
   FEATURES.filter((f) => f.group === group && !("alwaysOn" in f && f.alwaysOn));
 
@@ -224,7 +216,6 @@ export function FeatureToggles({ config, dispatch, dataset }: PickerProps & { da
       ? "Shown when both platforms are connected"
       : undefined;
 
-  /** Turning a feature on or off can change the layout (see configReducer); say so when it does. */
   function setFeature(feature: FeatureId, enabled: boolean) {
     const action = { type: "setFeature", feature, enabled } as const;
     const next = configReducer(config, action);
@@ -260,7 +251,6 @@ export function FeatureToggles({ config, dispatch, dataset }: PickerProps & { da
                     id={`feature-${feature.id}`}
                     label={feature.label}
                     description={feature.description}
-                    // Off when the current layout can't show it; turning it on switches to a layout that can.
                     checked={isFeatureOn(feature.id, config)}
                     onChange={(enabled) => setFeature(feature.id, enabled)}
                     note={noteFor(getFeatureVisibility(feature.id, config, dataset))}
@@ -275,10 +265,6 @@ export function FeatureToggles({ config, dispatch, dataset }: PickerProps & { da
   );
 }
 
-/**
- * Statistics: visibility switches in display order, each with Move up / Move down
- * buttons (keyboard and screen-reader friendly; no drag-only interaction).
- */
 function MetricList({
   config,
   dispatch,
@@ -307,7 +293,6 @@ function MetricList({
             <li key={id} className="flex items-start gap-2">
               <div className="min-w-0 flex-1">
                 {"alwaysOn" in feature && feature.alwaysOn ? (
-                  // The combined total can't be hidden; it can still be reordered.
                   <div className="py-2">
                     <span className="block text-sm font-medium">{feature.label}</span>
                     <span className="block text-xs text-zinc-600 dark:text-zinc-400">

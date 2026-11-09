@@ -1,9 +1,3 @@
-/**
- * Feature registry. Each entry is a user-toggleable element of the graphic.
- * Layouts declare which features they can render (see layouts.ts); the
- * feature's on/off value lives in VisualizationConfig and survives layout changes.
- */
-
 export type FeatureGroup = "visuals" | "stats" | "context";
 
 export interface FeatureDefinition {
@@ -12,12 +6,7 @@ export interface FeatureDefinition {
   description: string;
   group: FeatureGroup;
   defaultEnabled: boolean;
-  /** Data condition required for the feature to be meaningful. */
   requires?: "multiplePlatforms";
-  /**
-   * Always on (source attribution, the combined total): can't be switched off,
-   * and a URL that disables it is decoded with it on (see withAttribution).
-   */
   alwaysOn?: boolean;
 }
 
@@ -35,7 +24,6 @@ export const FEATURES = [
     description: "Sum of contributions reported by each platform.",
     group: "stats",
     defaultEnabled: true,
-    // The combined total is the point of GitVis: always shown, but still reorderable.
     alwaysOn: true,
   },
   {
@@ -110,7 +98,6 @@ export function defaultFeatureFlags(): FeatureFlags {
   return Object.fromEntries(FEATURES.map((f) => [f.id, f.defaultEnabled])) as FeatureFlags;
 }
 
-/** Metrics that render as stat cards / inline stats. Default order; append new metrics at the end. */
 export const STAT_FEATURE_IDS = [
   "totalContributions",
   "activeDays",

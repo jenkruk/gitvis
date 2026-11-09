@@ -1,7 +1,6 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { uniqueUser, upstream } from "./helpers";
 
-/** Presses Tab until `target` has focus (fails if it's unreachable). */
 async function tabTo(page: Page, target: Locator, maxPresses = 80) {
   for (let i = 0; i < maxPresses; i++) {
     if (await target.evaluate((el) => el === document.activeElement)) return;
@@ -11,7 +10,6 @@ async function tabTo(page: Page, target: Locator, maxPresses = 80) {
 }
 
 async function expectVisibleFocus(locator: Locator) {
-  // Focus must be visible: the element (or its wrapping label for sr-only inputs) shows an outline.
   const visible = await locator.evaluate((el) => {
     const styled = (node: Element | null) => {
       if (!node) return false;
@@ -29,11 +27,9 @@ test("the full Connect → Design → Publish flow works with the keyboard alone
   await upstream(request, user, { count: 12 });
   await page.goto("/");
 
-  // Skip link is the first stop.
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Skip to content" })).toBeFocused();
 
-  // Step 1 — Connect. Enter submits; success moves focus to the Design heading.
   const github = page.getByRole("textbox", { name: /github username/i });
   await tabTo(page, github);
   await expectVisibleFocus(github);
@@ -47,7 +43,6 @@ test("the full Connect → Design → Publish flow works with the keyboard alone
   await expect(design).toHaveAccessibleDescription(`Showing contributions for GitHub @${user} and GitLab @${user}.`);
   await expect(page.getByRole("button", { name: /step 2: design/i })).toHaveAttribute("aria-current", "step");
 
-  // Step 2 — Design. Radio groups use arrow keys; collapsed sections open with Enter; switches use Space.
   const dashboard = page.getByRole("radio", { name: /dashboard/i });
   await tabTo(page, dashboard);
   await expectVisibleFocus(dashboard);
@@ -68,7 +63,6 @@ test("the full Connect → Design → Publish flow works with the keyboard alone
   await tabTo(page, next);
   await page.keyboard.press("Enter");
 
-  // Step 3 — Publish. The primary action copies Markdown that encodes every choice.
   await expect(page.getByRole("heading", { name: /publish to your readme/i })).toBeFocused();
   const copy = page.getByRole("button", { name: "Copy README Markdown" });
   await tabTo(page, copy);
@@ -79,11 +73,9 @@ test("the full Connect → Design → Publish flow works with the keyboard alone
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());
   expect(clipboard).toContain(`/api/card?v=1&amp;github=${user}&amp;gitlab=${user}&amp;layout=minimal`);
   expect(clipboard).toMatch(/f=[^"&]*best/);
-  // Always the full image (no phone variant), followed by the "Get Yours" and GitLab links.
   expect(clipboard).not.toContain("size=compact");
   expect(clipboard).toContain('alt="Get Yours"');
 
-  // Back to Design without losing anything.
   const edit = page.getByRole("button", { name: "Edit design" });
   await tabTo(page, edit);
   await page.keyboard.press("Enter");

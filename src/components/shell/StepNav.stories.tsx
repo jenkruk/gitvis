@@ -13,7 +13,6 @@ function Interactive({ initial, publishAvailable }: { initial: StepId; publishAv
   );
 }
 
-/** Progress through the three steps; unreachable steps are disabled, completed ones show a check. */
 const meta = {
   title: "Studio/Step navigation",
   component: Interactive,

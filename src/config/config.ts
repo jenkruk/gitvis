@@ -13,7 +13,6 @@ import {
 } from "./features";
 import { getLayout, LAYOUT_IDS, type LayoutId } from "./layouts";
 
-/** Header presets. "none" is the original header (title, date range, handles). */
 export type IdentityStyle = "none" | "compact" | "full" | "centered";
 export type BackgroundStyle = "solid" | "gradient" | "transparent";
 export type DateRangeDays = 30 | 90 | 365;
@@ -26,7 +25,6 @@ export const DENSITIES: readonly Density[] = ["spacious", "compact"];
 export const PANEL_STYLES: readonly PanelStyle[] = ["filled", "outlined", "borderless"];
 export type { PanelStyle };
 
-/** Header styles that show the professional title under the name. */
 export const hasTitle = (style: IdentityStyle): boolean => style === "full" || style === "centered";
 
 export const NAME_MAX_LENGTH = 40;
@@ -34,21 +32,12 @@ export const TITLE_MAX_LENGTH = 60;
 
 export interface IdentityConfig {
   style: IdentityStyle;
-  /** Which connected platforms show their @handle (when the "Platform labels" feature is on). */
   handles: PlatformId[];
-  /** Which connected platforms show an avatar (compact and full headers only). */
   avatars: PlatformId[];
-  /** Optional display name; "" = none. */
   name: string;
-  /** Optional professional title (full header); "" = none. */
   title: string;
 }
 
-/**
- * Everything the user chooses about presentation. Plain serializable data,
- * independent of the contribution dataset, so it can round-trip through URLs.
- * Every Phase 4 field defaults to the pre-Phase-4 rendering.
- */
 export interface VisualizationConfig {
   layout: LayoutId;
   features: FeatureFlags;
@@ -56,26 +45,14 @@ export interface VisualizationConfig {
   mode: ColorMode;
   identity: IdentityConfig;
   background: BackgroundStyle;
-  /** Optional per-platform series colors (#rrggbb), independent of the palette. */
   platformColors: Partial<Record<PlatformId, string>>;
-  /** Display order of stat metrics. */
   metricOrder: StatFeatureId[];
   range: DateRangeDays;
   density: Density;
-  /** Panel appearance (stat cards, heatmap, breakdown, charts); independent of `background`. */
   panel: PanelStyle;
-  /**
-   * 12-month periods shown (1–3), newest first. Years > 1 always use the full
-   * 365-day range; `range` 30/90 survive only for links that already use them.
-   */
   years: HistoryYears;
 }
 
-/**
- * Starting presets are views over existing config, not stored state: the
- * preset is derived from `identity.style`, so nothing new enters the URL and
- * every v1 URL keeps rendering exactly as before.
- */
 export const STARTING_PRESETS = [
   {
     id: "graphic",
@@ -95,14 +72,8 @@ export function presetOf(config: Pick<VisualizationConfig, "identity">): Startin
   return config.identity.style === "none" ? "graphic" : "profile";
 }
 
-/**
- * Source attribution: every connected account's platform and username are
- * shown whenever its contributions are, and so is the combined total (the
- * point of GitVis). Applied when decoding every URL and to every studio design.
- */
 export function withAttribution(config: VisualizationConfig): VisualizationConfig {
   const allHandles = PLATFORM_IDS.every((p) => config.identity.handles.includes(p));
-  // Always-on features (attribution, the combined total) are forced on too.
   const required = FEATURES.filter((f) => "alwaysOn" in f && f.alwaysOn).map((f) => f.id);
   if (allHandles && required.every((id) => config.features[id])) return config;
   return {
@@ -133,24 +104,15 @@ export function createDefaultConfig(): VisualizationConfig {
   };
 }
 
-/**
- * Normalizes free text for display in the graphic: Unicode NFC, no control or
- * bidi-override characters (which could spoof text), collapsed whitespace,
- * capped at `max` code points.
- */
 export function sanitizeText(value: string, max: number, { finalize = true } = {}): string {
   let cleaned = value
     .normalize("NFC")
-    // Drop controls, private-use/unassigned code points and bidi overrides/isolates (text spoofing);
-    // keep joiners (ZWJ/ZWNJ) so emoji sequences and scripts like Persian render correctly.
     .replace(/[\p{Cc}\p{Co}\p{Cn}\u202A-\u202E\u2066-\u2069\u200E\u200F\uFEFF]/gu, "")
     .replace(/[^\S ]/g, " ");
-  // While typing, spaces must survive (a trailing space is the start of the next word).
   if (finalize) cleaned = cleaned.replace(/ +/g, " ").trim();
   return [...cleaned].slice(0, max).join("");
 }
 
-/** Display/serialization form of a free-text field (trimmed, single-spaced). */
 export function finalText(value: string): string {
   return value.replace(/ +/g, " ").trim();
 }
@@ -174,7 +136,6 @@ export type ConfigAction =
   | {
       type: "applyPreset";
       preset: StartingPresetId;
-      /** The profile header the user last had, restored when switching back from the graphic preset. */
       restore?: { style: Exclude<IdentityStyle, "none">; avatars: PlatformId[] };
     }
   | { type: "reset" };
@@ -183,24 +144,17 @@ function toggle(list: PlatformId[], platform: PlatformId, enabled: boolean): Pla
   const set = new Set(list);
   if (enabled) set.add(platform);
   else set.delete(platform);
-  // Stable order regardless of click order (keeps URLs canonical).
   return (["github", "gitlab"] as const).filter((p) => set.has(p));
 }
 
 const HEX = /^#[0-9a-f]{6}$/i;
 
-/**
- * Each axis is updated independently; no action resets another axis. The one
- * coupling: turning a visualization on or off can move the layout (see withFeature),
- * but never changes another feature.
- */
 export function configReducer(state: VisualizationConfig, action: ConfigAction): VisualizationConfig {
   const identity = (patch: Partial<IdentityConfig>) => ({ ...state, identity: { ...state.identity, ...patch } });
   switch (action.type) {
     case "setLayout":
       return state.layout === action.layout ? state : { ...state, layout: action.layout };
     case "setFeature":
-      // Always-on features (attribution, the combined total) can't be switched off (see withAttribution).
       if (!action.enabled && getFeature(action.feature).alwaysOn) return state;
       return withFeature(state, action.feature, action.enabled);
     case "setPalette":
@@ -232,7 +186,6 @@ export function configReducer(state: VisualizationConfig, action: ConfigAction):
       return { ...state, metricOrder: order };
     }
     case "setRange":
-      // Legacy 30/90/365-day ranges are single-period by definition.
       return state.range === action.range && state.years === 1 ? state : { ...state, range: action.range, years: 1 };
     case "setYears":
       return state.years === action.years && state.range === 365
@@ -243,9 +196,7 @@ export function configReducer(state: VisualizationConfig, action: ConfigAction):
     case "setPanel":
       return state.panel === action.panel ? state : { ...state, panel: action.panel };
     case "applyPreset":
-      // Only identity changes; layout, palette, features and the rest are untouched.
       if (presetOf(state) === action.preset) return state;
-      // Name, title and handles are never touched, so nothing typed is lost either way.
       if (action.preset === "graphic") return identity({ style: "none" });
       if (action.restore) return identity({ style: action.restore.style, avatars: [...action.restore.avatars] });
       return identity({
@@ -259,22 +210,10 @@ export function configReducer(state: VisualizationConfig, action: ConfigAction):
 
 const supports = (layout: LayoutId, feature: FeatureId) => getLayout(layout).supportedFeatures.includes(feature);
 
-/**
- * Whether a feature's switch shows as on: enabled AND part of the current layout.
- * A feature the layout can't show reads as off, even if it stays enabled for
- * other layouts (switching layouts never discards a choice).
- */
 export function isFeatureOn(feature: FeatureId, config: Pick<VisualizationConfig, "features" | "layout">): boolean {
   return config.features[feature] && supports(config.layout, feature);
 }
 
-/**
- * Features follow the switches, and the layout follows the features:
- * - Turning on a feature the layout can't show moves to the smallest layout that
- *   shows it and everything currently shown (Minimal → Dashboard → Data-rich).
- * - Turning off the last shown feature that Minimal lacks (breakdown, trends)
- *   moves to Minimal. Other features (statistics) never change the layout.
- */
 function withFeature(state: VisualizationConfig, feature: FeatureId, enabled: boolean): VisualizationConfig {
   const features = { ...state.features, [feature]: enabled };
   let layout = state.layout;
@@ -293,7 +232,6 @@ function withFeature(state: VisualizationConfig, feature: FeatureId, enabled: bo
 export type FeatureVisibility =
   { visible: true } | { visible: false; reason: "disabled" | "unsupportedByLayout" | "needsMultiplePlatforms" };
 
-/** Whether a feature is actually rendered, and if not, why. Never stored — always derived. */
 export function getFeatureVisibility(
   feature: FeatureId,
   config: Pick<VisualizationConfig, "features" | "layout">,

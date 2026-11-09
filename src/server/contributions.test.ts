@@ -33,7 +33,6 @@ describe("loadContributions", () => {
     const l = loaders();
     const response = await loadContributions({ github: "jenkruk", gitlab: "contactkruk" }, l);
 
-    // GitHub's "last year" starts on the Sunday of the week a year back; GitLab's on the same date a year back.
     expect(response.dataset).toMatchObject({
       provenance: "live",
       range: { start: "2025-11-02", end: "2026-11-06" },
@@ -43,7 +42,6 @@ describe("loadContributions", () => {
       { start: "2025-11-02", end: "2026-11-06" },
       { start: "2025-11-06", end: "2026-11-06" },
     ]);
-    // Before GitLab's year, its activity is unknown (no key), not zero.
     expect(response.dataset!.days[0]!.byPlatform).toEqual({ github: 0 });
     expect(response.results).toEqual([
       { platform: "github", username: "jenkruk", status: "ok", total: 2, privateCount: undefined },
@@ -56,7 +54,6 @@ describe("loadContributions", () => {
     const response = await loadContributions(
       { github: "jenkruk", gitlab: "contactkruk" },
       loaders({
-        // Nov 4, 2025 is in GitHub's year (from Sun Nov 2) but before GitLab's (from Nov 6).
         github: async () =>
           ok("github", [
             ["2025-11-04", 2],

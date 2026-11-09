@@ -19,30 +19,10 @@ import { createHistoryLoader } from "./history";
 import { fetchGitLabContributions } from "./gitlab";
 import { upstreamBudget } from "./rate-limit";
 
-/*
- * Snapshot storage: Vercel Runtime Cache via `getCache()` with keys WE control.
- *
- * Why not `"use cache: remote"`: Next.js 16 puts the build ID in those keys, so
- * every deployment starts with an empty cache — the 7-day last-known-good
- * fallback would not survive a deploy. Runtime Cache entries written with our
- * own keys stay readable across deployments (Vercel docs, "How a new
- * deployment affects cached data"). Outside Vercel, `getCache()` falls back to
- * an in-memory cache with the same get/set/TTL semantics (dev and E2E).
- *
- * The cache is regional and best-effort (LRU eviction at a storage limit), so
- * last-known-good is "likely", never guaranteed — see docs/ARCHITECTURE.md.
- */
-
-/**
- * Bump when the stored Snapshot shape (or what it covers) changes; old entries are then ignored and expire.
- * v2: GitHub snapshots cover GitHub's own "last year" (from the Sunday a year back), not 365 days.
- */
 export const SNAPSHOT_SCHEMA = 2;
 
-/** Not-found answers are re-checked after an hour so new or renamed accounts recover. */
 const NOT_FOUND_TTL_SECONDS = 3_600;
 
-/** Minimal key/value interface over Vercel Runtime Cache (or its in-memory fallback). */
 export interface SnapshotStore {
   get(key: string): Promise<unknown>;
   set(key: string, value: unknown, ttlSeconds: number): Promise<void>;
@@ -54,7 +34,6 @@ export function snapshotKey(platform: PlatformId, username: string, epoch: numbe
   return `v${SNAPSHOT_SCHEMA}:${platform}:${username}:${epoch}`;
 }
 
-/** Values come back from a shared, JSON-serialized store: validate before trusting them. */
 function asSnapshot(value: unknown): Snapshot | null {
   if (!value || typeof value !== "object") return null;
   const { result, fetchedAt } = value as Partial<Snapshot>;
@@ -67,7 +46,6 @@ function isUncacheable(error: AdapterError): boolean {
   return isTransientError(error.kind) || error.kind === "not_configured";
 }
 
-/** Snapshots stay readable until they're too old to serve as last-known-good. */
 function snapshotTtlSeconds(policy: FreshnessPolicy): number {
   return Math.ceil((policy.maxStaleMs + policy.ttlMs) / 1000);
 }
@@ -79,9 +57,7 @@ export interface LoaderDeps {
   now?: () => number;
 }
 
-/** Builds platform loaders on top of the freshness policy. Exported for tests. */
 export function createLoaders({ store, fetcher, policy, now = Date.now }: LoaderDeps): ContributionLoaders {
-  // Concurrent requests for the same missing snapshot share one upstream fetch (per instance).
   const inFlight = new Map<string, Promise<SnapshotOutcome>>();
 
   async function fetchAndStore(platform: PlatformId, username: string, key: string): Promise<SnapshotOutcome> {
@@ -92,7 +68,6 @@ export function createLoaders({ store, fetcher, policy, now = Date.now }: Loader
       };
     }
     const result = await fetcher(platform, username);
-    // Failures are never written: the next request simply tries upstream again.
     if (!result.ok && isUncacheable(result.error)) return { kind: "failed", error: result.error };
 
     const snapshot: Snapshot = { result, fetchedAt: new Date(now()).toISOString() };
@@ -115,7 +90,6 @@ export function createLoaders({ store, fetcher, policy, now = Date.now }: Loader
     }
     if (stored) return { kind: "snapshot", snapshot: stored };
 
-    // Past windows are lookup-only: fetching now would mislabel new data as old.
     if (epoch !== epochOf(now(), policy())) return { kind: "missing" };
 
     const pending = inFlight.get(key) ?? fetchAndStore(platform, username, key);
@@ -143,17 +117,11 @@ export function createLoaders({ store, fetcher, policy, now = Date.now }: Loader
   };
 }
 
-/** Unexpected exceptions (bugs) become a generic, user-safe error; details go to server logs only. */
 export function recoverLoaderError(platform: PlatformId, error: unknown): AdapterResult {
   console.error(`[gitvis] unexpected ${platform} loader failure`, error);
   return adapterError(platform, "upstream", "Couldn't load contributions right now. Please try again.");
 }
 
-/**
- * Test-only overrides (E2E points GitVis at a fake upstream and shrinks windows).
- * They are ignored in Vercel production so a stray variable can't redirect or
- * reconfigure the live service.
- */
 export function testOverridesAllowed(env: Record<string, string | undefined> = process.env): boolean {
   return env.VERCEL_ENV !== "production";
 }

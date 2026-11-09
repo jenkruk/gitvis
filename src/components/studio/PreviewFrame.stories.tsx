@@ -5,7 +5,6 @@ import { PreviewFrame } from "./PreviewFrame";
 
 const metrics = computeMetrics(sampleDataset);
 
-/** The graphic as a README shows it: the full image in a README-width column. */
 const meta = {
   title: "Studio/Preview",
   component: PreviewFrame,

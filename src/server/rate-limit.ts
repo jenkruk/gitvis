@@ -1,11 +1,5 @@
 import "server-only";
 
-/**
- * Small fixed-window rate limiter, in memory and per server instance.
- * Best effort by design (no database): it blunts bursts against a single
- * instance. Shared, cross-instance limits belong in the platform firewall
- * (see docs/ARCHITECTURE.md "Abuse protection").
- */
 export class FixedWindowLimiter {
   private readonly windows = new Map<string, { start: number; count: number }>();
 
@@ -16,7 +10,6 @@ export class FixedWindowLimiter {
     private readonly now: () => number = Date.now,
   ) {}
 
-  /** Records a hit for `key`; returns whether it's allowed and when the window resets. */
   hit(key: string): { allowed: boolean; retryAfterSeconds: number } {
     const now = this.now();
     let window = this.windows.get(key);
@@ -32,7 +25,6 @@ export class FixedWindowLimiter {
     };
   }
 
-  /** Convenience for global budgets (single shared key). */
   take(): boolean {
     return this.hit("*").allowed;
   }
@@ -41,7 +33,6 @@ export class FixedWindowLimiter {
     for (const [key, window] of this.windows) {
       if (now - window.start >= this.windowMs) this.windows.delete(key);
     }
-    // Still full (sustained flood of distinct keys): drop the oldest entries rather than grow unbounded.
     for (const key of this.windows.keys()) {
       if (this.windows.size < this.maxKeys) break;
       this.windows.delete(key);
@@ -51,15 +42,12 @@ export class FixedWindowLimiter {
 
 const MINUTE = 60_000;
 
-/** Generous: GitHub camo fetches every README image from a small pool of shared IPs. */
 export const CARD_LIMIT_PER_MINUTE = 600;
 export const cardLimiter = new FixedWindowLimiter(CARD_LIMIT_PER_MINUTE, MINUTE);
 export const contributionsLimiter = new FixedWindowLimiter(30, MINUTE);
 export const avatarLimiter = new FixedWindowLimiter(60, MINUTE);
-/** Caps real upstream fetches (cache misses) so a flood of unique usernames can't drain the GitHub quota. */
 export const upstreamBudget = new FixedWindowLimiter(300, MINUTE);
 
-/** Client IP as reported by the hosting proxy. Vercel sets x-real-ip (and overwrites x-forwarded-for) from the connecting address. */
 export function clientKey(headers: Headers): string {
   return headers.get("x-real-ip")?.trim() || headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 }

@@ -42,7 +42,6 @@ describe("Phase 4 URL params", () => {
     expect(query).toContain(
       "bg=gradient&pc=github%3Aff7a59&ord=total%2Cactive%2Cbest%2Cstreak%2Ccurrent&range=90&den=compact&pnl=outlined",
     );
-    // Feature codes follow registry order; "current" never appears in pre-Phase-4 URLs, so their f= is unchanged.
     expect(query).toContain("f=heatmap%2Ctotal%2Cactive%2Cstreak%2Ccurrent%2Cbreakdown%2Ctrends%2Clabels");
   });
 
@@ -55,7 +54,6 @@ describe("Phase 4 URL params", () => {
 
   it("fit within the query limit even with maximal multi-byte name and title", () => {
     let c = fullyCustomized();
-    // 4-byte code points percent-encode to 12 characters each: the worst case for URL length.
     c = configReducer(c, { type: "setName", name: "😀".repeat(40) });
     c = configReducer(c, { type: "setTitle", title: "😀".repeat(60) });
     const query = encodeCardParams({ request: { github: "a".repeat(39), gitlab: "b".repeat(60) }, config: c });
@@ -208,7 +206,7 @@ describe("Phase 4.2 history (yrs)", () => {
     expect(decode("v=1&github=jenkruk&yrs=5").issues.map((i) => i.param)).toEqual(["yrs"]);
     const conflict = decode("v=1&github=jenkruk&yrs=3&range=30");
     expect(conflict.issues.map((i) => i.param)).toEqual(["yrs"]);
-    expect(conflict.config).toMatchObject({ years: 3, range: 365 }); // the lenient studio view
+    expect(conflict.config).toMatchObject({ years: 3, range: 365 });
   });
 
   it("choosing years always uses the full 365-day range; a legacy range resets to one year", () => {

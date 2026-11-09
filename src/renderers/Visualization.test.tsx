@@ -48,9 +48,7 @@ describe("Visualization (static SVG)", () => {
     expect(
       render(configReducer(dashboard, { type: "setFeature", feature: "platformBreakdown", enabled: false })),
     ).not.toContain("Platform breakdown");
-    // Minimal does not render the breakdown even though the flag stays on.
     expect(render(withLayout("minimal"))).not.toContain("Platform breakdown");
-    // Trends only appear in Data-rich.
     expect(render(dashboard)).not.toContain("Weekly contributions");
     expect(render(withLayout("dataRich"))).toContain("Weekly contributions");
   });
@@ -84,7 +82,6 @@ describe("Visualization (static SVG)", () => {
     it.each(LAYOUT_IDS)("reflows %s to the compact width without drawing outside the canvas", (layout) => {
       const svg = renderCompact(layout);
       expect(svg).toMatch(new RegExp(`^<svg[^>]+width="${compactWidth}"`));
-      // Every positioned rect stays within the canvas.
       for (const [, x, w] of svg.matchAll(/<rect x="([\d.]+)" y="[\d.-]+" width="([\d.]+)"/g)) {
         expect(Number(x) + Number(w)).toBeLessThanOrEqual(compactWidth);
       }
@@ -94,7 +91,6 @@ describe("Visualization (static SVG)", () => {
       const svg = renderCompact("dashboard");
       expect(svg).toContain(`Last ${COMPACT_HEATMAP_WEEKS} weeks`);
       const cellSize = Number(/<rect x="[\d.]+" y="[\d.]+" width="(\d+)" height="\1" rx="2"/.exec(svg)![1]);
-      // ≈ GitHub's own 10px calendar cells once a phone scales the image into a ~360px column.
       expect(cellSize * (360 / compactWidth)).toBeGreaterThanOrEqual(9.5);
     });
 

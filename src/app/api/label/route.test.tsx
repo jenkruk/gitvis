@@ -28,7 +28,7 @@ describe("GET /api/label", () => {
     expect(attr(attrs!, "fill")).toBe("#4493f8");
     expect(attr(attrs!, "text-decoration")).toBeUndefined();
     expect(attr(attrs!, "text-anchor")).toBe("end");
-    expect(Number(attr(attrs!, "x"))).toBe(width(svg)); // flush with the right edge
+    expect(Number(attr(attrs!, "x"))).toBe(width(svg));
     expect(svg).not.toMatch(/<a |<script|href=/);
   });
 
@@ -44,9 +44,7 @@ describe("GET /api/label", () => {
 
   it("uses the requested color, adjusted to stay readable (4.5:1) on GitHub's page", async () => {
     const fill = async (query: string) => attr(textOf(await (await get(query)).text())[1]!, "fill")!;
-    // Readable as given: used exactly.
     expect(await fill("cta=1&mode=dark&color=5bae9e")).toBe("#5bae9e");
-    // Too dark for GitHub's dark page / too light for its light page: nudged until readable.
     for (const [query, background] of [
       ["cta=1&mode=dark&color=203040", "#0d1117"],
       ["gitlab=contactkruk&mode=light&color=a0d8ef", "#ffffff"],
@@ -67,14 +65,13 @@ describe("GET /api/label", () => {
     const cta = await (await get("cta=1&mode=dark&line=1&v=2")).text();
     const repo = await (await get("repo=1&mode=dark&line=1&v=2")).text();
     expect(width(cta) + width(repo)).toBe(840);
-    // "Get Yours" starts where the credit does (the card's padding); the second link follows right after it.
     expect(attr(textOf(cta)[1]!, "x")).toBe(String(LINK_LABEL_INSET));
     expect(width(cta)).toBeLessThan(LINK_LABEL_INSET + 90);
     const [, repoAttrs, repoText] = textOf(repo);
     expect(repoText).toBe("· open source on GitHub");
     expect(attr(repoAttrs!, "text-anchor")).toBe("start");
     expect(Number(attr(repoAttrs!, "x"))).toBeLessThan(10);
-    expect(Number(attr(repoAttrs!, "font-size"))).toBeLessThan(16); // smaller than "Get Yours"
+    expect(Number(attr(repoAttrs!, "font-size"))).toBeLessThan(16);
   });
 
   it("is half the card's width by default, and the full width with span=full", async () => {

@@ -84,7 +84,7 @@ describe("Connect flow", () => {
     fetchMock.mockResolvedValue(jsonResponse(loaded));
     const { user, github, gitlab, preview } = setup();
     await user.type(github(), "jenkruk");
-    await user.type(gitlab(), "contactkruk{Enter}"); // Enter submits the form
+    await user.type(gitlab(), "contactkruk{Enter}");
 
     expect(fetchMock).toHaveBeenCalledWith("/api/contributions?github=jenkruk&gitlab=contactkruk", expect.anything());
     expect(
@@ -92,7 +92,6 @@ describe("Connect flow", () => {
     ).toBeVisible();
     expect(screen.getByText(/GitHub @jenkruk: GitHub is rate-limiting/, { selector: "span" })).toBeVisible();
     expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Connect your accounts");
-    // The address bar becomes the full Edit link (usernames + design).
     const search = new URLSearchParams(window.location.search);
     expect([search.get("v"), search.get("github"), search.get("gitlab"), search.get("layout")]).toEqual([
       "1",
@@ -104,7 +103,6 @@ describe("Connect flow", () => {
     fetchMock.mockResolvedValue(jsonResponse({ ...loaded, results: [loaded.results[1]] }));
     await user.click(screen.getByRole("button", { name: "Retry GitHub" }));
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    // A successful retry moves on to Design with the live data.
     expect(await screen.findByRole("heading", { name: /design your graphic/i })).toHaveFocus();
     expect(preview()).not.toHaveAccessibleDescription(/sample data/i);
   });
@@ -127,7 +125,6 @@ describe("Connect flow", () => {
     );
     const { user, github } = setup();
     await user.type(github(), "jenkruk{Enter}");
-    // GitHub's profile says "in the last year"; GitLab's says "in the last 12 months".
     expect(
       await screen.findByText("GitHub @jenkruk: 650 contributions in the last year.", { selector: "span" }),
     ).toBeVisible();
@@ -152,7 +149,7 @@ describe("Connect flow", () => {
     expect(screen.getByText("Loading contributions…")).toHaveAttribute("role", "status");
     expect(submit().closest("form")).toHaveAttribute("aria-busy", "true");
 
-    await user.click(submit()); // duplicate submit is ignored, not blocked by disabling
+    await user.click(submit());
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     await act(async () => resolve(jsonResponse(loaded)));

@@ -4,11 +4,6 @@ import { serverLoaders } from "@/server/cached";
 import { loadContributions } from "@/server/contributions";
 import { clientKey, contributionsLimiter, tooManyRequests } from "@/server/rate-limit";
 
-/**
- * GET /api/contributions?github=<user>&gitlab=<user>[&years=1|2|3]
- * Returns a ContributionsResponse: a combined `live` dataset (or null) plus a
- * status per requested platform. Tokens never leave the server.
- */
 export async function GET(request: NextRequest) {
   const limit = contributionsLimiter.hit(clientKey(request.headers));
   if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
@@ -27,7 +22,6 @@ export async function GET(request: NextRequest) {
   if (years === null) return Response.json({ error: "years must be 1, 2 or 3." }, { status: 400 });
 
   const response = await loadContributions(validation.request, serverLoaders, { years });
-  // Only let CDNs cache stable answers; failures should be retryable immediately.
   const stable =
     response.results.every((r) => (r.status === "ok" && !r.stale) || r.status === "not_found") &&
     (!response.history || response.history.status === "ok");

@@ -11,7 +11,6 @@ import {
 import { PALETTE_IDS, PALETTES } from "@/theme/palettes";
 import { Visualization, type VisualizationProps } from "./Visualization";
 
-/** The published graphic — the same component rendered by the studio preview and /api/card. */
 const meta = {
   title: "Graphic/Visualization",
   component: Visualization,
@@ -62,12 +61,11 @@ export const CustomPlatformColors: Story = {
   args: {
     config: configWith(
       { type: "setPlatformColor", platform: "github", color: "#ff7a59" },
-      { type: "setPlatformColor", platform: "gitlab", color: "#101a2c" }, // too dark → adjusted to ≥ 3:1
+      { type: "setPlatformColor", platform: "gitlab", color: "#101a2c" },
     ),
   },
 };
 
-/** Every layout side by side. */
 export const AllLayouts: Story = {
   render: (args: VisualizationProps) => (
     <div className="grid gap-6">
@@ -78,7 +76,6 @@ export const AllLayouts: Story = {
   ),
 };
 
-/** All 24 palettes in light and dark (minimal layout keeps the gallery compact). */
 export const PaletteGallery: Story = {
   render: (args: VisualizationProps) => (
     <div className="grid gap-4 md:grid-cols-2">
@@ -100,7 +97,6 @@ export const PaletteGallery: Story = {
   ),
 };
 
-/** Solid, gradient and transparent backgrounds over GitHub's light and dark page colors. */
 export const Backgrounds: Story = {
   render: (args: VisualizationProps) => (
     <div className="grid gap-4">
@@ -160,7 +156,6 @@ const identity = (style: (typeof IDENTITY_STYLES)[number]): VisualizationConfig 
     { type: "setAvatar", platform: "gitlab", enabled: true },
   );
 
-/** None / Compact identity / Full profile / Centered profile headers (GitLab avatar missing → monogram fallback). */
 export const ProfileHeaders: Story = {
   render: (args: VisualizationProps) => (
     <div className="grid gap-6">
@@ -189,7 +184,6 @@ export const ProfileHeaders: Story = {
 const history = createSampleHistoryDataset();
 const threeYears = configWith({ type: "setYears", years: 3 });
 
-/** GitHub + GitLab, 3 years: GitHub-only earlier periods are labelled; stats cover the shared 12 months. */
 export const HistoryCombined: Story = {
   name: "History · 3 years, GitHub + GitLab",
   args: { dataset: history, config: threeYears },
@@ -219,7 +213,6 @@ export const HistoryGitLabOnly: Story = {
   args: { dataset: gitlabOnlyDataset, config: threeYears },
 };
 
-/** Each 12-month period in its own card; the frame follows the panel style (Borderless: hairlines, no boxes). */
 export const HistoryYearCards: Story = {
   name: "History · year cards in every panel style",
   render: (args: VisualizationProps) => (
@@ -239,7 +232,6 @@ export const HistoryYearCards: Story = {
   ),
 };
 
-/** Mandatory source attribution: a very long username moves to its own line and is shortened; <desc> keeps it whole. */
 export const AttributionLongUsername: Story = {
   name: "Attribution · long username",
   args: {

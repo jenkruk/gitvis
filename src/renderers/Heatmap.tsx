@@ -12,13 +12,10 @@ export interface HeatmapProps {
   y: number;
   width: number;
   showLegend?: boolean;
-  /** Shared level thresholds when several calendars are shown together. */
   scale?: readonly [number, number, number];
-  /** Connected platforms; when given, tooltips name platforms whose data isn't available that day. */
   platforms?: readonly PlatformId[];
 }
 
-/** Space reserved for the "More" label at the right end of the legend. */
 const LEGEND_TEXT_WIDTH = 34;
 
 const WEEKDAY_LABELS: [row: number, label: string][] = [
@@ -36,9 +33,7 @@ function describeDay(day: CombinedDay, platforms?: readonly PlatformId[], namePl
   const parts = Object.entries(day.byPlatform)
     .filter(([, count]) => count > 0)
     .map(([platform, count]) => `${PLATFORMS[platform as PlatformId].label} ${formatNumber(count)}`);
-  // Colored by platform: always say which platform(s) a day's color comes from.
   const breakdown = parts.length > 1 || (namePlatform && parts.length === 1) ? ` (${parts.join(", ")})` : "";
-  // Outside a platform's coverage its count is unknown — say so rather than implying zero.
   const missing = (platforms ?? []).filter((p) => day.byPlatform[p] === undefined).map((p) => PLATFORMS[p].label);
   const known = (platforms ?? []).filter((p) => day.byPlatform[p] !== undefined).map((p) => PLATFORMS[p].label);
   const coverage = !missing.length
@@ -49,10 +44,6 @@ function describeDay(day: CombinedDay, platforms?: readonly PlatformId[], namePl
   return `${formatNumber(day.total)} ${noun} on ${formatDate(day.date, "long")}${breakdown}${coverage}`;
 }
 
-/**
- * Per-platform coloring: a day takes the color of the platform with the most
- * contributions (a 50/50 blend on ties); its level still comes from the day's total.
- */
 function cellColor(day: CombinedDay, level: HeatLevel, theme: ThemeTokens): string {
   const ramps = theme.platformHeatmap;
   if (!ramps || level === 0) return theme.heatmap[level];
@@ -63,12 +54,10 @@ function cellColor(day: CombinedDay, level: HeatLevel, theme: ThemeTokens): stri
   return colors.length === 1 ? colors[0]! : mix(colors[0]!, colors[1]!, 0.5);
 }
 
-/** Platforms with data in these days, in PLATFORM_IDS order. */
 function platformsIn(days: readonly CombinedDay[]): PlatformId[] {
   return PLATFORM_IDS.filter((p) => days.some((d) => d.byPlatform[p] !== undefined));
 }
 
-/** Combined contribution calendar: weeks as columns, Sunday-first rows. */
 export function Heatmap({ days, theme, x, y, width, showLegend = true, scale, platforms }: HeatmapProps) {
   const grid = buildHeatmapGrid(days, scale);
   const g = heatmapGeometry(grid.columns, width, showLegend);
@@ -76,7 +65,6 @@ export function Heatmap({ days, theme, x, y, width, showLegend = true, scale, pl
   const text = { fontFamily: FONT_STACK, fontSize: 10, fill: theme.textMuted };
 
   return (
-    // Center the grid when cell-size rounding leaves spare width.
     <g transform={`translate(${x + Math.floor((width - g.gridWidth) / 2)} ${y})`}>
       {grid.monthLabels.map(({ label, column }) => (
         <text key={`${label}-${column}`} x={g.labelWidth + column * g.step} y={10} {...text}>
@@ -105,7 +93,6 @@ export function Heatmap({ days, theme, x, y, width, showLegend = true, scale, pl
         <PlatformLegend theme={theme} platforms={platformsIn(days)} g={g} text={text} />
       )}
       {showLegend && !theme.platformHeatmap && (
-        // Right-aligned to the grid: "Less ■■■■■ More"
         <g transform={`translate(${g.gridWidth} ${g.height - 6})`}>
           <text x={0} y={0} textAnchor="end" {...text}>
             More
@@ -130,13 +117,8 @@ export function Heatmap({ days, theme, x, y, width, showLegend = true, scale, pl
   );
 }
 
-/** Average glyph width for 10px legend text (conservative, like text.ts). */
 const LEGEND_GLYPH = 5.8;
 
-/**
- * Right-aligned "Less  GitHub ■■■■  GitLab ■■■■  More": one ramp per platform with
- * its name, so the hue is always labeled (one platform → "Less ■■■■■ More" in its color).
- */
 function PlatformLegend({
   theme,
   platforms,

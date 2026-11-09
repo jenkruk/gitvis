@@ -58,8 +58,6 @@ describe("fetchGitHubContributions", () => {
   });
 
   it("fetches the days before GitHub's 365-day calendar limit as a second collection", async () => {
-    // GitHub's "last year" from Sunday Nov 2, 2025: its calendar returns only the last 365 days,
-    // so Nov 2–6 come from an aliased collection in the same request.
     const withLead = {
       data: {
         user: {

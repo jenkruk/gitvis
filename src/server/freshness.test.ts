@@ -14,11 +14,6 @@ import {
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 
-/**
- * Simulates the snapshot cache exactly as cached.ts uses it: one entry per
- * epoch, the current epoch fetches on a miss, past epochs are lookup-only, and
- * failures are never stored. `upstream` decides what a fetch returns.
- */
 function harness(policy: FreshnessPolicy = DEFAULT_POLICY) {
   let now = Date.parse("2026-11-01T00:00:00Z");
   const store = new Map<number, Snapshot>();
@@ -31,7 +26,7 @@ function harness(policy: FreshnessPolicy = DEFAULT_POLICY) {
     if (epoch !== epochOf(now, policy)) return { kind: "missing" };
     fetches();
     const result = upstream();
-    if (!result.ok && result.error.kind !== "not_found") return { kind: "failed", error: result.error }; // not stored
+    if (!result.ok && result.error.kind !== "not_found") return { kind: "failed", error: result.error };
     const snapshot = { result, fetchedAt: new Date(now).toISOString() };
     store.set(epoch, snapshot);
     return { kind: "snapshot", snapshot };
@@ -87,7 +82,7 @@ describe("freshness policy", () => {
 
   it("serves last-known-good data, marked stale, when a refresh fails", async () => {
     const h = harness();
-    await h.load(); // snapshot at day 0
+    await h.load();
     h.setUpstream(failing);
     h.advance(3 * DAY);
     const result = await h.load();
@@ -100,13 +95,13 @@ describe("freshness policy", () => {
     await h.load();
     h.advance(DAY);
     h.setUpstream(() => ok(7));
-    await h.load(); // newer snapshot at day 1
+    await h.load();
     h.setUpstream(failing);
     h.advance(DAY);
     h.fetches.mockClear();
     const result = await h.load();
     expect(countOf(result)).toBe(7);
-    expect(h.fetches).toHaveBeenCalledTimes(1); // only the current epoch attempted a fetch
+    expect(h.fetches).toHaveBeenCalledTimes(1);
   });
 
   it("reports the failure once last-known-good data is older than 7 days", async () => {

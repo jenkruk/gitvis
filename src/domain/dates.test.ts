@@ -40,7 +40,6 @@ describe("date arithmetic", () => {
   });
 
   it("is unaffected by DST transitions", () => {
-    // US DST started 2026-03-08 and ends 2026-11-01; EU on 2026-03-29 / 2026-10-25.
     expect(addDays(d("2026-03-07"), 2)).toBe("2026-03-09");
     expect(addDays(d("2026-10-31"), 2)).toBe("2026-11-02");
     expect(diffDays(d("2026-03-01"), d("2026-04-01"))).toBe(31);
@@ -52,8 +51,8 @@ describe("date arithmetic", () => {
   });
 
   it("computes weekdays and week starts (Sunday-first)", () => {
-    expect(dayOfWeek(d("2026-11-06"))).toBe(5); // Friday
-    expect(dayOfWeek(d("2026-11-01"))).toBe(0); // Sunday
+    expect(dayOfWeek(d("2026-11-06"))).toBe(5);
+    expect(dayOfWeek(d("2026-11-01"))).toBe(0);
     expect(startOfWeek(d("2026-11-06"))).toBe("2026-11-01");
     expect(startOfWeek(d("2026-11-01"))).toBe("2026-11-01");
   });

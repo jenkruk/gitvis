@@ -3,10 +3,6 @@ import { gitlabCalendarUrl, normalizeGitLabCalendar } from "@/adapters/gitlab";
 import { adapterError, type AdapterResult, displayUsername } from "@/adapters/types";
 import type { FetchOptions } from "./github";
 
-/**
- * Fetches the public GitLab.com profile calendar (no token). Unknown, private
- * and blocked users all redirect to sign-in, so they share one message.
- */
 export async function fetchGitLabContributions(
   username: string,
   { fetchImpl = fetch, timeoutMs = 5_000, url }: FetchOptions = {},

@@ -1,0 +1,36 @@
+name: Bug report
+description: Something looks wrong or doesn't work.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for the report! For security problems, please use SECURITY.md instead of an issue.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: Card or studio URL
+      description: The `/api/card?...` image link or the studio link, if it's about a specific graphic.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Connect GitHub user ...
+        2. Choose the Minimal layout ...
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Drag images here if they help.
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and device
+      placeholder: Chrome 131 on macOS, GitHub dark theme

@@ -2,12 +2,6 @@ import { expect, test } from "@playwright/test";
 import { E2E_POLICY } from "../playwright.config";
 import { freshWindow, getCard, hits, nextWindow, uniqueUser, upstream } from "./helpers";
 
-/*
- * Real Next.js production server + fake upstream, with the freshness window
- * shrunk from 12h to 4s and max staleness from 7d to 12s. One window here
- * stands for 12 hours; "several windows" stands for days without traffic.
- */
-
 test.describe("data freshness and cache layers", () => {
   test("within a window, repeated requests are served from cache (one upstream fetch)", async ({ request }) => {
     const user = uniqueUser("hit");
@@ -18,7 +12,7 @@ test.describe("data freshness and cache layers", () => {
     await upstream(request, user, { count: 9 });
     const second = await getCard(request, `gitlab=${user}`);
 
-    expect(second.desc).toContain("3 contributions"); // still the cached snapshot
+    expect(second.desc).toContain("3 contributions");
     expect(await hits(request, user)).toEqual({ github: 0, gitlab: 1, history: 0 });
   });
 
@@ -30,12 +24,11 @@ test.describe("data freshness and cache layers", () => {
     expect((await getCard(request, `gitlab=${user}`)).desc).toContain("3 contributions");
 
     await upstream(request, user, { count: 9 });
-    await nextWindow(2); // ≈ a day of zero traffic
+    await nextWindow(2);
 
     const view = await getCard(request, `gitlab=${user}`);
     expect(view.status).toBe("ok");
-    expect(view.desc).toContain("9 contributions"); // this request, not the next one
-    // The data-age header (used for post-deploy verification) shows a fetch made just now.
+    expect(view.desc).toContain("9 contributions");
     expect(Date.now() - Date.parse(view.res.headers()["x-gitvis-data-as-of"]!)).toBeLessThan(5_000);
     expect(view.svg).not.toContain("Data from");
     expect((await hits(request, user)).gitlab).toBe(2);
@@ -57,7 +50,7 @@ test.describe("data freshness and cache layers", () => {
     expect(view.desc).toMatch(/Showing data last updated .+; a refresh is pending\./);
     expect(view.svg).toContain("Data from");
     expect(view.res.headers()["vercel-cdn-cache-control"]).toBe("public, s-maxage=60, stale-while-revalidate=600");
-    expect((await hits(request, user)).github).toBe(2); // the refresh was attempted
+    expect((await hits(request, user)).github).toBe(2);
   });
 
   test("once last-known-good data exceeds the maximum age, an honest error card replaces it", async ({ request }) => {
@@ -69,11 +62,10 @@ test.describe("data freshness and cache layers", () => {
     await nextWindow();
     expect((await getCard(request, `gitlab=${user}`)).status).toBe("stale");
 
-    await new Promise((r) => setTimeout(r, E2E_POLICY.maxStaleSeconds * 1000 + 500)); // ≈ 7+ days of outage
+    await new Promise((r) => setTimeout(r, E2E_POLICY.maxStaleSeconds * 1000 + 500));
     const view = await getCard(request, `gitlab=${user}`);
     expect(view.status).toBe("unavailable");
     expect(view.svg).toContain("Contributions temporarily unavailable");
-    // Production builds redact errors thrown from "use cache"; outcomes are returned as data so this survives.
     expect(view.svg).toContain("GitLab responded with an error (503)");
     expect(view.svg).not.toContain("5 contributions");
   });
@@ -100,11 +92,11 @@ test.describe("data freshness and cache layers", () => {
     await upstream(request, user, { count: 4 });
     await getCard(request, `github=${user}&gitlab=${user}`);
 
-    await upstream(request, user, { mode: "fail" }); // both platforms share the fake user
+    await upstream(request, user, { mode: "fail" });
     await nextWindow();
     const view = await getCard(request, `github=${user}&gitlab=${user}`);
     expect(view.status).toBe("stale");
-    expect(view.desc).toContain("8 contributions"); // full last-known total, never 4 + nothing
+    expect(view.desc).toContain("8 contributions");
   });
 
   test("a missing account is reported, not masked by old data", async ({ request }) => {

@@ -42,7 +42,6 @@ describe("transparent backgrounds", () => {
   });
 });
 
-/** jsdom reports inline colors as rgb(). */
 const hexToRgb = (hex: string) => {
   const n = Number.parseInt(hex.slice(1), 16);
   return `rgb(${n >> 16}, ${(n >> 8) & 255}, ${n & 255})`;

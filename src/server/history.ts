@@ -6,19 +6,6 @@ import type { DailyCount } from "@/domain/types";
 import type { SnapshotStore } from "./cached";
 import { upstreamBudget } from "./rate-limit";
 
-/*
- * GitHub history cache. Earlier years are fetched as COMPLETE CALENDAR YEARS
- * and stored one key per year, so:
- *   - keys never move with "today" (a rolling window would re-key daily);
- *   - a 2- or 3-year view reuses the same cached years for every user view;
- *   - on Jan 1 exactly one new year needs fetching.
- * Past years are effectively immutable (rare retroactive changes: a newly
- * verified email, deleted repositories), so they live 30 days and are
- * refreshed at most weekly — and if a refresh fails the cached copy is served.
- * The current calendar year (only reachable at a leap-year boundary) is kept
- * for 12 hours like ordinary snapshots. Failures are never written.
- */
-
 export const HISTORY_SCHEMA = 1;
 const DAY_MS = 86_400_000;
 export const HISTORY_POLICY = {
@@ -35,7 +22,6 @@ interface StoredYear {
 }
 
 export function historyKey(username: string, year: number): string {
-  // GitHub logins are case-insensitive: one entry per account.
   return `v${HISTORY_SCHEMA}:github-year:${username.toLowerCase()}:${year}`;
 }
 
@@ -50,7 +36,6 @@ function asStoredYear(value: unknown): StoredYear | null {
   return valid ? (value as StoredYear) : null;
 }
 
-/** Calendar years overlapping `range`, oldest first. */
 export function yearsIn(range: DateRange): number[] {
   const first = Number(range.start.slice(0, 4));
   const last = Number(range.end.slice(0, 4));
@@ -111,7 +96,6 @@ export function createHistoryLoader({ store, fetchYears, now = Date.now }: Histo
       }
     }
 
-    // Any year with neither fresh nor cached data means the history would be incomplete: fail honestly.
     const days: DailyCount[] = [];
     for (const year of years) {
       const yearDays = fresh.get(year) ?? cached.get(year)?.days;

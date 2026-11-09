@@ -18,7 +18,6 @@ interface StatCardsStoryArgs {
 
 const metrics = computeMetrics(sampleDataset);
 
-/** Production StatCards with production stat items; columns follow the layout rule (≤ 4 per row, 5 → 3). */
 function StatCardsFrame({ palette, mode, count, detailed, density }: StatCardsStoryArgs) {
   const theme = resolveTheme(palette, mode);
   const items = STAT_FEATURE_IDS.slice(0, count).map((id) => buildStatItem(id, metrics));

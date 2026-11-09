@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultConfig } from "@/config/config";
 import { decodeCardParams } from "./card-params";
+import { GITVIS_REPO_URL } from "@/config/site";
 import { resolveTheme } from "@/theme/palettes";
 import {
   altText,
@@ -135,76 +136,55 @@ describe("links under the image", () => {
     const [, block] = snippet.split("\n\n");
     return new DOMParser().parseFromString(block!, "text/html").body;
   };
+  const urls = (snippet: string) =>
+    [...links(snippet).querySelectorAll("img, source")].map(
+      (el) => new URL((el.getAttribute("src") ?? el.getAttribute("srcset"))!).searchParams,
+    );
 
-  const labelLink = (a: Element) => ({
-    href: a.getAttribute("href"),
-    alt: a.querySelector("picture > img")!.getAttribute("alt"),
-    light: a.querySelector("picture > img")!.getAttribute("src"),
-    dark: a.querySelector("source")!.getAttribute("srcset"),
-    media: a.querySelector("source")!.getAttribute("media"),
-  });
-
-  it("spans exactly the card: 'Get Yours' and the GitLab profile as half-width labels, centered like the card", () => {
+  it("has two links on one centered line: 'Get Yours' (left) and 'Open source on GitHub' (right)", () => {
     const snippet = readmeSnippet(origin, params, { theme: "selected" });
     const body = links(snippet);
-    expect([...body.children].map((p) => p.tagName)).toEqual(["P"]); // one line
     const line = body.firstElementChild!;
+    expect(line.tagName).toBe("P");
     expect(line.getAttribute("align")).toBe("center");
-    const [getYours, gitlab] = [...line.querySelectorAll(":scope > a")].map(labelLink);
-    const color = (mode: "dark" | "light") => ({ color: linkColor(params.config, mode) });
-    expect(getYours).toEqual({
-      href: "https://gitvis.example",
-      alt: "Get Yours",
-      light: labelUrl(origin, { cta: true }, "light", color("light")),
-      dark: labelUrl(origin, { cta: true }, "dark", color("dark")),
-      media: "(prefers-color-scheme: dark)",
-    });
-    expect(gitlab).toEqual({
-      href: "https://gitlab.com/contactkruk",
-      alt: "GitLab @contactkruk",
-      light: labelUrl(origin, { gitlab: "contactkruk" }, "light", color("light")),
-      dark: labelUrl(origin, { gitlab: "contactkruk" }, "dark", color("dark")),
-      media: "(prefers-color-scheme: dark)",
-    });
-    // Half-width labels (the default span); no whitespace between or inside the links (it would render as gaps).
-    expect(snippet).not.toContain("span=");
-    expect(snippet).toMatch(/<\/picture><\/a><a href="https:\/\/gitlab\.com/);
+    const anchors = [...line.querySelectorAll("a")].map((a) => ({
+      href: a.getAttribute("href"),
+      alt: a.querySelector("picture > img")!.getAttribute("alt"),
+      media: a.querySelector("source")!.getAttribute("media"),
+    }));
+    expect(anchors).toEqual([
+      { href: "https://gitvis.example", alt: "Get Yours", media: "(prefers-color-scheme: dark)" },
+      { href: GITVIS_REPO_URL, alt: "Open source on GitHub", media: "(prefers-color-scheme: dark)" },
+    ]);
+    // No profile links (the README is on GitHub; the GitLab link was dropped).
+    expect(snippet).not.toContain("gitlab.com");
+    expect(snippet).not.toContain('github.com/jenkruk"');
+    // Side by side with nothing between them, and no underlined spaces inside.
+    expect(snippet).toMatch(/<\/picture><\/a><a href="https:\/\/github\.com\/jenkruk\/gitvis">/);
     expect(snippet).not.toMatch(/<a [^>]*>\s+<|>\s+<\/a>/);
     for (const el of body.querySelectorAll("*")) {
       for (const attr of el.getAttributeNames()) expect(GITHUB_ALLOWED_LINKS[el.tagName]).toContain(attr);
     }
   });
 
-  it("lets 'Get Yours' span the whole card when there's no GitLab link", () => {
-    const githubOnly = { ...params, request: { github: "jenkruk" } };
-    const urls = [...links(readmeSnippet(origin, githubOnly, { theme: "auto" })).querySelectorAll("img, source")];
-    expect(
-      urls.map((el) => new URL((el.getAttribute("src") ?? el.getAttribute("srcset"))!).searchParams.get("span")),
-    ).toEqual(["full", "full"]);
+  it("spans exactly the card: two half-width labels, text inset to the card's content edges, for every background", () => {
+    for (const background of ["solid", "gradient", "transparent"] as const) {
+      const design = { ...params, config: { ...params.config, background } };
+      const all = urls(readmeSnippet(origin, design, { theme: "auto" }));
+      expect(all.map((q) => (q.get("cta") ? "cta" : q.get("repo") ? "repo" : "?"))).toEqual([
+        "cta",
+        "cta",
+        "repo",
+        "repo",
+      ]);
+      for (const q of all) {
+        expect(q.get("span")).toBeNull(); // half (the default)
+        expect(q.get("inset")).toBe("1");
+      }
+    }
   });
 
-  it("insets the labels to line up with a transparent card's content", () => {
-    const transparent = { ...params, config: { ...params.config, background: "transparent" as const } };
-    const srcs = [...links(readmeSnippet(origin, transparent, { theme: "auto" })).querySelectorAll("img, source")].map(
-      (el) => el.getAttribute("src") ?? el.getAttribute("srcset"),
-    );
-    expect(srcs).toHaveLength(4);
-    expect(srcs.every((url) => new URL(url!).searchParams.get("inset") === "1")).toBe(true);
-    // Visible backgrounds: the card's border is at the image edge, so no inset.
-    expect(readmeSnippet(origin, params, { theme: "auto" })).not.toContain("inset=1");
-  });
-
-  it("has no GitHub link (the README is on GitHub) and only 'Get Yours' without GitLab", () => {
-    const githubOnly = { ...params, request: { github: "jenkruk" } };
-    const snippet = readmeSnippet(origin, githubOnly, { theme: "auto" });
-    expect(snippet).not.toContain("github.com");
-    expect(snippet).not.toContain("gitlab");
-    expect([...links(snippet).querySelectorAll("a")].map((a) => a.querySelector("img")!.getAttribute("alt"))).toEqual([
-      "Get Yours",
-    ]);
-  });
-
-  it("are the snippet's only links, separated from the image by a blank line", () => {
+  it("is separated from the image by a blank line", () => {
     const snippet = readmeSnippet(origin, params, { theme: "auto" });
     expect(snippet).toMatch(/<\/picture>\n<\/p>\n\n<p align="center">/);
     expect(snippet.match(/<a /g)).toHaveLength(2);
@@ -219,18 +199,12 @@ describe("links under the image", () => {
     );
   });
 
-  it("colors both links with the graphic's GitLab color, per reader theme", () => {
+  it("uses the graphic's GitLab color, per reader theme", () => {
     const custom = { ...params, config: { ...params.config, platformColors: { gitlab: "#5bae9e" } } };
-    const urls = [...links(readmeSnippet(origin, custom, { theme: "auto" })).querySelectorAll("img, source")].map(
-      (el) => new URL((el.getAttribute("src") ?? el.getAttribute("srcset"))!).searchParams,
-    );
-    expect(urls).toHaveLength(4);
-    for (const q of urls) {
+    for (const q of urls(readmeSnippet(origin, custom, { theme: "auto" }))) {
       expect(q.get("color")).toBe(linkColor(custom.config, q.get("mode") as "dark" | "light").slice(1));
     }
-    // A custom GitLab color is used as given where it's readable on the card.
     expect(linkColor(custom.config, "dark")).toBe("#5bae9e");
-    // Otherwise the palette's own GitLab color.
     expect(linkColor(params.config, "dark")).toBe(resolveTheme(params.config.palette, "dark").series[1]);
   });
 });

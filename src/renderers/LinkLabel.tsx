@@ -16,8 +16,10 @@ export type LinkLabelMode = (typeof LINK_LABEL_MODES)[number];
 export const LINK_LABEL_KINDS = {
   /** "Get Yours": the call to action, at GitHub's body size, at the card's left edge. */
   cta: { fontSize: 16, fontWeight: 600, align: "left" },
-  /** The user's GitLab profile: smaller, at the card's right edge. */
+  /** The user's GitLab profile (snippets copied before Nov 2026): smaller, at the card's right edge. */
   gitlab: { fontSize: 13, fontWeight: 400, align: "right" },
+  /** "Open source on GitHub" (the GitVis repo): smaller, at the card's right edge. */
+  repo: { fontSize: 13, fontWeight: 400, align: "right" },
 } as const;
 export type LinkLabelKind = keyof typeof LINK_LABEL_KINDS;
 

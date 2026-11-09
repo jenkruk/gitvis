@@ -174,6 +174,16 @@ describe("centered profile header", () => {
   });
 });
 
+describe("calendar tooltips", () => {
+  it("are on by default (the studio preview) and can be turned off (published cards)", () => {
+    const config = createDefaultConfig();
+    expect(render(config)).toMatch(/<title>[^<]* contributions? on /);
+    const published = render(config, { tooltips: false });
+    expect(published).not.toMatch(/<title>[^<]* contributions? on /);
+    expect(published.length).toBeLessThan(render(config).length * 0.75);
+  });
+});
+
 describe("credit line", () => {
   it("is plain text at the bottom of every card, with no links", () => {
     for (const layout of LAYOUT_IDS) {

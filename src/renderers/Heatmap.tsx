@@ -14,6 +14,7 @@ export interface HeatmapProps {
   showLegend?: boolean;
   scale?: readonly [number, number, number];
   platforms?: readonly PlatformId[];
+  tooltips?: boolean;
 }
 
 const LEGEND_TEXT_WIDTH = 34;
@@ -58,7 +59,17 @@ function platformsIn(days: readonly CombinedDay[]): PlatformId[] {
   return PLATFORM_IDS.filter((p) => days.some((d) => d.byPlatform[p] !== undefined));
 }
 
-export function Heatmap({ days, theme, x, y, width, showLegend = true, scale, platforms }: HeatmapProps) {
+export function Heatmap({
+  days,
+  theme,
+  x,
+  y,
+  width,
+  showLegend = true,
+  scale,
+  platforms,
+  tooltips = true,
+}: HeatmapProps) {
   const grid = buildHeatmapGrid(days, scale);
   const g = heatmapGeometry(grid.columns, width, showLegend);
   const gridTop = g.monthLabelHeight;
@@ -86,7 +97,7 @@ export function Heatmap({ days, theme, x, y, width, showLegend = true, scale, pl
           rx={2}
           fill={cellColor(day, level, theme)}
         >
-          <title>{describeDay(day, platforms, !!theme.platformHeatmap)}</title>
+          {tooltips && <title>{describeDay(day, platforms, !!theme.platformHeatmap)}</title>}
         </rect>
       ))}
       {showLegend && theme.platformHeatmap && (

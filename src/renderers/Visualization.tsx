@@ -17,6 +17,7 @@ export interface VisualizationProps {
   idPrefix?: string;
   size?: CardSize;
   avatars?: AvatarImages;
+  tooltips?: boolean;
 }
 
 export function describeHistory({
@@ -78,6 +79,7 @@ export function Visualization({
   idPrefix = "gitvis",
   size = "full",
   avatars = {},
+  tooltips = true,
 }: VisualizationProps) {
   const prepared = prepareView(fullDataset, config);
   const { view: dataset, metricsView, periods, statsLabel, statsPeriod, historyNote } = prepared;
@@ -108,6 +110,7 @@ export function Visualization({
     size,
     spacing,
     metricOrder: config.metricOrder,
+    tooltips,
   });
 
   const header =

@@ -98,7 +98,9 @@ export async function renderCard(
     }
     if (!response.dataset) throw new Error("No dataset despite successful results");
 
-    const svg = renderSvgMarkup(createElement(Visualization, { dataset: response.dataset, config, size, avatars }));
+    const svg = renderSvgMarkup(
+      createElement(Visualization, { dataset: response.dataset, config, size, avatars, tooltips: false }),
+    );
     return response.dataset.freshness?.stale
       ? { svg, status: "stale", edgeMaxAge: MINUTE, asOf: response.dataset.freshness.asOf }
       : { svg, status: "ok", edgeMaxAge: HOUR, asOf: response.dataset.freshness?.asOf };

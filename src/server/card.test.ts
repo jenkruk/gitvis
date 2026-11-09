@@ -54,6 +54,13 @@ describe("renderCard", () => {
     expect(descOf(await (await render("v=1&github=jenkruk")).svg)).not.toContain("counts from");
   });
 
+  it("leaves out per-day tooltips, which a README image can never show, but keeps its text alternative", async () => {
+    const card = await render("v=1&github=jenkruk&gitlab=contactkruk");
+    expect(card.svg).not.toMatch(/<title>[^<]* contributions? on /);
+    expect(card.svg).toContain('<title id="gitvis-title">');
+    expect(descOf(card.svg)).toMatch(/contributions across GitHub @jenkruk and GitLab @contactkruk/);
+  });
+
   it("applies the requested design", async () => {
     const card = await render("github=jenkruk&layout=data-rich&f=heatmap,trends");
     expect(card.svg).toContain("Weekly contributions");

@@ -50,6 +50,7 @@ export function YearCard({
   scale,
   content,
   current = false,
+  tooltips = true,
 }: {
   view: ContributionDataset;
   period: PeriodSummary;
@@ -62,6 +63,7 @@ export function YearCard({
   scale: readonly [number, number, number];
   content?: CardContent;
   current?: boolean;
+  tooltips?: boolean;
 }) {
   const inner = width - padding * 2;
   const left = x + padding;
@@ -103,6 +105,7 @@ export function YearCard({
         showLegend={showLegend}
         scale={scale}
         platforms={platforms}
+        tooltips={tooltips}
       />
     </g>
   );

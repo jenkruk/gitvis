@@ -64,6 +64,7 @@ export interface LayoutContext {
   size: CardSize;
   spacing: Spacing;
   metricOrder: readonly StatFeatureId[];
+  tooltips: boolean;
 }
 
 const CAPTION_HEIGHT = 18;
@@ -155,6 +156,7 @@ function yearCards(ctx: LayoutContext, newestContent?: CardContent): Section[] {
           scale={scale}
           content={content}
           current={i === 0}
+          tooltips={ctx.tooltips}
         />
       ),
     };
@@ -238,6 +240,7 @@ function heatmapPanel(ctx: LayoutContext): Section {
           x={PADDING + PANEL_PADDING}
           y={y + PANEL_PADDING + caption}
           width={innerWidth}
+          tooltips={ctx.tooltips}
         />
       </>
     ),
@@ -312,7 +315,14 @@ export const LAYOUT_SECTIONS: Record<LayoutId, (ctx: LayoutContext) => Section[]
           render: (y) => (
             <>
               {caption > 0 && <Caption ctx={ctx} x={PADDING} y={y} />}
-              <Heatmap days={days} theme={ctx.theme} x={PADDING} y={y + caption} width={width(ctx)} />
+              <Heatmap
+                days={days}
+                theme={ctx.theme}
+                x={PADDING}
+                y={y + caption}
+                width={width(ctx)}
+                tooltips={ctx.tooltips}
+              />
             </>
           ),
         },

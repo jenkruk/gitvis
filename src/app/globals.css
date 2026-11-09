@@ -30,6 +30,28 @@ body {
   color: var(--foreground);
 }
 
+/*
+ * Tailwind v4 dropped the hand cursor from buttons. Restore it for everything
+ * clickable (step tabs, buttons, links, disclosure summaries, selects), and show
+ * "not allowed" on disabled controls so they don't look clickable.
+ */
+@layer base {
+  a[href],
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary,
+  select:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  select:disabled,
+  input:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
+
 /* Step panels fade in (applied only under prefers-reduced-motion: no-preference via motion-safe:). */
 @keyframes step-in {
   from {

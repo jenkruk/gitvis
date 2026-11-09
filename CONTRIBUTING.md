@@ -49,7 +49,7 @@ Common types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`.
 
 ## Project rules
 
-The full rules are in [CLAUDE.md](CLAUDE.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The ones that matter most:
+The full rules are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md). The ones that matter most:
 
 - **Published image URLs are a public contract.** Old README links must keep rendering. New URL parameters must be optional, with a golden-URL test (`src/publish/card-params.ts`).
 - **Data honesty.** Say "contributions", never "commits". Days a platform doesn't report are unknown, not zero. Never present sample or partial data as real totals.

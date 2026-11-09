@@ -6,7 +6,7 @@ Phases are ordered by dependency. Each phase ends in a working, tested app.
 
 **Tasks**
 
-- [x] Planning docs, `CLAUDE.md`
+- [x] Planning docs
 - [x] Next.js 16 + TS strict + Tailwind v4 + Vitest/RTL scaffold
 - [x] Domain: `ISODate` utilities, normalized types, `combineSources`
 - [x] Metrics: totals, active days, streaks, best day, platform totals, weekly and monthly series

@@ -105,16 +105,15 @@ test.describe("studio", () => {
 test.describe("phones (375px)", () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
-  test("multi-year design stays readable without horizontal scrolling", async ({ page, request }) => {
+  test("multi-year design fits without horizontal scrolling", async ({ page, request }) => {
     const user = uniqueUser("histmob");
     await upstream(request, user, { count: 3 });
     await page.goto(`/?v=1&github=${user}&gitlab=${user}&yrs=3`);
     await expandAll(page);
     await page.getByRole("button", { name: "Expand preview" }).click();
-    await page.locator("label", { has: page.getByRole("radio", { name: "Mobile" }) }).click();
+    // The full README image, scaled to fit (published cards have no phone variant).
     const graphic = page.getByRole("img", { name: /^Contribution activity/ }).first();
-    await expect(graphic).toHaveAttribute("width", "400");
-    await expect(graphic.getByText("Last 20 weeks")).toBeAttached();
+    await expect(graphic).toHaveAttribute("width", "840");
     await expectAccessible(page, "3-year history on a phone");
     await expectNoHorizontalScroll(page);
   });

@@ -44,8 +44,6 @@ const focusRing =
 const buttonClass = `inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800 ${focusRing}`;
 const primaryClass = `inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-zinc-900 px-5 text-base font-semibold text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 ${focusRing}`;
 const fieldClass = `w-full min-w-0 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 font-mono text-xs text-zinc-800 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200 ${focusRing}`;
-const optionCard =
-  "flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 p-3 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-blue-600 dark:border-zinc-800";
 
 const MARKDOWN_ID = "publish-markdown";
 
@@ -119,7 +117,7 @@ function PublishContent({
   const failed = results.filter((r) => r.status !== "ok");
   const modeLabel = params.config.mode === "dark" ? "Dark" : "Light";
   const transparent = params.config.background === "transparent";
-  const theme = effectiveSnippetOptions(options, params.config).theme;
+  const { theme } = effectiveSnippetOptions(options, params.config);
 
   const announce = (message: string) =>
     // Alternate a trailing space so repeating the same message is announced again.
@@ -273,22 +271,6 @@ function PublishContent({
               ))}
             </div>
           </fieldset>
-
-          <label className={optionCard}>
-            <input
-              type="checkbox"
-              checked={options.responsive}
-              onChange={(e) => onOptionsChange({ ...options, responsive: e.target.checked })}
-              aria-describedby="publish-responsive-hint"
-              className="mt-0.5 size-5 shrink-0 accent-zinc-900 dark:accent-zinc-100"
-            />
-            <span>
-              <span className="block text-sm font-medium">Mobile-optimized image on small screens</span>
-              <span id="publish-responsive-hint" className="block text-xs text-zinc-600 dark:text-zinc-400">
-                Phones get a reflowed 400px layout with readable labels instead of a shrunken desktop graphic.
-              </span>
-            </span>
-          </label>
 
           <CopyField
             id={MARKDOWN_ID}

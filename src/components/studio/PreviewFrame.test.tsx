@@ -5,37 +5,16 @@ import { describe, expect, it } from "vitest";
 import { createSampleDataset } from "@/fixtures/sample-dataset";
 import { computeMetrics } from "@/metrics/metrics";
 import { DataView } from "./DataView";
-import { labelScale, PREVIEW_DEVICES, sizeForDevice } from "./PreviewFrame";
+import { README_COLUMN_WIDTH } from "./PreviewFrame";
 import { Studio } from "./Studio";
 
-describe("preview modes", () => {
-  it("serves the compact image only on mobile, and only when enabled", () => {
-    expect(sizeForDevice("mobile", true)).toBe("compact");
-    expect(sizeForDevice("mobile", false)).toBe("full");
-    expect(sizeForDevice("tablet", true)).toBe("full");
-  });
-
-  it("reports when labels would be too small to read", () => {
-    expect(labelScale("mobile", "full")).toBeLessThan(0.6); // shrunken desktop graphic
-    expect(labelScale("mobile", "compact")).toBeGreaterThan(0.85);
-    expect(labelScale("desktop", "full")).toBeGreaterThan(0.95); // 830px column, 840px image
-  });
-
-  it("switches preview width with the keyboard and constrains the README column", async () => {
-    const user = userEvent.setup();
+describe("preview", () => {
+  it("shows the full image in a README-width column, with no device switcher", () => {
     render(<Studio sampleDataset={createSampleDataset()} origin="https://gitvis.test" initialStep="design" />);
-    const group = screen.getByRole("group", { name: "Preview width" });
-    within(group)
-      .getByRole("radio", { name: /desktop/i })
-      .focus();
-    await user.keyboard("{ArrowRight}{ArrowRight}");
-
-    expect(within(group).getByRole("radio", { name: /mobile/i })).toBeChecked();
-    expect(screen.getByTestId("preview-column")).toHaveStyle({ maxWidth: `${PREVIEW_DEVICES.mobile.width}px` });
-    expect(screen.getByRole("img", { name: "Contribution activity" })).toHaveAttribute("width", "400");
-    // No technical readout under the preview; the readable compact image needs no warning either.
-    expect(screen.queryByText(/README column|smallest labels/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/too small to read/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Preview width" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: /mobile|tablet/i })).not.toBeInTheDocument();
+    expect(screen.getByTestId("preview-column")).toHaveStyle({ maxWidth: `${README_COLUMN_WIDTH}px` });
+    expect(screen.getByRole("img", { name: "Contribution activity" })).toHaveAttribute("width", "840");
   });
 });
 

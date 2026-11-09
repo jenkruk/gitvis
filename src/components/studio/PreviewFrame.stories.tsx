@@ -1,41 +1,24 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { useState } from "react";
 import { computeMetrics } from "@/metrics/metrics";
 import { configWith, sampleDataset } from "@/stories/fixtures";
-import { type PreviewDevice, PreviewFrame } from "./PreviewFrame";
+import { PreviewFrame } from "./PreviewFrame";
 
 const metrics = computeMetrics(sampleDataset);
 
-function Interactive({ initial, responsive }: { initial: PreviewDevice; responsive: boolean }) {
-  const [device, setDevice] = useState(initial);
-  return (
-    <PreviewFrame
-      dataset={sampleDataset}
-      config={configWith({ type: "setLayout", layout: "dataRich" })}
-      metrics={metrics}
-      device={device}
-      onDeviceChange={setDevice}
-      responsive={responsive}
-      busy={false}
-    />
-  );
-}
-
-/** README preview at GitHub column widths; mobile shows the compact image when enabled. */
+/** The graphic as a README shows it: the full image in a README-width column. */
 const meta = {
-  title: "Studio/Preview modes",
-  component: Interactive,
-  args: { initial: "desktop", responsive: true },
-  argTypes: { initial: { control: "inline-radio", options: ["desktop", "tablet", "mobile"] } },
-} satisfies Meta<typeof Interactive>;
+  title: "Studio/Preview",
+  component: PreviewFrame,
+  args: {
+    dataset: sampleDataset,
+    config: configWith({ type: "setLayout", layout: "dataRich" }),
+    metrics,
+    busy: false,
+  },
+} satisfies Meta<typeof PreviewFrame>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Desktop: Story = {};
-export const Tablet: Story = { args: { initial: "tablet" } };
-export const MobileOptimized: Story = { name: "Mobile (compact image)", args: { initial: "mobile" } };
-export const MobileShrunk: Story = {
-  name: "Mobile without compact image (shows readability warning)",
-  args: { initial: "mobile", responsive: false },
-};
+export const Default: Story = {};
+export const Loading: Story = { args: { busy: true } };

@@ -26,7 +26,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 /** Holds snippet options the way Studio does. */
 function Harness({
-  initialOptions = { theme: "selected", responsive: false },
+  initialOptions = { theme: "selected" },
   ...props
 }: Omit<PublishPanelProps, "options" | "onOptionsChange"> & { initialOptions?: SnippetOptions }) {
   const [options, setOptions] = useState<SnippetOptions>(initialOptions);
@@ -55,6 +55,12 @@ function setup(
 }
 
 describe("PublishPanel", () => {
+  it("offers no phone-image option: README cards are always the full image", async () => {
+    const { user } = setup();
+    await user.click(screen.getByText("Markdown and embed options"));
+    expect(screen.queryByRole("checkbox", { name: /mobile-optimized/i })).not.toBeInTheDocument();
+  });
+
   it("on preview deployments, says published URLs point at production", () => {
     render(
       <Harness
@@ -108,15 +114,6 @@ describe("PublishPanel", () => {
     setup();
     expect(screen.getByText(/exactly what github will display/i)).toBeVisible();
     vi.restoreAllMocks();
-  });
-
-  it("adds a mobile-optimized source for narrow screens when enabled", async () => {
-    const { user, markdown } = setup();
-    const toggle = screen.getByRole("checkbox", { name: /mobile-optimized image/i });
-    expect(toggle).toHaveAccessibleDescription(/reflowed 400px layout/i);
-    await user.click(toggle);
-    expect(markdown().value).toContain('<source media="(max-width: 600px)" srcset="');
-    expect(markdown().value).toMatch(/max-width: 600px\)" srcset="[^"]*size=compact/);
   });
 
   it("switches to a theme-matching <picture> snippet via a keyboard-operable radio group", async () => {

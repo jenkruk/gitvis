@@ -81,8 +81,8 @@ _Depends on:_ Phase 2.
 - [x] Playwright + `@axe-core/playwright` (WCAG 2.2 AA tags; any violation fails): sample, connected, validation-error and partial-failure states at 320/375/768/1280.
 - [x] Keyboard-only Connect → Customize → Publish test (skip link, arrow keys, Space, Enter, visible focus, clipboard contents).
 - [x] Responsive: no horizontal scroll at 320/375/768/1280; 24px targets; ≥ 11px UI text; mobile editing.
-- [x] Studio preview modes: desktop, tablet and mobile README widths, with a label-size readout and warning.
-- [x] Mobile-optimized compact image (`size=compact`, 400px reflow) served via `<picture>` `(max-width: 600px)`; on by default.
+- [x] Studio preview modes: desktop, tablet and mobile README widths (removed Nov 2026: README cards are always the full image).
+- [x] Mobile-optimized compact image (`size=compact`, 400px reflow). No longer offered in snippets (GitHub's `<themed-picture>` broke width media for signed-in readers); `size=compact` URLs still render.
 - [x] Alternative data view: written summary, key stats, and an accessible monthly table (pulled forward from Phase 4).
 - [x] Error cards wrap text; usernames are truncated in messages (GitLab allows 255 characters).
 - [x] Fixed: step-number contrast, a nested-interactive SVG preview, and a 20px disclosure target (all found by axe or the E2E checks).

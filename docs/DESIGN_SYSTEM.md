@@ -195,12 +195,12 @@ The a11y addon runs axe with the WCAG 2.2 AA tags and `test: "error"`. `src/stor
 
 ### Preview modes
 
-| Mode                                            | Purpose                                                                                                                                                                          | Status                                        |
-| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| Device: desktop 830 / tablet 700 / mobile 360px | Shows the image at approximate GitHub README column widths. Mobile shows the compact image when it's enabled. A readout gives the smallest label size and warns below 60% scale. | Shipped (3.1)                                 |
-| README surface: GitHub light / dark             | Previews the graphic against both GitHub themes                                                                                                                                  | Planned                                       |
-| Grayscale                                       | Checks that meaning survives without hue (CSS `filter: grayscale(1)` on the preview only)                                                                                        | Phase 4                                       |
-| Accessible-data view                            | Shows the data view instead of the graphic                                                                                                                                       | Phase 4 (the data view itself shipped in 3.1) |
+| Mode                                | Purpose                                                                                                                                                        | Status                                        |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| README-width preview                | The full image in an ~830px README column that shrinks with the studio on small screens. No device switcher: published cards have no phone or tablet variants. | Shipped (3.1; device modes removed Nov 2026)  |
+| README surface: GitHub light / dark | Previews the graphic against both GitHub themes                                                                                                                | Planned                                       |
+| Grayscale                           | Checks that meaning survives without hue (CSS `filter: grayscale(1)` on the preview only)                                                                      | Phase 4                                       |
+| Accessible-data view                | Shows the data view instead of the graphic                                                                                                                     | Phase 4 (the data view itself shipped in 3.1) |
 
 Preview modes change only the **preview container**. They are never part of `VisualizationConfig` or the exported graphic.
 
@@ -214,7 +214,7 @@ Shrinking the 840px graphic into a ~360px phone column puts labels at about 4px.
 - wrapped footnote and inline stats
 - platform labels on their own line
 
-Published snippets serve it through `<picture>` with `(max-width: 600px)` (on by default). The studio's mobile preview shows exactly that image.
+README snippets no longer serve it: GitHub's `<themed-picture>` drops width conditions from theme queries for signed-in readers, which served the phone image on desktops, and a README image doesn't need phone or tablet variants. Every snippet uses the full image, which GitHub scales to fit. `size=compact` URLs still render, so older embeds keep working.
 
 ### Alternative data view
 

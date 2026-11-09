@@ -79,7 +79,9 @@ test("the full Connect → Design → Publish flow works with the keyboard alone
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());
   expect(clipboard).toContain(`/api/card?v=1&amp;github=${user}&amp;gitlab=${user}&amp;layout=minimal`);
   expect(clipboard).toMatch(/f=[^"&]*best/);
-  expect(clipboard).toContain('<source media="(max-width: 600px)"');
+  // Always the full image (no phone variant), followed by the "Get Yours" and GitLab links.
+  expect(clipboard).not.toContain("size=compact");
+  expect(clipboard).toContain('alt="Get Yours"');
 
   // Back to Design without losing anything.
   const edit = page.getByRole("button", { name: "Edit design" });

@@ -114,7 +114,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -H "If-None-Match: <etag>" "$SITE/api/c
 
 - [ ] Add the snippet (with mobile image and theme matching on) to a test repo's README.
 - [ ] github.com desktop in light and dark shows the right variant.
-- [ ] A phone (or devtools at 375px) shows the 400px compact image.
+- [ ] Desktop and phone both show the full 840px image (scaled to fit on phones), signed in with a chosen GitHub theme and signed out.
 - [ ] The image URL is `camo.githubusercontent.com/...`. `curl -sI <camo-url>` shows camo's headers; record its `cache-control` and `etag` behavior.
 - [ ] The image isn't a link; "Get Yours" and the GitLab link share one line under it (GitLab right-aligned, in both themes) and both work.
 
@@ -142,5 +142,5 @@ curl -s -o /dev/null -w '%{http_code}\n' -H "If-None-Match: <etag>" "$SITE/api/c
 
 - **The Runtime Cache is best-effort.** LRU eviction and, on Hobby, a cache shared with the team's other projects mean last-known-good during an outage is likely, not guaranteed.
 - **camo's behavior** with `no-cache` + ETag and its fetch timeout are undocumented. The first view in a new window waits on the upstream fetch (5s timeout), and a slower camo timeout could briefly show a broken image.
-- **GitHub's sanitizer:** `<picture>`/`<source media>` support for `prefers-color-scheme` is documented by GitHub. `(max-width: 600px)` support is expected, but this is the first real verification (step D).
+- **GitHub's sanitizer:** `<picture>`/`<source media>` support for `prefers-color-scheme` is documented by GitHub. Snippets no longer use width media (see ARCHITECTURE, README snippet).
 - **Vercel CDN and conditional requests:** whether the CDN answers `If-None-Match` with a 304 on a cache HIT (step A).

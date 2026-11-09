@@ -1,6 +1,5 @@
 import type { ConnectRequest } from "@/adapters/connect";
 import { createDefaultConfig, type VisualizationConfig } from "@/config/config";
-import type { CardSize } from "@/renderers/primitives";
 import { type ColorMode, resolveTheme } from "@/theme/palettes";
 import { PLATFORM_IDS, PLATFORMS } from "@/domain/types";
 import { type CardParams, encodeCardParams } from "./card-params";
@@ -23,23 +22,18 @@ export function altText(request: ConnectRequest): string {
   return `GitVis contribution activity for ${accounts.join(" and ")}`;
 }
 
-function variant(params: CardParams, mode?: ColorMode, size?: CardSize): CardParams {
-  return { ...params, config: mode ? { ...params.config, mode } : params.config, ...(size ? { size } : {}) };
+function variant(params: CardParams, mode: ColorMode): CardParams {
+  return { ...params, config: { ...params.config, mode } };
 }
 
 export interface SnippetOptions {
   theme: ReadmeTheme;
-  /** Serve the reflowed compact image on narrow screens (phones). */
-  responsive: boolean;
 }
 
 /** Transparent graphics must follow the reader's theme, or light text would sit on a light page (and vice versa). */
 export function effectiveSnippetOptions(options: SnippetOptions, config: VisualizationConfig): SnippetOptions {
-  return config.background === "transparent" ? { ...options, theme: "auto" } : options;
+  return config.background === "transparent" ? { theme: "auto" } : options;
 }
-
-/** Below this viewport width readers get the compact image (GitHub's mobile layout). */
-export const NARROW_MEDIA = "(max-width: 600px)";
 
 /**
  * The README snippet: the card as an unlinked image, then the only two links —
@@ -47,10 +41,9 @@ export const NARROW_MEDIA = "(max-width: 600px)";
  * account is connected). The README lives on GitHub, so there's no GitHub link.
  *
  * The image is always an HTML <picture>: GitHub links a plain Markdown image to
- * itself, but leaves a <picture> unlinked (verified November 2026). The first
- * matching <source> wins, so narrow-screen sources come first. The graphic itself
- * contains no links either. GitHub strips link colors and `target`, so these links
- * use GitHub's own style and open in the same tab.
+ * itself, but leaves a <picture> unlinked (verified November 2026). The graphic
+ * itself contains no links either. GitHub strips `target`, so the links open in
+ * the same tab.
  */
 export function readmeSnippet(origin: string, params: CardParams, options: SnippetOptions): string {
   const image = imageSnippet(origin, params, effectiveSnippetOptions(options, params.config));
@@ -115,21 +108,21 @@ function linksSnippet(origin: string, params: CardParams): string {
   return ['<p align="left">', ...gitlab, ...label(origin, { cta: true }, "Get Yours"), "</p>"].join("\n");
 }
 
-function imageSnippet(origin: string, params: CardParams, { theme, responsive }: SnippetOptions): string {
+/**
+ * Always the full 840px image (GitHub scales it to fit narrow screens). Phone
+ * images aren't offered: GitHub's <themed-picture> rewrites theme media queries
+ * for signed-in readers and drops width conditions, which served the phone image
+ * on desktops (verified Nov 2026). `size=compact` URLs still render for old links.
+ */
+function imageSnippet(origin: string, params: CardParams, { theme }: SnippetOptions): string {
   const alt = altText(params.request);
-  const sources: [media: string, params: CardParams][] = [];
-  if (responsive) {
-    if (theme === "auto") {
-      sources.push([`${NARROW_MEDIA} and (prefers-color-scheme: dark)`, variant(params, "dark", "compact")]);
-      sources.push([`${NARROW_MEDIA} and (prefers-color-scheme: light)`, variant(params, "light", "compact")]);
-    } else {
-      sources.push([NARROW_MEDIA, variant(params, undefined, "compact")]);
-    }
-  }
-  if (theme === "auto") {
-    sources.push(["(prefers-color-scheme: dark)", variant(params, "dark")]);
-    sources.push(["(prefers-color-scheme: light)", variant(params, "light")]);
-  }
+  const sources: [media: string, params: CardParams][] =
+    theme === "auto"
+      ? [
+          ["(prefers-color-scheme: dark)", variant(params, "dark")],
+          ["(prefers-color-scheme: light)", variant(params, "light")],
+        ]
+      : [];
 
   const attr = escapeMarkup;
   return [

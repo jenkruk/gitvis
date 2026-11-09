@@ -17,7 +17,7 @@ import { prepareView } from "@/renderers/view";
 import { getPalette } from "@/theme/palettes";
 import { DataView } from "./DataView";
 import { DesignControls } from "./DesignControls";
-import { type PreviewDevice, PreviewFrame } from "./PreviewFrame";
+import { PreviewFrame } from "./PreviewFrame";
 import { useAvatars } from "./useAvatars";
 
 export interface StudioProps {
@@ -66,8 +66,7 @@ export function Studio({
     withAttribution(c ?? createDefaultConfig()),
   );
   const connection = useContributions({ request: initialRequest, response: initialResponse });
-  const [previewDevice, setPreviewDevice] = useState<PreviewDevice>("desktop");
-  const [publishOptions, setPublishOptions] = useState<SnippetOptions>({ theme: "selected", responsive: true });
+  const [publishOptions, setPublishOptions] = useState<SnippetOptions>({ theme: "selected" });
   const [exploringSample, setExploringSample] = useState(false);
   const [step, setStep] = useState<StepId>(
     () => initialStep ?? (initialRequest && initialResponse ? "design" : "connect"),
@@ -240,16 +239,7 @@ export function Studio({
               </p>
             )}
             <CollapsiblePreview>
-              <PreviewFrame
-                dataset={view}
-                avatars={avatars}
-                config={config}
-                metrics={metrics}
-                device={previewDevice}
-                onDeviceChange={setPreviewDevice}
-                responsive={publishOptions.responsive}
-                busy={loading}
-              />
+              <PreviewFrame dataset={view} avatars={avatars} config={config} metrics={metrics} busy={loading} />
             </CollapsiblePreview>
             <DataView prepared={prepared} metrics={metrics} />
             <p role="status" className="sr-only">

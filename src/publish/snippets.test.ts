@@ -7,6 +7,7 @@ import {
   cardUrl,
   downloadName,
   editUrl,
+  effectiveSnippetOptions,
   labelUrl,
   linkColor,
   readmeSnippet,
@@ -36,7 +37,7 @@ describe("publish snippets", () => {
   });
 
   it("always uses an unlinked <picture>, even without variants (GitHub would link a Markdown image)", () => {
-    const md = readmeSnippet(origin, params, { theme: "selected", responsive: false });
+    const md = readmeSnippet(origin, params, { theme: "selected" });
     expect(md.split("\n\n")[0]).toBe(
       `<picture>\n  <img alt="${altText(params.request)}" src="${cardUrl(origin, params).replaceAll("&", "&amp;")}">\n</picture>`,
     );
@@ -44,27 +45,19 @@ describe("publish snippets", () => {
     expect(md).not.toContain(editUrl(origin, params).replaceAll("&", "&amp;"));
   });
 
-  it("serves the compact image to narrow screens first when responsive", () => {
-    const html = card(readmeSnippet(origin, params, { theme: "selected", responsive: true }));
-    const sources = [...html.matchAll(/<source media="([^"]+)" srcset="([^"]+)"/g)];
-    expect(sources.map((s) => s[1])).toEqual(["(max-width: 600px)"]);
-    expect(sources[0]![2]).toContain("size=compact");
-    expect(html).toMatch(/<img alt="[^"]+" src="[^"]*mode=dark[^"]*">/);
-    expect(html).not.toMatch(/<img[^>]*size=compact/);
-  });
-
-  it("orders narrow + theme sources so the first match is always right", () => {
-    const html = card(readmeSnippet(origin, params, { theme: "auto", responsive: true }));
-    expect([...html.matchAll(/<source media="([^"]+)"/g)].map((s) => s[1])).toEqual([
-      "(max-width: 600px) and (prefers-color-scheme: dark)",
-      "(max-width: 600px) and (prefers-color-scheme: light)",
-      "(prefers-color-scheme: dark)",
-      "(prefers-color-scheme: light)",
-    ]);
+  it("always serves the full image: no phone or tablet variants, in either theme option", () => {
+    for (const theme of ["selected", "auto"] as const) {
+      const html = card(readmeSnippet(origin, params, { theme }));
+      expect(html).not.toContain("size=compact");
+      expect(html).not.toContain("max-width");
+    }
+    // Transparent cards always match the reader's theme.
+    const transparent = { ...params.config, background: "transparent" as const };
+    expect(effectiveSnippetOptions({ theme: "selected" }, transparent)).toEqual({ theme: "auto" });
   });
 
   it("produces a theme-matching <picture> with escaped URLs", () => {
-    const html = readmeSnippet(origin, params, { theme: "auto", responsive: false });
+    const html = readmeSnippet(origin, params, { theme: "auto" });
     expect(html).toContain(
       '<source media="(prefers-color-scheme: dark)" srcset="https://gitvis.example/api/card?v=1&amp;',
     );
@@ -90,11 +83,7 @@ const GITHUB_ALLOWED: Record<string, string[]> = {
 };
 
 describe("README <picture> markup audit", () => {
-  const variants: SnippetOptions[] = [
-    { theme: "selected", responsive: true },
-    { theme: "auto", responsive: false },
-    { theme: "auto", responsive: true },
-  ];
+  const variants: SnippetOptions[] = [{ theme: "selected" }, { theme: "auto" }];
 
   it.each(variants)("is valid, GitHub-safe and accessible for %o", (options) => {
     const html = readmeSnippet(origin, params, options);
@@ -105,20 +94,18 @@ describe("README <picture> markup audit", () => {
     // HTML content model: zero or more <source>, then exactly one <img>, last.
     expect(children.at(-1)!.tagName).toBe("IMG");
     expect(children.slice(0, -1).every((c) => c.tagName === "SOURCE")).toBe(true);
-    expect(children.length).toBeGreaterThan(1);
 
     for (const el of [picture, ...children]) {
       for (const attr of el.getAttributeNames()) expect(GITHUB_ALLOWED[el.tagName]).toContain(attr);
     }
 
     for (const source of children.slice(0, -1)) {
-      expect(source.getAttribute("media")).toMatch(/^\((max-width: 600px|prefers-color-scheme: (light|dark))\)/);
+      expect(source.getAttribute("media")).toMatch(/^\(prefers-color-scheme: (light|dark)\)$/);
       const url = new URL(source.getAttribute("srcset")!);
       expect(url.origin).toBe(origin);
       expect(url.pathname).toBe("/api/card");
       expect(decodeCardParams(url.searchParams).issues).toEqual([]);
-      // Narrow-screen sources serve the compact image; others the full image.
-      expect(url.searchParams.get("size") === "compact").toBe(source.getAttribute("media")!.includes("max-width"));
+      expect(url.searchParams.has("size")).toBe(false); // always the full image
     }
 
     // Fallback <img>: full-size image in the selected mode (for clients that ignore <source>).
@@ -127,25 +114,6 @@ describe("README <picture> markup audit", () => {
     expect(fallback.searchParams.has("size")).toBe(false);
     expect(fallback.searchParams.get("mode")).toBe(params.config.mode);
     expect(img.getAttribute("alt")).toBe(altText(params.request));
-  });
-
-  it("makes every media query that could match a phone resolve to the compact image first", () => {
-    const html = readmeSnippet(origin, params, { theme: "auto", responsive: true });
-    const doc = new DOMParser().parseFromString(html, "text/html");
-    const sources = [...doc.querySelectorAll("source")].map((s) => ({
-      media: s.getAttribute("media")!,
-      compact: new URL(s.getAttribute("srcset")!).searchParams.get("size") === "compact",
-    }));
-    const firstMatch = (narrow: boolean, dark: boolean) =>
-      sources.find(
-        ({ media }) =>
-          (!media.includes("max-width") || narrow) &&
-          (!media.includes("prefers-color-scheme") || media.includes(dark ? "dark" : "light")),
-      )!;
-    expect(firstMatch(true, true).compact).toBe(true);
-    expect(firstMatch(true, false).compact).toBe(true);
-    expect(firstMatch(false, true)).toMatchObject({ compact: false, media: "(prefers-color-scheme: dark)" });
-    expect(firstMatch(false, false)).toMatchObject({ compact: false, media: "(prefers-color-scheme: light)" });
   });
 });
 
@@ -174,7 +142,7 @@ describe("links under the image", () => {
   });
 
   it("puts 'Get Yours' (left) and the GitLab profile (right-floated) on one line, both as label images", () => {
-    const body = links(readmeSnippet(origin, params, { theme: "selected", responsive: true }));
+    const body = links(readmeSnippet(origin, params, { theme: "selected" }));
     expect([...body.children].map((p) => p.tagName)).toEqual(["P"]); // one paragraph = one line
     const line = body.firstElementChild!;
     expect(line.getAttribute("align")).toBe("left");
@@ -203,18 +171,18 @@ describe("links under the image", () => {
 
   it("insets the labels to line up with a transparent card's content", () => {
     const transparent = { ...params, config: { ...params.config, background: "transparent" as const } };
-    const srcs = [
-      ...links(readmeSnippet(origin, transparent, { theme: "auto", responsive: true })).querySelectorAll("img, source"),
-    ].map((el) => el.getAttribute("src") ?? el.getAttribute("srcset"));
+    const srcs = [...links(readmeSnippet(origin, transparent, { theme: "auto" })).querySelectorAll("img, source")].map(
+      (el) => el.getAttribute("src") ?? el.getAttribute("srcset"),
+    );
     expect(srcs).toHaveLength(4);
     expect(srcs.every((url) => new URL(url!).searchParams.get("inset") === "1")).toBe(true);
     // Visible backgrounds: the card's border is at the image edge, so no inset.
-    expect(readmeSnippet(origin, params, { theme: "auto", responsive: true })).not.toContain("inset=1");
+    expect(readmeSnippet(origin, params, { theme: "auto" })).not.toContain("inset=1");
   });
 
   it("has no GitHub link (the README is on GitHub) and only 'Get Yours' without GitLab", () => {
     const githubOnly = { ...params, request: { github: "jenkruk" } };
-    const snippet = readmeSnippet(origin, githubOnly, { theme: "auto", responsive: true });
+    const snippet = readmeSnippet(origin, githubOnly, { theme: "auto" });
     expect(snippet).not.toContain("github.com");
     expect(snippet).not.toContain("gitlab");
     expect([...links(snippet).querySelectorAll("a")].map((a) => a.querySelector("img")!.getAttribute("alt"))).toEqual([
@@ -223,7 +191,7 @@ describe("links under the image", () => {
   });
 
   it("are the snippet's only links, separated from the image by a blank line", () => {
-    const snippet = readmeSnippet(origin, params, { theme: "auto", responsive: true });
+    const snippet = readmeSnippet(origin, params, { theme: "auto" });
     expect(snippet).toMatch(/<\/picture>\n\n<p align="left">/);
     expect(snippet.match(/<a /g)).toHaveLength(2);
   });
@@ -239,9 +207,9 @@ describe("links under the image", () => {
 
   it("colors both links with the graphic's GitLab color, per reader theme", () => {
     const custom = { ...params, config: { ...params.config, platformColors: { gitlab: "#5bae9e" } } };
-    const urls = [
-      ...links(readmeSnippet(origin, custom, { theme: "auto", responsive: true })).querySelectorAll("img, source"),
-    ].map((el) => new URL((el.getAttribute("src") ?? el.getAttribute("srcset"))!).searchParams);
+    const urls = [...links(readmeSnippet(origin, custom, { theme: "auto" })).querySelectorAll("img, source")].map(
+      (el) => new URL((el.getAttribute("src") ?? el.getAttribute("srcset"))!).searchParams,
+    );
     expect(urls).toHaveLength(4);
     for (const q of urls) {
       expect(q.get("color")).toBe(linkColor(custom.config, q.get("mode") as "dark" | "light").slice(1));
@@ -256,7 +224,7 @@ describe("links under the image", () => {
 describe("transparent backgrounds", () => {
   it("forces theme matching for transparent backgrounds", () => {
     const transparent = { ...params, config: { ...params.config, background: "transparent" as const } };
-    const html = readmeSnippet(origin, transparent, { theme: "selected", responsive: false });
+    const html = readmeSnippet(origin, transparent, { theme: "selected" });
     expect(html).toContain("prefers-color-scheme: dark");
     expect(html).toContain("prefers-color-scheme: light");
   });

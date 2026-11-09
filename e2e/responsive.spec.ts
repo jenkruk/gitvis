@@ -51,20 +51,19 @@ test.describe("mobile editing (375px)", () => {
 
     await page.getByRole("button", { name: "Expand preview" }).tap();
     await expect(page.getByRole("button", { name: "Collapse preview" })).toHaveAttribute("aria-expanded", "true");
-    expect((await region.boundingBox())!.height).toBeGreaterThanOrEqual(collapsed);
+    // Half-pixel tolerance: layout heights can differ by sub-pixel rounding when they're equal.
+    expect((await region.boundingBox())!.height).toBeGreaterThanOrEqual(collapsed - 0.5);
   });
 
-  test("the mobile preview shows the reflowed compact image, not a shrunken desktop graphic", async ({ page }) => {
+  test("the preview shows the full README image, scaled to fit the phone, with no device switcher", async ({
+    page,
+  }) => {
     await page.goto("/");
     await page.getByRole("button", { name: /try it with sample data/i }).tap();
-    // Radios are visually hidden; users tap the visible label.
-    await page.locator("label", { has: page.getByRole("radio", { name: "Mobile" }) }).click();
-    await expect(page.getByRole("radio", { name: "Mobile" })).toBeChecked();
+    await expect(page.getByRole("radio", { name: "Mobile" })).toHaveCount(0);
     const graphic = page.getByRole("img", { name: "Contribution activity" });
-    await expect(graphic).toHaveAttribute("width", "400");
-    await expect(graphic.getByText("Last 20 weeks")).toBeAttached();
-    // The readable compact image needs no warning.
-    await expect(page.getByText(/too small to read/)).toHaveCount(0);
+    await expect(graphic).toHaveAttribute("width", "840");
+    expect((await graphic.boundingBox())!.width).toBeLessThanOrEqual(375);
   });
 });
 

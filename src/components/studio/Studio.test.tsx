@@ -249,7 +249,10 @@ describe("design step", () => {
   it("feature toggles are switches with defaults from the registry", () => {
     design();
     expect(screen.getByRole("switch", { name: /best day/i })).not.toBeChecked();
-    expect(screen.getByRole("switch", { name: /total contributions/i })).toBeChecked();
+    // The combined total can't be switched off: no switch, an "Always shown" note, still reorderable.
+    expect(screen.queryByRole("switch", { name: /total contributions/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/sum of contributions reported by each platform\. always shown\./i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Move Total contributions down" })).toBeEnabled();
   });
 
   it("keeps feature choices when switching layouts", async () => {

@@ -133,6 +133,17 @@ describe("centered profile header (hdr=centered)", () => {
   });
 });
 
+describe("the combined total is always shown", () => {
+  it.each(["v=1&github=jenkruk&f=heatmap", "v=1&github=jenkruk&f="])(
+    "golden: %s decodes with the total on",
+    (query) => {
+      const { config, issues } = decode(query);
+      expect(issues).toEqual([]);
+      expect(config.features.totalContributions).toBe(true);
+    },
+  );
+});
+
 describe("Phase 4.2 panel style (pnl)", () => {
   it("is absent for filled panels, so existing URLs never change", () => {
     expect(decode("v=1&github=jenkruk").config.panel).toBe("filled");

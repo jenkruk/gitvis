@@ -223,8 +223,8 @@ describe("Edit configuration link", () => {
     const search = new URLSearchParams(window.location.search);
     expect(search.get("layout")).toBe("data-rich");
     expect(search.get("palette")).toBe("forest-gold");
-    // Designs always attribute their sources, so account labels join the list.
+    // Designs always attribute their sources and show the combined total, so both join the list.
     expect(search.get("v")).toBe("1");
-    expect(search.get("f")).toBe("heatmap,best,labels");
+    expect(search.get("f")).toBe("heatmap,total,best,labels");
   });
 });

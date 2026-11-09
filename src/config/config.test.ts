@@ -7,6 +7,7 @@ import {
   isFeatureOn,
   presetOf,
   type VisualizationConfig,
+  withAttribution,
 } from "./config";
 import { type FeatureId, FEATURES } from "./features";
 import { LAYOUTS } from "./layouts";
@@ -191,5 +192,14 @@ describe("features move the layout", () => {
     expect(on(minimal, "bestDay").layout).toBe("minimal");
     const dataRich = { ...createDefaultConfig(), layout: "dataRich" as const };
     expect(on(dataRich, "activityTrends").layout).toBe("dataRich");
+  });
+});
+
+describe("the combined total", () => {
+  it("can't be switched off, in the studio or by a URL", () => {
+    const config = createDefaultConfig();
+    expect(configReducer(config, { type: "setFeature", feature: "totalContributions", enabled: false })).toBe(config);
+    const decoded = withAttribution({ ...config, features: { ...config.features, totalContributions: false } });
+    expect(decoded.features.totalContributions).toBe(true);
   });
 });

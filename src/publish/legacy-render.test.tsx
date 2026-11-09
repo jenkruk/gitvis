@@ -20,6 +20,8 @@ import { renderSvgMarkup } from "./svg-markup";
  * were re-recorded once. The only differences are the credit <text> and the taller card (+36px).
  * In the same pre-launch window the graphic lost all links (profile links live under the image in
  * the README snippet instead): header handles became plain <tspan>s and the root got cursor="default".
+ * Also pre-launch: the combined total became always-on (it's the point of GitVis), so "no-features"
+ * (f=, which hid it) now shows it.
  */
 const LEGACY_URLS: Record<string, string> = {
   "dashboard-default": "v=1&github=jenkruk&gitlab=contactkruk",

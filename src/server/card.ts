@@ -17,9 +17,7 @@ export type CardStatus = "ok" | "stale" | "invalid_config" | "not_found" | "unav
 export interface CardResult {
   svg: string;
   status: CardStatus;
-  /** Edge cache lifetime in seconds (Vercel-CDN-Cache-Control s-maxage). */
   edgeMaxAge: number;
-  /** ISO time of the oldest upstream fetch behind the image (live data only). */
   asOf?: string;
 }
 
@@ -59,11 +57,6 @@ function failureCard(look: Look, failure: FailedResult): CardResult {
   });
 }
 
-/**
- * Renders the published SVG for a card URL. Never throws, never exposes
- * internals: every failure becomes an explanatory error card built only from
- * fixed, user-safe strings.
- */
 export type AvatarLoader = (
   request: Partial<Record<PlatformId, string>>,
   platforms: readonly PlatformId[],
@@ -87,16 +80,13 @@ export async function renderCard(
       });
     }
 
-    // Avatars only when the design shows them; fetched in parallel with the data, never fatal.
     const wantsAvatars = config.identity.style !== "none" && config.identity.avatars.length > 0 && loadAvatars;
     const [response, avatars] = await Promise.all([
       loadContributions(request, loaders, { years: config.years }),
       wantsAvatars ? loadAvatars(request, config.identity.avatars).catch(() => ({})) : Promise.resolve({}),
     ]);
-    // Any failed platform → explain it, rather than publishing a misleadingly partial total.
     const failure = response.results.find((r): r is FailedResult => r.status !== "ok");
     if (failure) return failureCard(look, failure);
-    // Requested history that couldn't load → explain, never quietly show fewer years.
     if (response.history && response.history.status !== "ok") {
       return failureCard(look, {
         platform: "github",
@@ -109,7 +99,6 @@ export async function renderCard(
     if (!response.dataset) throw new Error("No dataset despite successful results");
 
     const svg = renderSvgMarkup(createElement(Visualization, { dataset: response.dataset, config, size, avatars }));
-    // Last-known-good data is labeled in the image; keep it short-lived at the edge so recovery shows quickly.
     return response.dataset.freshness?.stale
       ? { svg, status: "stale", edgeMaxAge: MINUTE, asOf: response.dataset.freshness.asOf }
       : { svg, status: "ok", edgeMaxAge: HOUR, asOf: response.dataset.freshness?.asOf };
@@ -123,7 +112,6 @@ export async function renderCard(
   }
 }
 
-/** Strong ETag over the SVG bytes, so camo/browsers revalidate with a cheap 304. */
 export async function svgEtag(svg: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(svg));
   const hex = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");

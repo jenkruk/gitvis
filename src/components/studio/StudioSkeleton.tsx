@@ -1,4 +1,3 @@
-/** Static placeholder while the studio streams in. Pulses only when motion is allowed. */
 export function StudioSkeleton() {
   const block = "rounded-xl bg-zinc-200 motion-safe:animate-pulse dark:bg-zinc-800";
   return (

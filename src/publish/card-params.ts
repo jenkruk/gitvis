@@ -1,11 +1,3 @@
-/**
- * Versioned URL encoding for published graphics and Edit links.
- *
- * ⚠️ PUBLIC CONTRACT. Every URL ever generated must keep decoding to the same
- * design. The code tables below map frozen URL codes to internal ids so code
- * can be renamed freely. Never change or remove an existing code; add new ones.
- * Breaking changes require a new `v` with its own decoder branch.
- */
 import { type ConnectRequest, validateConnectRequest } from "@/adapters/connect";
 import {
   type BackgroundStyle,
@@ -33,7 +25,6 @@ import type { CardSize } from "@/renderers/primitives";
 import type { ColorMode, PaletteId, PanelStyle } from "@/theme/palettes";
 
 export const CARD_PARAMS_VERSION = "1";
-/** Raised from 512 in Phase 4: worst-case percent-encoded Unicode name + title is ~1,600 chars. Camo hex-encodes URLs (~2×); still far below browser/CDN limits. */
 export const MAX_QUERY_LENGTH = 2048;
 
 const LAYOUT_CODES: Record<LayoutId, string> = {
@@ -52,7 +43,6 @@ const PALETTE_CODES: Record<PaletteId, string> = {
   electricCobalt: "electric-cobalt",
   ember: "ember",
   monochrome: "monochrome",
-  // Phase 4 additions
   githubClassic: "github-classic",
   gitlabInspired: "gitlab-inspired",
   nordicFrost: "nordic-frost",
@@ -72,7 +62,6 @@ const PALETTE_CODES: Record<PaletteId, string> = {
 
 const MODE_CODES: Record<ColorMode, string> = { light: "light", dark: "dark" };
 
-/** Added in v1 as an optional param (absent = "full"), so older URLs are unaffected. */
 const SIZE_CODES: Record<CardSize, string> = { full: "full", compact: "compact" };
 
 const FEATURE_CODES: Record<FeatureId, string> = {
@@ -84,16 +73,9 @@ const FEATURE_CODES: Record<FeatureId, string> = {
   platformBreakdown: "breakdown",
   activityTrends: "trends",
   platformLabels: "labels",
-  currentStreak: "current", // Phase 4: off for every earlier URL (explicit enabled-list semantics)
+  currentStreak: "current",
 };
 
-/*
- * Phase 4 optional params. ABSENT = the pre-Phase-4 rendering, frozen forever:
- *   hdr=none · hl=github,gitlab · av=(none) · name/title empty · bg=solid · pc=(palette) ·
- *   ord=total,active,streak,best,current · range=365 · den=spacious
- * Phase 4.2: pnl=filled · yrs=1 (yrs=2|3 require the full 365-day range)
- * Encoders write them only when they differ, so legacy-equivalent designs keep their exact URLs.
- */
 const IDENTITY_CODES: Record<IdentityStyle, string> = {
   none: "none",
   compact: "compact",
@@ -121,7 +103,6 @@ const LEGACY = {
   years: 1 as HistoryYears,
 };
 
-/** Frozen v1 defaults — deliberately NOT derived from createDefaultConfig(), which may evolve. */
 const V1_DEFAULTS = {
   layout: "dashboard",
   palette: "aurora",
@@ -169,7 +150,6 @@ const sameList = <T>(a: readonly T[], b: readonly T[]) => a.length === b.length 
 export interface CardParams {
   request: ConnectRequest;
   config: VisualizationConfig;
-  /** Image variant. Omitted = "full" (the implicit v1 default); only "compact" is written. */
   size?: CardSize;
 }
 
@@ -179,13 +159,9 @@ export interface ParamIssue {
 }
 
 export interface DecodedCardParams {
-  /** Valid usernames, or null when none were provided / any was invalid. */
   request: ConnectRequest | null;
-  /** Always usable: invalid parts fall back to v1 defaults. */
   config: VisualizationConfig;
-  /** Empty when the URL is fully valid. */
   issues: ParamIssue[];
-  /** Present only when the URL asks for a non-default image variant. */
   size?: CardSize;
 }
 
@@ -194,7 +170,6 @@ function flagsFrom(enabled: Iterable<FeatureId>): FeatureFlags {
   return Object.fromEntries(FEATURE_IDS.map((id) => [id, set.has(id)])) as FeatureFlags;
 }
 
-/** Encodes every parameter explicitly so future default changes never alter published images. */
 export function encodeCardParams({ request, config: design, size }: CardParams): URLSearchParams {
   const config = withAttribution(design);
   const params = new URLSearchParams({ v: CARD_PARAMS_VERSION });
@@ -209,13 +184,10 @@ export function encodeCardParams({ request, config: design, size }: CardParams):
       .map((id) => FEATURE_CODES[id])
       .join(","),
   );
-  // "full" is the implicit default of every URL published before `size` existed; only write the variant.
   if (size === "compact") params.set("size", SIZE_CODES.compact);
 
-  // Phase 4 params: only when different from the frozen legacy default.
   const { identity } = config;
   if (identity.style !== LEGACY.identity) params.set("hdr", IDENTITY_CODES[identity.style]);
-  // No `hl`: every connected account is always attributed.
   if (identity.avatars.length) params.set("av", identity.avatars.map((p) => PLATFORM_CODES[p]).join(","));
   if (finalText(identity.name)) params.set("name", finalText(identity.name));
   if (finalText(identity.title)) params.set("title", finalText(identity.title));
@@ -235,7 +207,6 @@ export function encodeCardParams({ request, config: design, size }: CardParams):
   return params;
 }
 
-/** Decodes a card/studio query. Callers choose strictness via `issues`. */
 export function decodeCardParams(search: URLSearchParams): DecodedCardParams {
   const issues: ParamIssue[] = [];
 
@@ -288,7 +259,6 @@ export function decodeCardParams(search: URLSearchParams): DecodedCardParams {
 
   const size = pick("size", SIZE_BY_CODE, "full" as CardSize);
 
-  // ---- Phase 4 optional params (absent = legacy rendering) ----
   const list = <T>(param: string, table: Map<string, T>, fallback: T[]): T[] => {
     const raw = search.get(param);
     if (raw === null) return fallback;
@@ -355,7 +325,6 @@ export function decodeCardParams(search: URLSearchParams): DecodedCardParams {
     years,
   };
   if (years > 1) config.range = 365;
-  // Source attribution is part of the contract: account labels can't be removed (`labels`/`hl` are ignored).
   const decoded = withAttribution(config);
   return size === "full" ? { request, config: decoded, issues } : { request, config: decoded, issues, size };
 }

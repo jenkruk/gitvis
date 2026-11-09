@@ -24,7 +24,6 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-/** Holds snippet options the way Studio does. */
 function Harness({
   initialOptions = { theme: "selected" },
   ...props
@@ -39,7 +38,6 @@ function setup(
   initialOptions?: SnippetOptions,
 ) {
   const user = userEvent.setup();
-  // After setup(): user-event installs its own clipboard stub, which we replace.
   Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
   render(
     <Harness
@@ -93,7 +91,7 @@ describe("PublishPanel", () => {
     const { markdown } = setup(config);
     const doc = new DOMParser().parseFromString(markdown().value.split("\n\n")[0]!, "text/html");
     const img = doc.querySelector("picture > img")!;
-    expect(doc.querySelector("p > picture")).not.toBeNull(); // the image itself isn't a link
+    expect(doc.querySelector("p > picture")).not.toBeNull();
     expect(doc.querySelector("a")).toBeNull();
     expect(img.getAttribute("alt")).toBe("GitVis contribution activity for GitHub @jenkruk");
     const url = new URL(img.getAttribute("src")!);
@@ -191,7 +189,6 @@ describe("offline card source (Storybook)", () => {
     expect(renderCard).toHaveBeenCalledWith(
       expect.stringMatching(/^https:\/\/gitvis\.test\/api\/card\?v=1&github=jenkruk/),
     );
-    // The URL users copy is still the real one.
     expect(screen.getByRole("textbox", { name: "Image URL" })).toHaveValue(renderCard.mock.calls[0]![0]);
 
     await user.click(screen.getByRole("button", { name: "Download SVG" }));
@@ -221,7 +218,6 @@ describe("Edit configuration link", () => {
     const search = new URLSearchParams(window.location.search);
     expect(search.get("layout")).toBe("data-rich");
     expect(search.get("palette")).toBe("forest-gold");
-    // Designs always attribute their sources and show the combined total, so both join the list.
     expect(search.get("v")).toBe("1");
     expect(search.get("f")).toBe("heatmap,total,best,labels");
   });

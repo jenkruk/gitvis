@@ -12,12 +12,10 @@ export function cardUrl(origin: string, params: CardParams): string {
   return `${origin}/api/card?${encodeCardParams(params)}`;
 }
 
-/** Studio URL that restores usernames and every design choice. */
 export function editUrl(origin: string, params: CardParams): string {
   return `${origin}/?${encodeCardParams(params)}`;
 }
 
-/** Image alt text. Names platforms and accounts; numbers change, so they live in the SVG's own description. */
 export function altText(request: ConnectRequest): string {
   const accounts = PLATFORM_IDS.filter((p) => request[p]).map((p) => `${PLATFORMS[p].label} @${request[p]}`);
   return `GitVis contribution activity for ${accounts.join(" and ")}`;
@@ -31,36 +29,19 @@ export interface SnippetOptions {
   theme: ReadmeTheme;
 }
 
-/** Transparent graphics must follow the reader's theme, or light text would sit on a light page (and vice versa). */
 export function effectiveSnippetOptions(options: SnippetOptions, config: VisualizationConfig): SnippetOptions {
   return config.background === "transparent" ? { theme: "auto" } : options;
 }
 
-/**
- * The README snippet: the card as an unlinked image, then its only links:
- * "Get Yours · open source on GitHub" right under the card's credit line.
- *
- * The image is always an HTML <picture>: GitHub links a plain Markdown image to
- * itself, but leaves a <picture> unlinked (verified November 2026). The graphic
- * itself contains no links either. GitHub strips `target`, so the links open in
- * the same tab.
- */
 export function readmeSnippet(origin: string, params: CardParams, options: SnippetOptions): string {
   const image = imageSnippet(origin, params, effectiveSnippetOptions(options, params.config));
-  // A blank line ends the card's HTML block; the links are their own block.
   return `${image}\n\n${linksSnippet(origin, params)}`;
 }
 
 export type LabelTarget = { cta: true } | { repo: true } | { gitlab: string };
 
-/**
- * Bump whenever a label URL's image changes. /api/label is cached for up to a
- * year by Vercel, browsers and GitHub's image proxy, so an unchanged URL keeps
- * showing the old image (v1 labels were text-width and showed up mid-line).
- */
 export const LABEL_VERSION = "2";
 
-/** GitVis's image of a link's text, in GitHub's dark or light theme (see /api/label). */
 export function labelUrl(
   origin: string,
   target: LabelTarget,
@@ -80,31 +61,17 @@ export function labelUrl(
   if (color) query.set("color", color.replace("#", "").toLowerCase());
   if (inset) query.set("inset", "1");
   if (line) query.set("line", "1");
-  // Label images are cached for a long time: a new version gets new URLs.
   query.set("v", LABEL_VERSION);
   return `${origin}/api/label?${query}`;
 }
 
-/** The design's GitLab color in each theme (the palette's, or the user's custom color). */
 export function linkColor(config: VisualizationConfig, mode: ColorMode): string {
   const custom = config.platformColors.gitlab;
   return resolveTheme(config.palette, mode, custom ? { series: [undefined, custom] } : {}).series[1];
 }
 
-/**
- * "Get Yours · open source on GitHub", left-aligned right under the card's
- * "Made with GitVis" credit. GitHub keeps no widths, colors or padding in
- * READMEs, and the line has two links, so it's two images GitVis draws: "Get
- * Yours" (inset like the credit, just wide enough for its text) and "· open
- * source on GitHub" filling the rest of the card's width. Together they're
- * exactly as wide as the card and centered like it, so the line starts under
- * the credit. In the card's GitLab color. Alt text is each link's text. No
- * whitespace between or inside the links (it would render as gaps or underlined
- * spaces). README columns narrower than the card wrap the second link.
- */
 function linksSnippet(origin: string, params: CardParams): string {
   const attr = escapeMarkup;
-  // The links use the graphic's GitLab color, in the reader's theme.
   const url = (target: LabelTarget, mode: ColorMode) =>
     labelUrl(origin, target, mode, { line: true, color: linkColor(params.config, mode) });
   const label = (href: string, target: LabelTarget, alt: string) =>
@@ -117,12 +84,6 @@ function linksSnippet(origin: string, params: CardParams): string {
   return ['<p align="center">', `  ${links}`, "</p>"].join("\n");
 }
 
-/**
- * Always the full 840px image, centered (GitHub scales it to fit narrow screens). Phone
- * images aren't offered: GitHub's <themed-picture> rewrites theme media queries
- * for signed-in readers and drops width conditions, which served the phone image
- * on desktops (verified Nov 2026). `size=compact` URLs still render for old links.
- */
 function imageSnippet(origin: string, params: CardParams, { theme }: SnippetOptions): string {
   const alt = altText(params.request);
   const sources: [media: string, params: CardParams][] =
@@ -134,7 +95,6 @@ function imageSnippet(origin: string, params: CardParams, { theme }: SnippetOpti
       : [];
 
   const attr = escapeMarkup;
-  // Centered, like the links line below it, so the two always line up.
   return [
     '<p align="center">',
     "  <picture>",
@@ -150,10 +110,6 @@ export function downloadName(request: ConnectRequest, extension: "svg" | "png"):
   return `gitvis-${names.join("-") || "graphic"}.${extension}`;
 }
 
-/**
- * Query string for the studio address bar: the full Edit link when connected,
- * just the design when it differs from defaults, otherwise empty.
- */
 export function studioSearch(request: ConnectRequest | null, config: VisualizationConfig): string {
   if (request) return encodeCardParams({ request, config }).toString();
   const design = encodeCardParams({ request: {}, config }).toString();

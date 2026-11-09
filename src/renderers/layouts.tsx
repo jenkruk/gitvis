@@ -38,7 +38,6 @@ import {
 import { buildStatItem, orderedStats } from "./stats";
 import { wrapText } from "./text";
 
-/** Vertical rhythm per density. "spacious" is the original (pre-Phase-4) spacing — keep it byte-identical. */
 export interface Spacing {
   sectionGap: number;
   panelPadding: number;
@@ -53,17 +52,11 @@ export const SPACING: Record<Density, Spacing> = {
 };
 
 export interface LayoutContext {
-  /** Metrics scope: the span every connected platform covers. */
   dataset: ContributionDataset;
-  /** What the calendars show (may be longer than `dataset` with multi-year history). Defaults to `dataset`. */
   calendar?: ContributionDataset;
-  /** 12-month periods to draw as separate calendars (multi-year only). */
   periods?: PeriodSummary[];
-  /** Multi-year only: the summary statistics' reporting period, e.g. "Last 12 months · GitHub + GitLab". */
   statsLabel?: string;
-  /** The period alone ("Last 12 months"), appended to breakdown and chart titles. */
   statsPeriod?: string;
-  /** Explains that fewer years are shown than requested. */
   historyNote?: string;
   metrics: ContributionMetrics;
   theme: ThemeTokens;
@@ -82,13 +75,11 @@ function statItems({ metrics, isVisible, metricOrder }: LayoutContext) {
   return orderedStats(metricOrder, isVisible).map((id) => buildStatItem(id, metrics));
 }
 
-/** Stats shown inside the newest year's card: its header already states the total, so it isn't repeated. */
 const cardStatItems = (ctx: LayoutContext) => statItems(ctx).filter((item) => item.id !== "totalContributions");
 
 const calendarOf = (ctx: LayoutContext) => ctx.calendar ?? ctx.dataset;
 const isHistory = (ctx: LayoutContext) => (ctx.periods?.length ?? 0) > 1;
 
-/** Compact images show the most recent weeks so cells stay large enough to read. */
 function heatmapDays(ctx: LayoutContext): CombinedDay[] {
   const { days } = calendarOf(ctx);
   if (!isCompact(ctx) || days.length === 0) return days;
@@ -96,7 +87,6 @@ function heatmapDays(ctx: LayoutContext): CombinedDay[] {
   return days.filter((d) => d.date >= first);
 }
 
-/** The "Last N weeks" caption appears only when the compact image actually trims the range. */
 function showCaption(ctx: LayoutContext, days: CombinedDay[]): boolean {
   return isCompact(ctx) && days.length < calendarOf(ctx).days.length;
 }
@@ -109,7 +99,6 @@ function Caption({ ctx, x, y }: { ctx: LayoutContext; x: number; y: number }) {
   );
 }
 
-/** A wrapped muted note (scope / history explanations). Only added when there's something to explain. */
 const NOTE = { fontSize: 11, lineHeight: 15 };
 function note(ctx: LayoutContext, key: string, text: string | undefined): Section | null {
   if (!text) return null;
@@ -129,7 +118,6 @@ function note(ctx: LayoutContext, key: string, text: string | undefined): Sectio
   };
 }
 
-/** Multi-year only: a concise heading naming the period and accounts behind every summary statistic. */
 function statsHeading(ctx: LayoutContext): Section | null {
   if (!ctx.statsLabel) return null;
   return {
@@ -143,10 +131,6 @@ function statsHeading(ctx: LayoutContext): Section | null {
   };
 }
 
-/**
- * Full-width images: one card per 12-month period, newest first, each with its
- * own header and the panel style's frame (Borderless: an invisible frame with the same padding).
- */
 function yearCards(ctx: LayoutContext, newestContent?: CardContent): Section[] {
   const periods = ctx.periods ?? [];
   const calendar = calendarOf(ctx);
@@ -177,18 +161,11 @@ function yearCards(ctx: LayoutContext, newestContent?: CardContent): Section[] {
   });
 }
 
-/**
- * Multi-year full images put the summary stats INSIDE the newest year's card, so
- * its border says which year they describe. Phones and heatmap-less designs keep
- * stats above, under a "Last 12 months · …" heading.
- */
 const statsInNewestCard = (ctx: LayoutContext) => isHistory(ctx) && !isCompact(ctx) && ctx.isVisible("heatmap");
 
-/** Stat cards (Dashboard, Data-rich) laid out for any width — the canvas or a year card's interior. */
 function statCardsBlock(ctx: LayoutContext, detailed: boolean, inCard = false): CardContent | null {
   const items = inCard ? cardStatItems(ctx) : statItems(ctx);
   if (items.length === 0) return null;
-  // Up to 4 cards share one row (the original layout); 5 wrap into rows of 3 so labels stay readable.
   const columns = isCompact(ctx) ? 2 : items.length > 4 ? 3 : Infinity;
   const cardHeight = detailed ? ctx.spacing.statCardDetailed : ctx.spacing.statCard;
   return {
@@ -208,10 +185,8 @@ function statCardsBlock(ctx: LayoutContext, detailed: boolean, inCard = false): 
   };
 }
 
-/** Inner width of a year card (every panel style keeps the same padding). */
 const cardInnerWidth = (ctx: LayoutContext) => width(ctx) - ctx.spacing.panelPadding * 2;
 
-/** The heatmap: year cards for multi-year full images, the single (or recent-weeks) calendar otherwise. */
 function heatmapSections(ctx: LayoutContext, detailed: boolean): (Section | null)[] {
   if (!ctx.isVisible("heatmap")) return [];
   if (isHistory(ctx) && !isCompact(ctx)) {
@@ -220,7 +195,6 @@ function heatmapSections(ctx: LayoutContext, detailed: boolean): (Section | null
   return [yearlySummary(ctx, true), heatmapPanel(ctx)];
 }
 
-/** Phones: yearly summaries (text) above the readable recent-weeks heatmap. */
 function yearlySummary(ctx: LayoutContext, framed: boolean): Section | null {
   if (!isHistory(ctx) || !isCompact(ctx)) return null;
   const pad = framed ? ctx.spacing.panelPadding : 0;
@@ -304,7 +278,6 @@ function footnote(ctx: LayoutContext): Section {
 
 const compact = (sections: (Section | null | false)[]): Section[] => sections.filter((s): s is Section => !!s);
 
-/** Each layout composes registry-driven sections; feature visibility is decided centrally. */
 export const LAYOUT_SECTIONS: Record<LayoutId, (ctx: LayoutContext) => Section[]> = {
   minimal: (ctx) => {
     const items = statItems(ctx);

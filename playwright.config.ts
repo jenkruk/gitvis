@@ -1,10 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
 
-/**
- * E2E runs a production build against a local fake upstream (e2e/fake-upstream.mjs),
- * so tests are deterministic, never touch real GitHub/GitLab, and can shrink the
- * 12h freshness window to seconds to exercise cache expiry for real.
- */
 const PORT = 3100;
 const UPSTREAM = "http://127.0.0.1:4010";
 
@@ -12,7 +7,6 @@ export const E2E_POLICY = { ttlSeconds: 4, maxStaleSeconds: 12 };
 
 export default defineConfig({
   testDir: "e2e",
-  // Cache tests depend on wall-clock windows and shared server state; keep runs serial.
   fullyParallel: false,
   workers: 1,
   timeout: 60_000,

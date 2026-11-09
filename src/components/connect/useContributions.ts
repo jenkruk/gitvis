@@ -19,11 +19,6 @@ interface Connected {
   response: ContributionsResponse;
 }
 
-/**
- * Client-side loading for the Connect flow. Keeps the last successful
- * response (and the request that produced it) while a new request is in
- * flight, so the preview and publish links never blank or drift.
- */
 export function useContributions(initial: InitialConnection) {
   const [state, setState] = useState<ConnectionState>(() =>
     initial.request && initial.response
@@ -37,7 +32,6 @@ export function useContributions(initial: InitialConnection) {
 
   useEffect(() => () => inFlight.current?.abort(), []);
 
-  /** Resolves with the loaded response, or null on failure / abort. */
   const connect = useCallback(async (request: ConnectRequest, years = 1): Promise<ContributionsResponse | null> => {
     inFlight.current?.abort();
     const controller = new AbortController();
@@ -82,7 +76,6 @@ export function useContributions(initial: InitialConnection) {
   return {
     state,
     response: connected?.response ?? null,
-    /** The request behind the data currently shown (not an in-flight one). */
     request: connected?.request ?? null,
     connect,
     disconnect,

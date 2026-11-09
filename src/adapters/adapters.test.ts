@@ -26,7 +26,6 @@ describe("username validation", () => {
 
 describe("normalizeGitLabCalendar", () => {
   it("normalizes the sparse calendar.json shape", () => {
-    // Shape matches a real GitLab.com response (values illustrative).
     const result = normalizeGitLabCalendar("contactkruk", { "2026-08-25": 10, "2026-07-01": 2, "2026-08-19": 8 });
     expect(result).toEqual({
       ok: true,
@@ -124,7 +123,7 @@ describe("GitHub history query", () => {
     const { githubYearsQuery, githubYearsVariables } = await import("./github");
     const query = githubYearsQuery(3);
     expect(query.match(/contributionsCollection\(from: \$from\d, to: \$to\d\)/g)).toHaveLength(3);
-    expect(query).not.toMatch(/\d{4}-\d{2}-\d{2}/); // no literal dates
+    expect(query).not.toMatch(/\d{4}-\d{2}-\d{2}/);
     expect(githubYearsVariables('jen"kruk', [2023, 2024])).toEqual({
       login: 'jen"kruk',
       from0: "2023-01-01T00:00:00Z",
@@ -132,7 +131,7 @@ describe("GitHub history query", () => {
       from1: "2024-01-01T00:00:00Z",
       to1: "2024-12-31T23:59:59Z",
     });
-    expect(githubYearsQuery(99).match(/contributionsCollection/g)).toHaveLength(4); // bounded
+    expect(githubYearsQuery(99).match(/contributionsCollection/g)).toHaveLength(4);
   });
 
   it("normalizes each year and rejects incomplete responses", async () => {

@@ -34,7 +34,6 @@ const HEADER_PRESETS: { id: IdentityStyle; label: string; description: string }[
   { id: "centered", label: "Centered profile", description: "Name and dates centered, an account on each side." },
 ];
 
-/** Profile header preset plus independent handle, avatar, name and title options. */
 export function IdentityPicker({ config, dispatch }: Props) {
   const { identity } = config;
   const off = identity.style === "none";
@@ -181,7 +180,6 @@ const PANELS: { id: PanelStyle; label: string }[] = [
   { id: "borderless", label: "Borderless" },
 ];
 
-/** A tiny drawing of each panel style, so the choice is visible without a description. */
 function PanelSwatch({ style }: { style: PanelStyle }) {
   return (
     <svg aria-hidden="true" width="40" height="24" viewBox="0 0 40 24" className="text-zinc-500 dark:text-zinc-400">
@@ -201,7 +199,6 @@ function PanelSwatch({ style }: { style: PanelStyle }) {
   );
 }
 
-/** Panel appearance for cards, the heatmap and charts — independent of the background. */
 export function PanelPicker({ config, dispatch }: Props) {
   return (
     <ControlGroup legend="Panels">
@@ -224,7 +221,6 @@ export function PanelPicker({ config, dispatch }: Props) {
   );
 }
 
-/** Per-platform series colors, independent of the palette; adjusted automatically to keep 3:1 contrast. */
 export function PlatformColorPicker({ config, dispatch }: Props) {
   const base = resolveTheme(config.palette, config.mode);
   const custom = config.platformColors;
@@ -280,7 +276,6 @@ const DENSITY_OPTIONS: { id: Density; label: string }[] = [
   { id: "compact", label: "Compact" },
 ];
 
-/** Whether earlier years can be shown for the current data, and why not. */
 export interface HistoryAvailability {
   available: boolean;
   reason?: string;
@@ -297,7 +292,6 @@ export function historyAvailability(dataset: ContributionDataset): HistoryAvaila
 }
 
 export function DataPicker({ config, dispatch, history }: Props & { history: HistoryAvailability }) {
-  // Links made with the old 30/90-day options keep their range; it's listed until another choice is made.
   const legacyRange = config.range < 365 ? config.range : null;
   const description = [
     history.available ? "Earlier years come from GitHub; GitLab publishes only the last 12 months." : history.reason,

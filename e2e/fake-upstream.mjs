@@ -1,25 +1,13 @@
-/**
- * Fake GitHub GraphQL + GitLab calendar upstream for E2E tests.
- * GitVis points at it via GITVIS_GITHUB_GRAPHQL_URL / GITVIS_GITLAB_ORIGIN.
- *
- * Per-username behaviour is controlled over HTTP:
- *   POST /__control {"user":"name","mode":"ok"|"fail"|"notfound","count":3}
- *   GET  /__hits?user=name  → {"github":n,"gitlab":n}
- *
- * Avatars (GITVIS_GITHUB_AVATAR_ORIGIN / GitLab users API): users whose name
- * contains "noavatar" get a 404, so the monogram fallback can be exercised.
- */
 import { createServer } from "node:http";
 
 const PORT = Number(process.env.FAKE_UPSTREAM_PORT ?? 4010);
-const users = new Map(); // user → { mode, count, hits: { github, gitlab } }
+const users = new Map();
 
 function state(user) {
   if (!users.has(user)) users.set(user, { mode: "ok", count: 3, hits: { github: 0, gitlab: 0, history: 0 } });
   return users.get(user);
 }
 
-// 1×1 transparent PNG.
 const PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
   "base64",
@@ -78,7 +66,6 @@ createServer(async (req, res) => {
   if (req.method === "POST" && url.pathname === "/graphql") {
     const { variables } = await readBody(req);
     const s = state(variables?.login);
-    // History query: aliased per-year collections (y0, y1, …) with $fromN/$toN variables.
     if (variables && "from0" in variables) {
       s.hits.history += 1;
       if (s.mode === "fail") return json(res, 502, { message: "bad gateway" });

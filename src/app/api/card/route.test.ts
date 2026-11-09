@@ -10,7 +10,7 @@ const { CARD_LIMIT_PER_MINUTE } = await import("@/server/rate-limit");
 
 let ip = 0;
 function get(query: string, headers: Record<string, string> = {}) {
-  ip += 1; // a fresh client per request unless a test pins one
+  ip += 1;
   return GET(
     new NextRequest(`http://localhost/api/card?${query}`, {
       headers: { "x-forwarded-for": `203.0.113.${ip % 250}`, ...headers },
@@ -71,6 +71,6 @@ describe("GET /api/card", () => {
     const limited = await get("github=jenkruk", pinned);
     expect(limited.status).toBe(429);
     expect(Number(limited.headers.get("Retry-After"))).toBeGreaterThan(0);
-    expect((await get("github=jenkruk")).status).toBe(200); // other clients unaffected
+    expect((await get("github=jenkruk")).status).toBe(200);
   });
 });

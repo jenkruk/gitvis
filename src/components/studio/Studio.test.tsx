@@ -147,7 +147,7 @@ describe("design step", () => {
   });
 
   it("starting presets switch between a graphic and a profile card without touching the rest", async () => {
-    fetchMock.mockImplementation(async () => Response.json({ dataUri: null })); // avatar lookups
+    fetchMock.mockImplementation(async () => Response.json({ dataUri: null }));
     const { user } = setup({ initialRequest: { gitlab: "contactkruk" }, initialResponse: live });
     const search = () => new URLSearchParams(window.location.search);
     await user.click(screen.getByRole("radio", { name: /data-rich/i }));
@@ -199,7 +199,7 @@ describe("design step", () => {
 
     await user.click(within(group).getByRole("radio", { name: /borderless/i }));
     expect(panelRects()).toHaveLength(0);
-    expect(screen.getByRole("radio", { name: /^solid/i })).toBeChecked(); // background untouched
+    expect(screen.getByRole("radio", { name: /^solid/i })).toBeChecked();
   });
 
   it("shows six curated palettes until View all is pressed", async () => {
@@ -227,7 +227,6 @@ describe("design step", () => {
     const mode = screen.getByRole("group", { name: "Mode" });
     expect(mode.closest("details")).toBeNull();
     expect(within(mode).getByRole("radio", { name: /dark/i })).toBeChecked();
-    // Mode comes right before the palettes it previews.
     const palette = screen.getByRole("group", { name: "Palette" });
     expect(mode.compareDocumentPosition(palette) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -249,7 +248,6 @@ describe("design step", () => {
   it("feature toggles are switches with defaults from the registry", () => {
     design();
     expect(screen.getByRole("switch", { name: /best day/i })).not.toBeChecked();
-    // The combined total can't be switched off: no switch, an "Always shown" note, still reorderable.
     expect(screen.queryByRole("switch", { name: /total contributions/i })).not.toBeInTheDocument();
     expect(screen.getByText(/sum of contributions reported by each platform\. always shown\./i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Move Total contributions down" })).toBeEnabled();
@@ -271,14 +269,12 @@ describe("design step", () => {
     await user.click(layout(/minimal/i));
     await user.click(screen.getByText("Metrics & Charts"));
 
-    // Minimal can't show the breakdown or trends, so their switches read as off (no explanatory note).
     const breakdown = () => screen.getByRole("switch", { name: /breakdown/i });
     const trends = () => screen.getByRole("switch", { name: /trends/i });
     expect(breakdown()).not.toBeChecked();
     expect(trends()).not.toBeChecked();
     expect(screen.queryByText(/not shown in the/i)).not.toBeInTheDocument();
 
-    // Turning one on moves to the smallest layout that shows it, and says so.
     breakdown().focus();
     await user.keyboard(" ");
     expect(layout(/dashboard/i)).toBeChecked();
@@ -289,14 +285,12 @@ describe("design step", () => {
     await user.click(trends());
     expect(layout(/data-rich/i)).toBeChecked();
 
-    // Turning off the last feature Minimal lacks moves back to Minimal.
     await user.click(trends());
-    expect(layout(/data-rich/i)).toBeChecked(); // the breakdown is still on
+    expect(layout(/data-rich/i)).toBeChecked();
     await user.click(breakdown());
     expect(layout(/minimal/i)).toBeChecked();
     expect(screen.getByText("Layout switched to Minimal after hiding GitHub / GitLab breakdown.")).toBeVisible();
 
-    // Statistics never move the layout.
     await user.click(screen.getByRole("switch", { name: /active days/i }));
     expect(layout(/minimal/i)).toBeChecked();
   });
@@ -333,8 +327,6 @@ describe("design step", () => {
   });
 });
 
-// What the server returns for Nov 6, 2026: each platform covers its own profile year
-// (GitHub's from Sunday Nov 2, 2025; GitLab's from Nov 6, 2025), and 3 years reach back to Nov 3, 2023.
 const GITHUB_YEAR = { start: toISODate("2025-11-02"), end: toISODate("2026-11-06") };
 const GITLAB_YEAR = { start: toISODate("2025-11-06"), end: toISODate("2026-11-06") };
 const THREE_YEARS = { start: toISODate("2023-11-03"), end: toISODate("2026-11-06") };
@@ -455,7 +447,7 @@ describe("source attribution", () => {
 
   it("shows the accounts even for a link that tried to hide them", () => {
     const { config } = decodeCardParams(new URLSearchParams("v=1&gitlab=contactkruk&f=heatmap,total&hl="));
-    expect(config.features.platformLabels).toBe(true); // attribution can't be removed
+    expect(config.features.platformLabels).toBe(true);
     const { preview } = setup({
       initialRequest: { gitlab: "contactkruk" },
       initialResponse: live,

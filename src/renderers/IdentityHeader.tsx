@@ -8,7 +8,6 @@ import { seriesColor, StatusBadge } from "./sections";
 import { attributionLayout } from "./attribution";
 import { wrapText } from "./text";
 
-/** Avatar images as data: URIs (never external URLs — SVGs used as <img> can't load them). */
 export type AvatarImages = Partial<Record<PlatformId, string>>;
 
 const BADGE_ALLOWANCE = 150;
@@ -20,7 +19,6 @@ interface Geometry {
   height: number;
 }
 
-/** Header sizes per style; compact canvases get a slightly smaller full profile. */
 function geometry(
   style: "compact" | "full",
   compactCanvas: boolean,
@@ -32,7 +30,6 @@ function geometry(
   }
   const avatar = compactCanvas ? 48 : 64;
   const nameSize = compactCanvas ? 17 : 20;
-  // name, optional title, then range/handles line(s)
   const lines = 1 + (hasTitle ? 1 : 0) + 1 + (handlesOwnLine ? 1 : 0);
   return { avatar, nameSize, titleSize: 13, height: Math.max(avatar, 8 + lines * 19) };
 }
@@ -53,7 +50,6 @@ function handleSources(dataset: ContributionDataset, identity: IdentityConfig, s
   return showHandles ? dataset.sources.filter((s) => identity.handles.includes(s.platform)) : [];
 }
 
-/** Where the text column starts (after any avatars) and how the attribution line is laid out. */
 function metaLayout(
   dataset: ContributionDataset,
   identity: IdentityConfig & { style: "compact" | "full" },
@@ -126,7 +122,6 @@ export function Avatar({
           />
         </>
       ) : (
-        // Monogram fallback: no network dependency, still identifies the platform by its ring color and initial.
         <>
           <circle cx={x + r} cy={y + r} r={r} fill={ring} />
           <text
@@ -147,7 +142,6 @@ export function Avatar({
   );
 }
 
-/** Compact Identity / Full Profile headers: avatars, display name, title, handles and range. */
 export function IdentityHeader({
   dataset,
   theme,

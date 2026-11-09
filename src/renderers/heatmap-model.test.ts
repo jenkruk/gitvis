@@ -26,10 +26,9 @@ describe("buildHeatmapGrid", () => {
   const grid = buildHeatmapGrid(dataset.days);
 
   it("places days in Sunday-first week columns", () => {
-    // 2026-01-01 is a Thursday → column 0, row 4. 2026-01-04 (Sunday) starts column 1.
     expect(grid.cells[0]).toMatchObject({ column: 0, row: 4 });
     expect(grid.cells[3]).toMatchObject({ column: 1, row: 0 });
-    expect(grid.columns).toBe(14); // week origin Sun 2025-12-28 … Tue 2026-03-31
+    expect(grid.columns).toBe(14);
   });
 
   it("labels months at the column containing the 1st", () => {

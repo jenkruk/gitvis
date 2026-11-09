@@ -44,7 +44,7 @@ describe("fetchAvatar", () => {
 
     const fetchImpl = vi.fn<typeof fetch>(async () => Response.json([{ avatar_url: "https://evil.example/a.png" }]));
     expect(await fetchAvatar("gitlab", "u", { fetchImpl })).toBeNull();
-    expect(fetchImpl).toHaveBeenCalledTimes(1); // never requested the evil URL
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("follows a redirect that stays within the allowlist", async () => {
@@ -87,7 +87,7 @@ describe("createAvatarLoader", () => {
     expect(s.set).toHaveBeenCalledWith(avatarKey("github", "jenkruk"), expect.any(Object), 24 * 3600);
 
     await load({ github: "jenkruk" }, ["github"]);
-    expect(deps.fetchImpl).toHaveBeenCalledTimes(1); // served from cache
+    expect(deps.fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("remembers missing avatars for an hour and returns nothing for them", async () => {

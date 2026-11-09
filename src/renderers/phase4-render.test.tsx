@@ -52,9 +52,8 @@ describe("profile identity", () => {
     expect(svg).toContain(">Jen Kruk</text>");
     expect(svg).toContain("Senior Frontend Engineer");
     expect(svg).toContain(`href="${AVATAR}"`);
-    expect(svg).not.toMatch(/href="https?:\/\/[^"]*\.(png|jpe?g)/); // never an external image
+    expect(svg).not.toMatch(/href="https?:\/\/[^"]*\.(png|jpe?g)/);
     expect(svg).toContain('clip-path="url(#gitvis-avatar-github)"');
-    // GitLab avatar missing → monogram initial, not a broken image.
     expect(svg).toMatch(/<text[^>]*>C<\/text>/);
   });
 
@@ -135,7 +134,6 @@ describe("centered profile header", () => {
       expect(svg).not.toMatch(/href="https?:/);
       expect(svg).not.toContain('cursor="pointer"');
       expect(svg).toMatch(/^<svg [^>]*cursor="default"/);
-      // Attribution stays: both accounts are still named.
       expect(svg).toContain("@jenkruk");
       expect(svg).toContain("@contactkruk");
     }
@@ -181,7 +179,6 @@ describe("credit line", () => {
     for (const layout of LAYOUT_IDS) {
       for (const size of ["full", "compact"] as const) {
         const svg = render({ ...createDefaultConfig(), layout }, { size });
-        // Last element, left-aligned at the content edge, after the footnote.
         expect(svg).toMatch(
           /<text x="24" y="[\d.]+" font-size="14"[^>]*>Made with GitVis · created by Jen Kruk<\/text><\/svg>$/,
         );
@@ -209,7 +206,7 @@ describe("platform colors", () => {
     const surface = resolveTheme("aurora", "dark").surface;
     const config = with_(
       { type: "setPlatformColor", platform: "github", color: "#ff7a59" },
-      { type: "setPlatformColor", platform: "gitlab", color: surface }, // invisible on the surface
+      { type: "setPlatformColor", platform: "gitlab", color: surface },
     );
     const svg = render(config);
     expect(svg).toContain('fill="#ff7a59"');
@@ -226,7 +223,7 @@ describe("date range, density and metric order", () => {
     expect(desc(svg)).toContain(
       `from ${new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" }).format(new Date(`${start}T00:00:00Z`))}`,
     );
-    expect(svg.match(/contributions? on /g)!.length).toBe(days); // one heatmap cell tooltip per day
+    expect(svg.match(/contributions? on /g)!.length).toBe(days);
   });
 
   it("compact density produces a shorter graphic than spacious", () => {
@@ -307,7 +304,7 @@ describe("panel styles (Phase 4.2)", () => {
   it("filled draws every panel with the surface fill and border", () => {
     const theme = resolveTheme("aurora", "dark");
     const rects = panels(render(dataRich("filled")));
-    expect(rects.length).toBeGreaterThanOrEqual(6); // 4 stat cards, heatmap, breakdown, charts
+    expect(rects.length).toBeGreaterThanOrEqual(6);
     for (const rect of rects) expect(rect).toContain(`fill="${theme.surface}" stroke="${theme.border}"`);
   });
 
@@ -322,7 +319,6 @@ describe("panel styles (Phase 4.2)", () => {
     const svg = render(dataRich("borderless"));
     expect(panels(svg)).toEqual([]);
     for (const label of [">Contributions<", "Platform breakdown", ">Less<", ">More<"]) expect(svg).toContain(label);
-    // Same geometry: sections keep their spacing, so the graphic's height doesn't change.
     const height = (markup: string) => /height="(\d+)"/.exec(markup)![1];
     expect(height(svg)).toBe(height(render(dataRich("filled"))));
   });
@@ -331,7 +327,7 @@ describe("panel styles (Phase 4.2)", () => {
     const svg = render(
       with_({ type: "setPanel", panel: "outlined" }, { type: "setBackground", background: "transparent" }),
     );
-    expect(svg).not.toMatch(/<rect x="0.5" y="0.5"/); // no canvas
+    expect(svg).not.toMatch(/<rect x="0.5" y="0.5"/);
     expect(panels(svg).length).toBeGreaterThan(0);
   });
 });
@@ -359,9 +355,7 @@ describe("heatmap colored by platform (custom platform colors)", () => {
     const githubOnly = cells(svg).find((c) => /\(GitHub \d+\)$/.test(c.title))!;
     expect(gitlabRamp.slice(1)).toContain(gitlabOnly.fill);
     expect(githubRamp.slice(1)).toContain(githubOnly.fill);
-    // Single-platform days now name their platform in the tooltip.
     expect(gitlabOnly.title).toMatch(/ on .+ \(GitLab \d+\)$/);
-    // The legend labels each hue.
     expect(svg).toMatch(/>Less<\/text>.*>GitHub<\/text>.*>GitLab<\/text>.*>More<\/text>/s);
   });
 

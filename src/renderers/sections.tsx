@@ -7,24 +7,16 @@ import type { StatItem } from "./stats";
 import { type AttributionLayout, attributionLayout } from "./attribution";
 import { maxCharsFor, wrapText } from "./text";
 
-/** Platform → series color, stable regardless of which platforms are connected. */
 export function seriesColor(theme: ThemeTokens, platform: PlatformId): string {
   return theme.series[PLATFORM_IDS.indexOf(platform) % theme.series.length]!;
 }
 
-/* ------------------------------------------------------------------ Header */
-
 export const HEADER_HEIGHT = 40;
 
-/**
- * Compact images put platform labels on their own line so nothing overflows; full
- * images do too when the labels wouldn't fit beside the date range (`overflow`).
- */
 export function headerHeight(compact: boolean, showPlatformLabels: boolean, overflow = false): number {
   return (compact || overflow) && showPlatformLabels ? 58 : HEADER_HEIGHT;
 }
 
-/** The standard header's attribution layout (shared by Header and the canvas height calculation). */
 export function headerAttribution(
   dataset: ContributionDataset,
   handles: readonly PlatformId[],
@@ -55,7 +47,6 @@ export function Header({
   width: number;
   showPlatformLabels: boolean;
   compact?: boolean;
-  /** Platforms whose @handle is shown (default: all connected). */
   handles?: readonly PlatformId[];
 }) {
   const { range } = dataset;
@@ -78,7 +69,6 @@ export function Header({
           <tspan dx={4}>@{attribution.display(source)}</tspan>
         </>
       );
-      // No links in the graphic: it's an image in READMEs. Links live under it in the snippet.
       return <tspan key={source.platform}>{label}</tspan>;
     });
 
@@ -101,17 +91,11 @@ export function Header({
   );
 }
 
-/**
- * Non-removable labels: "Sample data" for synthetic datasets, and the data date
- * when last-known-good data is shown after a failed refresh.
- */
-/** Height of the sample/stale-data badge (when one is shown). */
 export const STATUS_BADGE_HEIGHT = 22;
 
 export const hasStatusBadge = (dataset: ContributionDataset) =>
   dataset.provenance === "sample" || !!dataset.freshness?.stale;
 
-/** `x` is the badge's right edge, or its center with `anchor="middle"`. */
 export function StatusBadge({
   dataset,
   theme,
@@ -168,15 +152,12 @@ function Badge({
   );
 }
 
-/* --------------------------------------------------------------- Stat cards */
-
 const STAT_GAP = 12;
 
 function cardHeight(detailed: boolean): number {
   return detailed ? 84 : 70;
 }
 
-/** Height of the stat-card grid; `columns` caps cards per row (compact images use 2). */
 export function statCardsHeight(
   detailed: boolean,
   count = 1,
@@ -199,13 +180,11 @@ export function StatCards({
 }: {
   items: StatItem[];
   theme: ThemeTokens;
-  /** Left edge (defaults to the canvas padding; inset when placed inside a year card). */
   x?: number;
   y: number;
   width: number;
   detailed: boolean;
   columns?: number;
-  /** Shorter in the compact density; text baselines move up accordingly. */
   cardHeight?: number;
 }) {
   const perRow = Math.min(columns, items.length);
@@ -242,11 +221,8 @@ export function StatCards({
   );
 }
 
-/* ------------------------------------------------------------- Inline stats */
-
 const INLINE_STATS = { fontSize: 13, lineHeight: 18 };
 
-/** Packs stat phrases into as few lines as fit `width` (never splitting a phrase). */
 function packInlineStats(items: StatItem[], width: number): StatItem[][] {
   const limit = maxCharsFor(width, INLINE_STATS.fontSize);
   const lines: StatItem[][] = [];
@@ -299,8 +275,6 @@ export function InlineStats({
   );
 }
 
-/* ------------------------------------------------------- Platform breakdown */
-
 export const BREAKDOWN_HEIGHT = 74;
 
 export function PlatformBreakdown({
@@ -316,7 +290,6 @@ export function PlatformBreakdown({
   y: number;
   width: number;
   height?: number;
-  /** Multi-year only: the reporting period, appended to the title. */
   period?: string;
 }) {
   const inner = width - 32;
@@ -362,12 +335,9 @@ export function PlatformBreakdown({
   );
 }
 
-/* ----------------------------------------------------------- Trend charts */
-
 export const TRENDS_HEIGHT = 170;
 const TRENDS_GAP = 16;
 
-/** Side by side normally; stacked full-width in compact images. */
 export function trendsHeight(stacked: boolean, panelHeight = TRENDS_HEIGHT): number {
   return stacked ? panelHeight * 2 + TRENDS_GAP : panelHeight;
 }
@@ -389,7 +359,6 @@ export function TrendCharts({
   width: number;
   stacked?: boolean;
   panelHeight?: number;
-  /** Multi-year only: the reporting period, appended to each chart title. */
   period?: string;
 }) {
   const panelWidth = stacked ? width : (width - TRENDS_GAP) / 2;
@@ -437,7 +406,6 @@ function ChartTitle({ theme, x, y, children }: { theme: ThemeTokens; x: number; 
   );
 }
 
-/** Weekly totals as an area + line. Partial edge weeks are excluded so they don't read as dips. */
 function WeeklyTrend({ weeks, theme, x, y, width, height, period }: ChartProps & { weeks: SeriesPoint[] }) {
   const full = weeks.filter((w) => w.dayCount === 7);
   const plotW = width - CHART.side * 2;
@@ -493,7 +461,6 @@ function WeeklyTrend({ weeks, theme, x, y, width, height, period }: ChartProps &
   );
 }
 
-/** Stacked monthly bars, one segment per connected platform. */
 function MonthlyComparison({
   months,
   platforms,
@@ -550,8 +517,6 @@ function MonthlyComparison({
   );
 }
 
-/* ----------------------------------------------------------------- Footnote */
-
 const FOOTNOTE_TEXT =
   "Contributions as reported by each platform, not commits. Platforms count different activities; totals aren’t deduplicated.";
 const FOOTNOTE = { fontSize: 10, lineHeight: 14 };
@@ -572,19 +537,10 @@ export function Footnote({ theme, y, width }: { theme: ThemeTokens; y: number; w
   );
 }
 
-/* ------------------------------------------------------------------- Credit */
-
-/** Space the credit line takes: a clear gap above it, then one line (its baseline is the bottom of this space). */
 export const CREDIT_HEIGHT = 44;
-/** Space below the credit's baseline: it sits near the card's bottom edge. */
 export const CREDIT_BOTTOM = 16;
 const CREDIT_SIZE = 14;
 
-/**
- * "Made with GitVis · created by Jen Kruk" on every card, as plain text. The
- * "Get Yours" link lives under the image in the README snippet, where it can
- * actually be clicked.
- */
 export function Credit({ theme, y }: { theme: ThemeTokens; y: number }) {
   return (
     <text x={PADDING} y={y + CREDIT_HEIGHT} fontSize={CREDIT_SIZE} fill={theme.textMuted} fontFamily={FONT_STACK}>

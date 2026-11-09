@@ -1,4 +1,3 @@
-// Renderer-level API: our stories use no Next.js APIs, so the framework's Vite-only mocks aren't needed under Vitest.
 import { composeStories } from "@storybook/react";
 import { render, screen } from "@testing-library/react";
 import type { ComponentType } from "react";
@@ -11,7 +10,6 @@ import * as HeatmapStories from "@/renderers/Heatmap.stories";
 import * as StatCardsStories from "@/renderers/StatCards.stories";
 import * as VisualizationStories from "@/renderers/Visualization.stories";
 
-// Smoke test: every documented story renders the production component without throwing.
 const modules = {
   Visualization: VisualizationStories,
   Heatmap: HeatmapStories,
@@ -20,7 +18,6 @@ const modules = {
 };
 
 describe.each(Object.entries(modules))("%s stories", (_name, mod) => {
-  // Each story is a zero-arg component once composed; the module union defeats inference, so name the shape.
   const stories = Object.entries(composeStories(mod)) as [string, ComponentType][];
   it.each(stories)("%s renders an accessible image", async (_story, Story) => {
     render(<Story />);
@@ -28,7 +25,6 @@ describe.each(Object.entries(modules))("%s stories", (_name, mod) => {
   });
 });
 
-// Studio stories: each renders its step with a level-2 heading or the step navigation.
 const studioModules = {
   Studio: StudioStories,
   DesignControls: DesignControlsStories,

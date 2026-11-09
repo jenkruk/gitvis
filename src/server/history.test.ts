@@ -48,7 +48,7 @@ describe("GitHub history cache", () => {
       historyKey("jenkruk", 2025),
     ]);
     expect(data.get(historyKey("jenkruk", 2024))!.ttl).toBe(HISTORY_POLICY.completeYear.ttlSeconds);
-    expect(result).toEqual({ ok: true, days: [...yearDays(2024), ...yearDays(2025)] }); // 2023-06 is outside the range
+    expect(result).toEqual({ ok: true, days: [...yearDays(2024), ...yearDays(2025)] });
   });
 
   it("reuses cached years for a week without calling GitHub (case-insensitive logins)", async () => {
@@ -157,13 +157,11 @@ describe("loadContributions with history", () => {
     expect(l.githubHistory).toHaveBeenCalledWith("a", { start: "2023-11-03", end: "2025-11-02" });
     expect(response.history).toEqual({ years: 3, status: "ok" });
     const { dataset } = response;
-    // GitHub's own year (from Sunday Nov 2, 2025) plus two 365-day years before it (2024 is a leap year).
     expect(dataset!.range).toEqual({ start: "2023-11-03", end: "2026-11-06" });
     expect(dataset!.days).toHaveLength(1100);
     const [github, gitlab] = dataset!.sources;
     expect(github!.coverage).toEqual(dataset!.range);
     expect(gitlab!.coverage).toEqual({ start: "2025-11-06", end: "2026-11-06" });
-    // The per-platform "last 12 months" total is unchanged.
     expect(response.results[0]).toMatchObject({ status: "ok", total: 2 });
     expect(dataset!.days.find((d) => d.date === addDays(TODAY, -500))!.byPlatform).toEqual({ github: 9 });
   });
@@ -173,7 +171,7 @@ describe("loadContributions with history", () => {
     const response = await loadContributions({ gitlab: "b" }, l, { years: 3 });
     expect(l.githubHistory).not.toHaveBeenCalled();
     expect(response.history).toBeUndefined();
-    expect(response.dataset!.days).toHaveLength(366); // GitLab's own 12 months
+    expect(response.dataset!.days).toHaveLength(366);
   });
 
   it("reports a history failure separately and keeps the last 12 months", async () => {
@@ -185,7 +183,7 @@ describe("loadContributions with history", () => {
     });
     const response = await loadContributions({ github: "a" }, l, { years: 2 });
     expect(response.history).toEqual({ years: 2, status: "upstream", message: "down", retryable: true });
-    expect(response.dataset!.days).toHaveLength(370); // GitHub's own year
+    expect(response.dataset!.days).toHaveLength(370);
   });
 });
 

@@ -5,7 +5,6 @@ const preview: Preview = {
   parameters: {
     layout: "padded",
     controls: { expanded: true },
-    // Fail the a11y panel (and test runs) on any axe violation, matching our WCAG 2.2 AA gate.
     a11y: {
       test: "error",
       options: { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] } },

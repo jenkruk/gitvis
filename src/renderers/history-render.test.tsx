@@ -13,10 +13,8 @@ import { resolveTheme } from "@/theme/palettes";
 import { prepareView } from "./view";
 
 const end = toISODate("2026-11-06");
-/** The newest period: GitHub's own year, from Sunday Nov 2, 2025 (GitLab's starts Nov 6). */
 const newest = newestPeriod(["github", "gitlab"], end);
 const threeYears = historyRange(newest, 3);
-/** GitLab's own 12 months (its calendar covers nothing earlier). */
 const lastYear = platformYear("gitlab", end);
 
 const github: PlatformContributions = {
@@ -59,7 +57,6 @@ describe("multi-year history", () => {
     const svg = render();
     const prepared = prepareView(combined, years(3));
     const [current, ...older] = prepared.periods;
-    // The current year's total is the card's headline: a large number with a small "contributions" label.
     expect(svg).toMatch(
       new RegExp(
         `>Nov 2, 2025 – Nov 6, 2026</text><text[^>]*text-anchor="end"[^>]*><tspan font-size="22" font-weight="700"[^>]*>${current!.total.toLocaleString("en-US")}</tspan><tspan[^>]*font-size="12"[^>]*>contributions</tspan>`,
@@ -67,18 +64,16 @@ describe("multi-year history", () => {
     );
     for (const period of older) {
       const total = `${period.total.toLocaleString("en-US")} contribution${period.total === 1 ? "" : "s"}`;
-      // Older years keep the compact header: dates and total share one row (same y).
       const header = new RegExp(
         `y="(\\d+)"[^>]*>Nov[^<]*</text><text[^>]*y="\\1"[^>]*text-anchor="end"[^>]*>${total}<`,
       );
       expect(svg).toMatch(header);
     }
-    // Filled panels: one framed card per year (plus stat cards and breakdown).
     const theme = resolveTheme("aurora", "dark");
     const cards = svg.match(
       new RegExp(`<rect x="24" y="\\d+" width="792" height="\\d+" rx="10" fill="${theme.surface}"`, "g"),
     );
-    expect(cards!.length).toBeGreaterThanOrEqual(4); // 3 year cards + breakdown
+    expect(cards!.length).toBeGreaterThanOrEqual(4);
   });
 
   it("year cards follow the panel style; Borderless hides the frame but keeps its padding", () => {
@@ -88,8 +83,7 @@ describe("multi-year history", () => {
     ).toBeGreaterThanOrEqual(4);
     const borderless = render(combined, years(3, { type: "setPanel", panel: "borderless" }));
     expect(borderless).not.toMatch(/rx="10"/);
-    expect(borderless).not.toMatch(/<line x1="24" x2="816"/); // no divider lines either
-    // Same geometry as Outlined: identical height and content positions, only the frames are invisible.
+    expect(borderless).not.toMatch(/<line x1="24" x2="816"/);
     const height = (markup: string) => /height="(\d+)"/.exec(markup)![1];
     expect(height(borderless)).toBe(height(outlined));
     const firstLabel = (markup: string) =>
@@ -99,10 +93,9 @@ describe("multi-year history", () => {
 
   it("labels GitHub-only periods in words — no hatching — and never sums them with GitLab", () => {
     const svg = render();
-    expect(svg.match(/>GitHub \+ GitLab</g)).toHaveLength(1); // newest card's coverage
-    expect(svg.match(/>GitHub only · GitLab unavailable</g)).toHaveLength(2); // both older cards
+    expect(svg.match(/>GitHub \+ GitLab</g)).toHaveLength(1);
+    expect(svg.match(/>GitHub only · GitLab unavailable</g)).toHaveLength(2);
     expect(svg).not.toMatch(/<pattern/);
-    // Older cells say GitLab's count is unknown rather than zero.
     expect(svg).toMatch(/<title>\d+ contributions? on [^<]+ \(GitHub only; GitLab not available\)<\/title>/);
   });
 
@@ -111,7 +104,6 @@ describe("multi-year history", () => {
     expect(prepared.metricsView.range).toEqual(newest);
     const metrics = computeMetrics(prepared.metricsView);
     const svg = render();
-    // No separate heading: the stat cards sit between the newest card's header and its calendar.
     expect(svg).not.toContain(">Last 12 months · GitHub + GitLab<");
     const order = [
       "Nov 2, 2025 – Nov 6, 2026",
@@ -124,10 +116,8 @@ describe("multi-year history", () => {
     const positions = order.map((text) => visible.indexOf(text));
     expect(positions.every((p) => p >= 0)).toBe(true);
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
-    // The total isn't repeated as a stat card inside the card (the header already states it).
     expect(visible).not.toContain(">Contributions<");
     expect(visible).not.toContain("per active day");
-    // The stat cards are inset inside the card (x = canvas padding + card padding).
     expect(svg).toMatch(/<rect x="40" y="\d+" width="[\d.]+" height="70" rx="10"/);
     expect(svg).toContain(">Platform breakdown · Last 12 months<");
     expect(desc(svg)).toContain("Summary statistics: Last 12 months, GitHub + GitLab.");
@@ -140,8 +130,8 @@ describe("multi-year history", () => {
     const svg = render(githubOnly);
     expect(desc(svg)).toContain("Summary statistics: Last 12 months, GitHub.");
     expect(desc(svg)).toContain("from Nov 2, 2025 to Nov 6, 2026");
-    expect(svg).not.toContain("GitHub only"); // a single platform's complete history isn't "only" anything
-    expect(svg.match(/>GitHub</g)!.length).toBeGreaterThanOrEqual(3); // each card names its source
+    expect(svg).not.toContain("GitHub only");
+    expect(svg.match(/>GitHub</g)!.length).toBeGreaterThanOrEqual(3);
   });
 
   it("shows 2 years when asked, from the same 3-year data", () => {
@@ -164,7 +154,6 @@ describe("multi-year history", () => {
     for (const label of ["Nov 2, 2025 – Nov 6, 2026", "Nov 2, 2024 – Nov 1, 2025", "Nov 3, 2023 – Nov 1, 2024"]) {
       expect(svg).toContain(label);
     }
-    // One heatmap (recent weeks) — roughly 140 cells, not 1,095.
     expect(svg.match(/<rect [^>]*rx="2"[^>]*><title>/g)!.length).toBeLessThan(150);
   });
 
@@ -213,7 +202,7 @@ describe("source attribution", () => {
       const visible = svg.replace(/<desc[\s\S]*?<\/desc>/, "");
       expect(visible).toContain("@jenkruk");
       expect(visible).toMatch(/@a+…</);
-      expect(desc(svg)).toContain(`@${long}`); // full name in the text alternative
+      expect(desc(svg)).toContain(`@${long}`);
     }
   });
 });

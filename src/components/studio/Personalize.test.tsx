@@ -101,15 +101,13 @@ describe("colors and backgrounds", () => {
     await user.click(screen.getByRole("button", { name: "Continue to publish" }));
     expect(screen.queryByRole("checkbox", { name: /profile links/i })).not.toBeInTheDocument();
     const snippet = (screen.getByRole("textbox", { name: /markdown/i }) as HTMLTextAreaElement).value;
-    // Ends with the "Get Yours" link (drawn as a label image) to the GitVis site.
     expect(snippet).toMatch(/<a href="https:\/\/gitvis\.test">\s*<picture>[\s\S]*alt="Get Yours"[\s\S]*<\/a>\s*<\/p>$/);
-    expect(snippet).not.toContain("https://gitvis.test/?"); // the image never links into the studio
+    expect(snippet).not.toContain("https://gitvis.test/?");
   });
 
   it("platform colors are labelled, reflected in the URL and resettable", async () => {
     const { user, search } = setup();
     const input = screen.getByLabelText("GitHub", { selector: "input[type=color]" });
-    // Color inputs can't be typed into; fire the change like a picker would.
     await user.click(input);
     input.dispatchEvent(new Event("input", { bubbles: true }));
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "#ff7a59");
@@ -164,7 +162,7 @@ describe("Edit link restores Phase 4 settings", () => {
     expect(screen.getByRole("textbox", { name: /display name/i })).toHaveValue("Jen");
     expect(screen.getByRole("radio", { name: /gradient/i })).toBeChecked();
     expect(screen.getByRole("radio", { name: /last 90 days \(from your link\)/i })).toBeChecked();
-    expect(screen.getByRole("button", { name: "Move Best day up" })).toBeDisabled(); // first in order
+    expect(screen.getByRole("button", { name: "Move Best day up" })).toBeDisabled();
     expect(screen.getByLabelText("GitLab", { selector: "input[type=color]" })).toHaveValue("#123456");
   });
 });

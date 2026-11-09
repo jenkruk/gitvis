@@ -6,7 +6,6 @@ import { DEFAULT_POLICY, epochOf, type Snapshot } from "./freshness";
 
 const HOUR = 3_600_000;
 
-/** Mimics Vercel Runtime Cache: JSON round-trip, TTL in seconds, null on miss. */
 function fakeStore() {
   const entries = new Map<string, { json: string; expires: number }>();
   let clock = 0;
@@ -59,13 +58,12 @@ describe("createLoaders (Runtime Cache snapshots)", () => {
       expect.any(Object),
       7 * 24 * 3600 + 12 * 3600,
     );
-    expect(snapshotKey("gitlab", "u", epoch)).toBe(`v2:gitlab:u:${epoch}`); // no build/deployment id
+    expect(snapshotKey("gitlab", "u", epoch)).toBe(`v2:gitlab:u:${epoch}`);
   });
 
   it("survives a 'deployment' (new loader instance, same store) and keeps serving last-known-good", async () => {
     const t = setup(async () => ok(3));
     await t.loaders.gitlab("u");
-    // A new deployment = fresh module state, same Runtime Cache.
     const redeployed = createLoaders({
       store: t.store,
       fetcher: async () => adapterError("gitlab", "upstream", "GitLab responded with an error (503)."),
@@ -82,7 +80,7 @@ describe("createLoaders (Runtime Cache snapshots)", () => {
     const result = await t.loaders.gitlab("u");
     expect(result).toMatchObject({ ok: false, error: { message: "GitLab responded with an error (503)." } });
     expect(t.store.set).not.toHaveBeenCalled();
-    expect(t.fetch).toHaveBeenCalledTimes(1); // the past-window scan only reads
+    expect(t.fetch).toHaveBeenCalledTimes(1);
     expect(t.store.get.mock.calls.length).toBeGreaterThan(1);
   });
 
@@ -94,7 +92,7 @@ describe("createLoaders (Runtime Cache snapshots)", () => {
     expect((await t.loaders.gitlab("u")).ok).toBe(false);
     mode = "exists";
     t.advance(30 * 60_000);
-    expect((await t.loaders.gitlab("u")).ok).toBe(false); // still cached
+    expect((await t.loaders.gitlab("u")).ok).toBe(false);
     t.advance(31 * 60_000);
     expect((await t.loaders.gitlab("u")).ok).toBe(true);
   });
@@ -105,7 +103,7 @@ describe("createLoaders (Runtime Cache snapshots)", () => {
     t.store.get.mockRejectedValue(new Error("cache unavailable"));
     t.store.set.mockRejectedValue(new Error("cache unavailable"));
     const result = await t.loaders.gitlab("u");
-    expect(result.ok && result.data.days[0]!.count).toBe(4); // fresh data still served
+    expect(result.ok && result.data.days[0]!.count).toBe(4);
   });
 
   it("ignores malformed stored values instead of rendering them", async () => {

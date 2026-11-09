@@ -4,9 +4,8 @@ import { addDays, toISODate } from "@/domain/dates";
 import type { PlatformId } from "@/domain/types";
 import { computeMetrics } from "./metrics";
 
-const START = toISODate("2026-02-22"); // a Sunday
+const START = toISODate("2026-02-22");
 
-/** Build a dataset from per-day totals starting at START, one array per platform. */
 function dataset(series: Partial<Record<PlatformId, number[]>>) {
   const length = Math.max(...Object.values(series).map((s) => s.length));
   const sources = Object.entries(series).map(([platform, counts]) => ({
@@ -27,7 +26,6 @@ describe("computeMetrics", () => {
   });
 
   it("finds the longest streak across platforms, spanning a month boundary", () => {
-    // Feb 22 … : github active 25–27 Feb, gitlab active 28 Feb – 1 Mar → combined 5-day streak.
     const m = computeMetrics(dataset({ github: [1, 0, 0, 1, 1, 1, 0, 0, 0], gitlab: [0, 0, 0, 0, 0, 0, 1, 1, 0] }));
     expect(m.longestStreak).toEqual({ length: 5, start: "2026-02-25", end: "2026-03-01" });
   });
@@ -66,7 +64,6 @@ describe("computeMetrics", () => {
   });
 
   it("buckets weekly (Sunday start) and monthly with partial-bucket day counts", () => {
-    // 9 days: Sun Feb 22 … Mon Mar 2
     const m = computeMetrics(dataset({ github: [1, 1, 1, 1, 1, 1, 1, 2, 2], gitlab: [0, 0, 0, 0, 0, 0, 0, 0, 3] }));
     expect(m.weekly.map((w) => [w.start, w.total, w.dayCount])).toEqual([
       ["2026-02-22", 7, 7],

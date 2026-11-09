@@ -16,9 +16,7 @@ export const GITHUB_GRAPHQL_URL = "https://api.github.com/graphql";
 
 export interface FetchOptions {
   fetchImpl?: typeof fetch;
-  /** Kept short: the first view in a new freshness window waits on this fetch (image proxies time out). */
   timeoutMs?: number;
-  /** Upstream endpoint override (tests only; see upstreamUrls in cached.ts). */
   url?: string;
 }
 
@@ -29,7 +27,6 @@ const fail = (kind: AdapterError["kind"], message: string): PostResult => ({
   error: { platform: "github", kind, message },
 });
 
-/** One GraphQL POST with the shared, user-safe error mapping. Variables only — never string interpolation. */
 async function postGraphQL(
   query: string,
   variables: Record<string, string | boolean>,
@@ -51,7 +48,6 @@ async function postGraphQL(
   }
 
   if (response.status === 401) {
-    // Operator problem, not the user's: log for us, keep the message generic.
     console.error("[gitvis] GitHub rejected GITHUB_TOKEN (401). Check that it is valid and not expired.");
     return fail("not_configured", "GitHub lookups are temporarily unavailable.");
   }
@@ -67,13 +63,6 @@ async function postGraphQL(
   }
 }
 
-/**
- * Fetches a user's contribution calendar. `token` needs no scopes: a
- * fine-grained PAT with public-repository read access is sufficient.
- * `range` may exceed a year by up to a week (GitHub's "last year" starts on a
- * Sunday): GitHub's calendar returns at most 365 days, so the earliest days are
- * fetched as a second collection in the same request.
- */
 export async function fetchGitHubContributions(
   username: string,
   range: DateRange,
@@ -100,23 +89,16 @@ export async function fetchGitHubContributions(
   return normalizeGitHubContributions(username, result.body as GitHubContributionsResponse);
 }
 
-/**
- * Fetches complete calendar years of history in ONE request (aliased
- * contributionsCollection per year; GitHub limits each collection to a year).
- */
 export async function fetchGitHubYears(
   username: string,
   years: readonly number[],
   token: string | undefined,
   options: FetchOptions = {},
 ): Promise<HistoryResult> {
-  const result = await postGraphQL(
-    githubYearsQuery(years.length),
-    githubYearsVariables(username, years),
-    token,
-    // History is never on the critical path of a cached card, but keep it bounded.
-    { timeoutMs: 8_000, ...options },
-  );
+  const result = await postGraphQL(githubYearsQuery(years.length), githubYearsVariables(username, years), token, {
+    timeoutMs: 8_000,
+    ...options,
+  });
   if (!result.ok) return result;
   return normalizeGitHubYears(username, years, result.body as GitHubYearsResponse);
 }

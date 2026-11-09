@@ -27,10 +27,8 @@ interface ConnectPanelProps {
   initialValues: ConnectRequest;
   onConnect: (request: ConnectRequest) => void;
   onDisconnect: () => void;
-  /** Shown once data is loaded (e.g. after a partial failure, or when revisiting this step). */
   onContinue?: () => void;
   continueLabel?: string;
-  /** Lets visitors explore the designer without an account (sample data, never publishable). */
   onUseSample?: () => void;
 }
 
@@ -55,7 +53,7 @@ export function ConnectPanel({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (loading) return; // ignore duplicate submits instead of disabling the button
+    if (loading) return;
 
     const validation = validateConnectRequest(values);
     if (!validation.ok) {
@@ -231,7 +229,6 @@ function UsernameField({
           spellCheck={false}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
-          // 16px on small screens prevents iOS zoom-on-focus.
           className="min-w-0 flex-1 bg-transparent py-2 pr-3 pl-0.5 text-base outline-none placeholder:text-zinc-400 sm:text-sm dark:placeholder:text-zinc-500"
         />
       </div>
@@ -248,7 +245,6 @@ function UsernameField({
   );
 }
 
-/** Each total covers the platform's own year, so it's worded the way that profile words it. */
 const PROFILE_PERIOD = { github: "in the last year", gitlab: "in the last 12 months" } as const;
 
 function describeResult(result: PlatformResult): string {
@@ -262,7 +258,6 @@ function describeResult(result: PlatformResult): string {
   return `${who}: ${formatNumber(result.total)} contributions ${period}.${privateNote}`;
 }
 
-/** Announces a short summary politely and renders per-platform detail inline. */
 export function statusAnnouncement(state: ConnectionState): string {
   switch (state.phase) {
     case "idle":

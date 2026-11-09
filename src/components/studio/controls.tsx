@@ -1,12 +1,6 @@
 import { ChevronDown } from "lucide-react";
 import { type ReactNode, useId } from "react";
 
-/**
- * Native form controls styled with Tailwind. Native radios and checkboxes give
- * us keyboard support (Tab / arrows / Space) and correct screen-reader
- * semantics without custom ARIA widgets.
- */
-
 export function ControlGroup({
   legend,
   description,
@@ -18,7 +12,6 @@ export function ControlGroup({
 }) {
   const descriptionId = useId();
   return (
-    // The description is linked so screen readers announce it on entering the group (e.g. why options are disabled).
     <fieldset className="min-w-0" aria-describedby={description ? descriptionId : undefined}>
       <legend className="text-sm font-semibold">{legend}</legend>
       {description && (
@@ -49,7 +42,6 @@ export function RadioCard({
   onSelect: (value: string) => void;
   children: ReactNode;
   className?: string;
-  /** Native disabled radio; explain why in the group's description. */
   disabled?: boolean;
 }) {
   return (
@@ -89,13 +81,11 @@ export function Switch({
   description: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
-  /** Explains why an enabled feature isn't currently rendered. */
   note?: string;
 }) {
   const labelId = `${id}-label`;
   const descriptionId = `${id}-description`;
   return (
-    // The whole row is the click target; aria-labelledby keeps the accessible name to the label text only.
     <label
       htmlFor={id}
       className={`flex cursor-pointer items-start justify-between gap-4 rounded-md py-2 ${focusRing}`}
@@ -129,10 +119,6 @@ export function Switch({
   );
 }
 
-/**
- * A collapsed section built on native <details>/<summary>: keyboard (Enter /
- * Space), expanded state and screen-reader semantics come for free.
- */
 export function Disclosure({
   title,
   summary,
@@ -140,14 +126,12 @@ export function Disclosure({
   defaultOpen = false,
 }: {
   title: string;
-  /** Short current-state hint shown beside the title, e.g. "Gradient · Outlined panels". */
   summary?: string;
   children: ReactNode;
   defaultOpen?: boolean;
 }) {
   return (
     <details
-      // Uncontrolled: the browser owns the open state, so a section opened before hydration stays open.
       open={defaultOpen || undefined}
       className="group rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
     >

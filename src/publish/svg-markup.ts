@@ -1,18 +1,8 @@
-/**
- * Static SVG serialization for route handlers, where Next.js forbids
- * `react-dom/server`. Our renderers are pure, hook-free components that emit
- * SVG host elements only, so serializing the element tree is enough.
- *
- * Output is byte-identical to `renderToStaticMarkup` for everything the
- * renderers use (enforced by svg-markup.test.tsx). Unsupported props throw
- * instead of silently diverging from the preview.
- */
 import type { ReactNode } from "react";
 
 const ELEMENT_TYPES = new Set([Symbol.for("react.transitional.element"), Symbol.for("react.element")]);
 const FRAGMENT = Symbol.for("react.fragment");
 
-/** camelCase SVG attributes that React keeps as-is (everything else is hyphenated). */
 const CASE_SENSITIVE_ATTRIBUTES = new Set(["viewBox", "preserveAspectRatio", "gradientUnits", "gradientTransform"]);
 const UNSUPPORTED_PROPS = new Set(["className", "style", "dangerouslySetInnerHTML", "ref"]);
 
@@ -26,7 +16,6 @@ function isElement(node: unknown): node is ElementLike {
   return typeof node === "object" && node !== null && ELEMENT_TYPES.has((node as ElementLike).$$typeof);
 }
 
-/** Matches React's escapeTextForBrowser. */
 export function escapeMarkup(value: string): string {
   return value.replace(/[&<>"']/g, (c) =>
     c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === '"' ? "&quot;" : "&#x27;",
@@ -64,7 +53,6 @@ export function renderSvgMarkup(node: ReactNode): string {
   const { type, props } = node;
   if (type === FRAGMENT) return renderSvgMarkup(props.children);
   if (typeof type === "function") {
-    // Pure function components only (renderers must not use hooks or context).
     return renderSvgMarkup((type as (p: unknown) => ReactNode)(props));
   }
   if (typeof type !== "string") throw new Error("svg-markup: unsupported element type");

@@ -10,16 +10,13 @@ export interface Streak {
 export interface PlatformTotal {
   platform: PlatformId;
   total: number;
-  /** 0–1 share of combined total; 0 when the combined total is 0. */
   share: number;
 }
 
 export interface SeriesPoint {
-  /** Week start (Sunday) for weekly series; first day of month for monthly series. */
   start: ISODate;
   total: number;
   byPlatform: Partial<Record<PlatformId, number>>;
-  /** Number of in-range days in this bucket (partial buckets at range edges have fewer). */
   dayCount: number;
 }
 
@@ -27,11 +24,8 @@ export interface ContributionMetrics {
   total: number;
   activeDays: number;
   totalDays: number;
-  /** Longest run of consecutive active days; null when there was no activity. */
   longestStreak: Streak | null;
-  /** Run ending on the last day of the range (or the day before, so today isn't penalised yet). */
   currentStreak: number;
-  /** Highest single day; ties resolve to the most recent day. Null when no activity. */
   bestDay: { date: ISODate; count: number } | null;
   averagePerActiveDay: number;
   platformTotals: PlatformTotal[];
@@ -83,7 +77,6 @@ export function computeMetrics(dataset: ContributionDataset): ContributionMetric
 
 function computeCurrentStreak({ days }: ContributionDataset): number {
   let i = days.length - 1;
-  // Grace period: an empty final day (usually "today") doesn't break the streak yet.
   if (days[i]?.total === 0) i -= 1;
   let streak = 0;
   for (; i >= 0 && days[i]!.total > 0; i--) streak += 1;

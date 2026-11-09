@@ -5,13 +5,7 @@ import { formatNumber, formatPercent } from "@/renderers/primitives";
 import { type PreparedView, rangeLabel } from "@/renderers/view";
 import { describeHistory, describeVisualization } from "@/renderers/Visualization";
 
-/**
- * Text and table alternative to the graphic, built from the same metrics so
- * the numbers can't drift. Useful for screen readers, zoomed-in reading and
- * anyone who prefers exact values over color intensity.
- */
 export function DataView({ prepared, metrics }: { prepared: PreparedView; metrics: ContributionMetrics }) {
-  // Metrics (and the monthly table) cover what every platform reports; the period table spans every year shown.
   const dataset: ContributionDataset = prepared.metricsView;
   const platforms = dataset.sources.map((s) => s.platform);
   const stats: [string, string][] = [
@@ -58,7 +52,6 @@ export function DataView({ prepared, metrics }: { prepared: PreparedView; metric
           ))}
         </dl>
 
-        {/* The table may be wider than a phone: it scrolls inside its own focusable region, never the page. */}
         <div
           role="region"
           aria-labelledby="data-monthly-caption"
@@ -109,7 +102,6 @@ export function DataView({ prepared, metrics }: { prepared: PreparedView; metric
   );
 }
 
-/** One row per 12-month period. A platform without data for a period says so — never a zero. */
 function PeriodTable({ prepared }: { prepared: PreparedView }) {
   const platforms = prepared.view.sources.map((s) => s.platform);
   return (

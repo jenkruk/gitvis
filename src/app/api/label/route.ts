@@ -13,16 +13,6 @@ import {
 } from "@/renderers/LinkLabel";
 import { cardLimiter, clientKey, tooManyRequests } from "@/server/rate-limit";
 
-/**
- * GET /api/label?cta=1|repo=1|gitlab=<username>&mode=dark|light[&line=1][&span=half|full][&color=rrggbb][&inset=1][&v=N]
- * line=1: the "Get Yours · open source on GitHub" line under the credit (current snippets).
- * v: bumped whenever a URL's image changes, so long-cached older images are never reused.
- * The README snippet's links ("Get Yours", "Open source on GitHub"; GitLab labels
- * for older snippets) drawn as SVGs half (or all) of the card's width, so
- * side by side they're exactly as wide as the card and line up with it (see
- * src/publish/snippets.ts). Text is fixed or a validated username, never free
- * text, and the output depends only on the URL, so it's cached for a long time.
- */
 export function GET(request: NextRequest) {
   const limit = cardLimiter.hit(clientKey(request.headers));
   if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
@@ -44,7 +34,6 @@ export function GET(request: NextRequest) {
     span in LINK_LABEL_SPANS &&
     (line === null || (line === "1" && (cta || repo))) &&
     (version === null || /^[1-9]\d{0,2}$/.test(version)) &&
-    // Exactly one label per URL: fixed text, or a validated username — never free text.
     (cta || repo ? !(cta && repo) && gitlab === undefined : gitlab !== undefined && isValidGitLabUsername(gitlab));
   if (!valid) {
     return new Response(

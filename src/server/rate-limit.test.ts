@@ -11,14 +11,13 @@ describe("FixedWindowLimiter", () => {
     expect(limiter.hit("a")).toEqual({ allowed: false, retryAfterSeconds: 45 });
     expect(limiter.hit("b").allowed).toBe(true);
     now = 60_000;
-    expect(limiter.hit("a").allowed).toBe(true); // new window
+    expect(limiter.hit("a").allowed).toBe(true);
   });
 
   it("stays bounded under a flood of distinct keys", () => {
     let now = 0;
     const limiter = new FixedWindowLimiter(1, 60_000, 3, () => now);
     for (let i = 0; i < 1_000; i++) limiter.hit(`ip-${i}`);
-    // Internal map never exceeds maxKeys; newest keys still get counted.
     expect((limiter as unknown as { windows: Map<string, unknown> }).windows.size).toBeLessThanOrEqual(3);
     expect(limiter.hit("ip-999").allowed).toBe(false);
     now = 61_000;
@@ -36,7 +35,6 @@ describe("clientKey", () => {
   it("uses the first forwarded address, then fallbacks", () => {
     expect(clientKey(new Headers({ "x-forwarded-for": "203.0.113.1, 10.0.0.1" }))).toBe("203.0.113.1");
     expect(clientKey(new Headers({ "x-real-ip": "203.0.113.2" }))).toBe("203.0.113.2");
-    // On Vercel x-real-ip is set from the connecting address, so it wins over a client-supplied x-forwarded-for.
     expect(clientKey(new Headers({ "x-real-ip": "203.0.113.3", "x-forwarded-for": "6.6.6.6" }))).toBe("203.0.113.3");
     expect(clientKey(new Headers())).toBe("unknown");
   });

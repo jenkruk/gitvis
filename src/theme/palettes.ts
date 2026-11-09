@@ -2,7 +2,6 @@ import { ensureContrast, mix, ramp } from "./color";
 
 export type ColorMode = "light" | "dark";
 
-/** Colors a palette author specifies for one mode. */
 export interface PaletteVariant {
   background: string;
   surface: string;
@@ -11,25 +10,15 @@ export interface PaletteVariant {
   textMuted: string;
   accent: string;
   heatmapEmpty: string;
-  /** Heatmap level 1 color; levels 2–4 interpolate toward `rampTo`. */
   rampFrom: string;
   rampTo: string;
-  /** Series colors, assigned to platforms in PLATFORM_IDS order. */
   series: readonly [string, string];
 }
 
-/** Fully resolved tokens consumed by renderers. */
 export interface ThemeTokens extends PaletteVariant {
-  /** Five heatmap colors: index 0 = no activity, 1–4 = increasing activity. */
   heatmap: readonly [string, string, string, string, string];
-  /** Panel fill/stroke overrides ("none" = not drawn). Absent = filled panels (`surface` + `border`). */
   panelFill?: string;
   panelStroke?: string;
-  /**
-   * Per-platform heatmap ramps (same order as `series`), present when the user picks
-   * custom platform colors: cells take the color of the platform that contributed most.
-   * Absent = the palette's single combined ramp (`heatmap`).
-   */
   platformHeatmap?: readonly [HeatmapRamp, HeatmapRamp];
 }
 
@@ -308,7 +297,6 @@ export const PALETTES = [
       series: ["#e5e5e5", "#8a8a8a"],
     },
   },
-  // ---- Phase 4 additions (append only: URL codes for earlier palettes are frozen) ----
   {
     id: "githubClassic",
     name: "GitHub Classic",
@@ -483,7 +471,6 @@ export const PALETTES = [
       series: ["#9cc59a", "#d9b98a"],
     },
   },
-  // ---- Visual refinement additions (append only) ----
   {
     id: "obsidianGold",
     name: "Obsidian & Gold",
@@ -751,7 +738,6 @@ export type PaletteId = (typeof PALETTES)[number]["id"];
 
 export const PALETTE_IDS: readonly PaletteId[] = PALETTES.map((p) => p.id);
 
-/** Shown first in the studio; the rest sit behind "View all". A selection outside this list is always shown too. */
 export const CURATED_PALETTE_IDS: readonly PaletteId[] = [
   "aurora",
   "githubClassic",
@@ -766,11 +752,9 @@ export function getPalette(id: PaletteId): PaletteDefinition {
 }
 
 export interface ThemeOverrides {
-  /** User-chosen series colors in PLATFORM_IDS order; adjusted to ≥ 3:1 against the surface. */
   series?: readonly [string | undefined, string | undefined];
 }
 
-/** Minimum non-text contrast (WCAG 1.4.11) for data series against panel surfaces. */
 export const SERIES_MIN_CONTRAST = 3;
 
 export function resolveTheme(paletteId: PaletteId, mode: ColorMode, overrides: ThemeOverrides = {}): ThemeTokens {
@@ -786,25 +770,21 @@ export function resolveTheme(paletteId: PaletteId, mode: ColorMode, overrides: T
   return { ...variant, series, heatmap: [variant.heatmapEmpty, l1, l2, l3, l4] };
 }
 
-/** Second stop of the subtle diagonal background gradient (a light tint of the accent). */
 export function gradientEnd(theme: Pick<PaletteVariant, "background" | "accent">): string {
   return mix(theme.background, theme.accent, 0.1);
 }
 
-/** GitHub page backgrounds a transparent graphic may sit on, per mode (light; dark and dark-dimmed). */
 export const GITHUB_SURFACES: Record<ColorMode, readonly string[]> = {
   light: ["#ffffff"],
   dark: ["#0d1117", "#212830"],
 };
 
-/** Every color an unfilled panel's content can sit on, for the chosen background. */
 export function panelBackdrops(theme: PaletteVariant, background: BackdropStyle, mode: ColorMode): readonly string[] {
   if (background === "transparent") return GITHUB_SURFACES[mode];
   if (background === "gradient") return [theme.background, gradientEnd(theme)];
   return [theme.background];
 }
 
-/** Adjusts `color` until it meets `minRatio` against every backdrop (backdrops in one mode share a direction). */
 export function ensureContrastAll(color: string, backdrops: readonly string[], minRatio: number): string {
   let result = color;
   for (let pass = 0; pass < 2; pass++)
@@ -812,12 +792,6 @@ export function ensureContrastAll(color: string, backdrops: readonly string[], m
   return result;
 }
 
-/**
- * Outlined / borderless panels: content sits directly on the backdrop instead
- * of `surface`, so text, accent, series and the top heatmap level are
- * re-checked against what's actually underneath. Filled panels are returned
- * unchanged (keeping every existing embed byte-identical).
- */
 export function applyPanelStyle(theme: ThemeTokens, style: PanelStyle, backdrops: readonly string[]): ThemeTokens {
   if (style === "filled") return theme;
   const fit = (color: string, ratio: number) => ensureContrastAll(color, backdrops, ratio);
@@ -834,12 +808,6 @@ export function applyPanelStyle(theme: ThemeTokens, style: PanelStyle, backdrops
   };
 }
 
-/**
- * Colors the heatmap by platform: each series color gets its own 5-step ramp from
- * the empty-cell color to the series color itself (level 4 = the series color, which
- * already meets 3:1 on every backdrop). Apply after `applyPanelStyle` so it uses the
- * contrast-adjusted series.
- */
 export function withPlatformHeatmap(theme: ThemeTokens): ThemeTokens {
   const rampFor = (series: string): HeatmapRamp => {
     const [l1, l2, l3, l4] = ramp(mix(theme.heatmapEmpty, series, 0.3), series, 4) as [string, string, string, string];

@@ -1,13 +1,3 @@
-/**
- * OPT-IN live check against the real GitHub API (never runs in `npm test` or CI):
- *
- *   GITVIS_LIVE_GITHUB=jenkruk GITVIS_LIVE_OUT=/tmp/out.json \
- *     node --env-file=.env.local node_modules/vitest/vitest.mjs run src/server/github.live.test.ts
- *
- * Uses the server-side GITHUB_TOKEN from the environment. Writes only daily
- * counts to GITVIS_LIVE_OUT (no token, no headers) for comparison with GitHub's
- * public calendar.
- */
 import { writeFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { toISODate, trailingYear } from "@/domain/dates";
@@ -28,10 +18,8 @@ describe.skipIf(!login || !token)("live GitHub API (opt-in)", () => {
     expect(trailing.ok).toBe(true);
     if (!history.ok || !trailing.ok) return;
 
-    // Year chunks never leak days from neighbouring years.
     for (const { year, days } of history.years) expect(days.every((d) => d.date.startsWith(`${year}-`))).toBe(true);
 
-    // Cache: a second load of overlapping ranges reuses every stored year (no second request).
     const data = new Map<string, unknown>();
     const store: SnapshotStore = { get: async (k) => data.get(k) ?? null, set: async (k, v) => void data.set(k, v) };
     let requests = 0;

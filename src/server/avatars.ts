@@ -4,17 +4,6 @@ import type { AvatarImages } from "@/renderers/IdentityHeader";
 import { type SnapshotStore, testOverridesAllowed, upstreamUrls, vercelRuntimeStore } from "./cached";
 import { upstreamBudget } from "./rate-limit";
 
-/*
- * Avatars are embedded into published SVGs as data: URIs, because SVGs shown
- * through <img> (GitHub READMEs, camo) never load external resources.
- *
- * Privacy & safety:
- * - Fetched only when the user turns avatars on, only the public profile image.
- * - Only from an allowlist of hosts (no user-supplied URLs → no SSRF), small sizes,
- *   image content types only, size-capped. Anything unexpected → monogram fallback.
- * - Cached 24h in the Runtime Cache, then refetched (a changed avatar shows up within a day).
- */
-
 export const AVATAR_PIXELS = 96;
 export const AVATAR_MAX_BYTES = 64 * 1024;
 const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
@@ -36,7 +25,6 @@ function allowedHosts(extra: string[] = []): Set<string> {
   return new Set([...PRODUCTION_HOSTS, ...extra]);
 }
 
-/** Fetches an image from an allowlisted host (following ≤ 2 allowlisted redirects) as a data: URI. */
 async function fetchImage(url: string, deps: AvatarDeps): Promise<string | null> {
   const { fetchImpl = fetch, timeoutMs = 3_000 } = deps;
   const hosts = allowedHosts(deps.extraHosts);
@@ -62,7 +50,6 @@ async function fetchImage(url: string, deps: AvatarDeps): Promise<string | null>
   return null;
 }
 
-/** Resolves and fetches one platform's avatar. Never throws: any problem returns null (→ monogram). */
 export async function fetchAvatar(
   platform: PlatformId,
   username: string,
@@ -73,7 +60,6 @@ export async function fetchAvatar(
       const origin = deps.githubAvatarOrigin ?? GITHUB_AVATAR_ORIGIN;
       return await fetchImage(`${origin}/${encodeURIComponent(username)}?s=${AVATAR_PIXELS}`, deps);
     }
-    // GitLab: the public users API returns the avatar URL (gravatar or gitlab.com upload).
     const origin = deps.gitlabOrigin ?? "https://gitlab.com";
     const { fetchImpl = fetch, timeoutMs = 3_000 } = deps;
     const res = await fetchImpl(`${origin}/api/v4/users?username=${encodeURIComponent(username)}`, {
@@ -97,7 +83,6 @@ export function avatarKey(platform: PlatformId, username: string): string {
   return `v${AVATAR_SCHEMA}:avatar:${platform}:${username.toLowerCase()}`;
 }
 
-/** Cached avatar loader: hits the Runtime Cache first, fetches on a miss, remembers misses for an hour. */
 export function createAvatarLoader(store: SnapshotStore, deps: () => AvatarDeps = () => ({})) {
   const inFlight = new Map<string, Promise<string | null>>();
 
@@ -108,16 +93,12 @@ export function createAvatarLoader(store: SnapshotStore, deps: () => AvatarDeps 
       if (cached && typeof cached === "object") {
         return typeof cached.dataUri === "string" && cached.dataUri.startsWith("data:image/") ? cached.dataUri : null;
       }
-    } catch {
-      // treat as a miss
-    }
+    } catch {}
     if (!upstreamBudget.take()) return null;
     const dataUri = await fetchAvatar(platform, username, deps());
     try {
       await store.set(key, { dataUri }, dataUri ? AVATAR_TTL_SECONDS : MISSING_TTL_SECONDS);
-    } catch {
-      // the image still renders; it just isn't cached
-    }
+    } catch {}
     return dataUri;
   }
 
@@ -142,7 +123,6 @@ export function createAvatarLoader(store: SnapshotStore, deps: () => AvatarDeps 
   };
 }
 
-/** Test-only overrides (E2E fake upstream); inert in Vercel production. */
 function serverAvatarDeps(): AvatarDeps {
   if (!testOverridesAllowed()) return {};
   const githubAvatarOrigin = process.env.GITVIS_GITHUB_AVATAR_ORIGIN;

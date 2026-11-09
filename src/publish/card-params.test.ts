@@ -25,7 +25,6 @@ describe("card params: round trip", () => {
     const sets = [[], ...FEATURE_IDS.map((id) => [id])];
     for (const on of sets) {
       const config = { ...createDefaultConfig(), features: flags(...on) };
-      // Sources are always attributed, so account labels come back on even when the set omits them.
       expect(decodeCardParams(encodeCardParams({ request: { gitlab: "contactkruk" }, config })).config).toEqual(
         withAttribution(config),
       );
@@ -53,11 +52,6 @@ describe("card params: round trip", () => {
   });
 });
 
-/**
- * Golden URLs: once published, these must decode identically forever.
- * Never edit an existing entry — add new ones.
- */
-/** Frozen meaning of the Phase 4 params when ABSENT (pre-Phase-4 URLs). Never change. */
 const LEGACY_EXTRAS = {
   identity: { style: "none", handles: ["github", "gitlab"], avatars: [], name: "", title: "" },
   background: "solid",
@@ -65,8 +59,8 @@ const LEGACY_EXTRAS = {
   metricOrder: ["totalContributions", "activeDays", "longestStreak", "bestDay", "currentStreak"],
   range: 365,
   density: "spacious",
-  panel: "filled", // Phase 4.2
-  years: 1, // Phase 4.2 history
+  panel: "filled",
+  years: 1,
 } as const satisfies Omit<VisualizationConfig, "layout" | "palette" | "mode" | "features">;
 const legacy = (c: Pick<VisualizationConfig, "layout" | "palette" | "mode" | "features">): VisualizationConfig =>
   ({
@@ -87,7 +81,6 @@ describe("card params: v1 compatibility (golden URLs)", () => {
     ],
     [
       "v=1&gitlab=contactkruk&layout=data-rich&palette=forest-gold&mode=dark&f=heatmap,total,active,streak,best,breakdown,trends,labels",
-      // Every pre-Phase-4 feature on; the Phase 4 "currentStreak" metric must stay OFF for this old URL.
       legacy({
         layout: "dataRich",
         palette: "forestGold",
@@ -105,7 +98,6 @@ describe("card params: v1 compatibility (golden URLs)", () => {
       }),
     ],
     [
-      // No optional params at all → frozen v1 defaults (best day off).
       "github=jenkruk",
       legacy({
         layout: "dashboard",
@@ -126,17 +118,14 @@ describe("card params: v1 compatibility (golden URLs)", () => {
   ];
 
   it.each(golden)("%s", (query, config) => {
-    // Golden decodes, with source attribution always applied (account labels can't be removed).
     expect(decode(query)).toEqual({ request: expect.any(Object), config: withAttribution(config), issues: [] });
   });
 
   it("treats the optional size param as a non-breaking addition", () => {
-    // URLs published before `size` existed decode with no size (= full) and no issues.
     expect(decode("v=1&github=jenkruk").size).toBeUndefined();
     expect(decode("v=1&github=jenkruk&size=full")).toMatchObject({ issues: [] });
     expect(decode("v=1&github=jenkruk&size=compact")).toMatchObject({ size: "compact", issues: [] });
     expect(decode("v=1&github=jenkruk&size=huge").issues).toEqual([{ param: "size", message: "Unknown size “huge”." }]);
-    // Encoders only write the variant, so full-size URLs stay byte-identical to before.
     const config = createDefaultConfig();
     expect(encodeCardParams({ request: { github: "jenkruk" }, config }).has("size")).toBe(false);
     expect(encodeCardParams({ request: { github: "jenkruk" }, config, size: "compact" }).get("size")).toBe("compact");
@@ -188,10 +177,6 @@ describe("card params: validation", () => {
   });
 });
 
-/**
- * Source attribution is part of v1 (made mandatory before the first deployment):
- * every connected account is shown, whatever `f` or the legacy `hl` say.
- */
 describe("card params: source attribution", () => {
   it("always shows every connected account, whatever f and hl say", () => {
     for (const query of [

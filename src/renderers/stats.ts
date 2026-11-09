@@ -4,14 +4,12 @@ import type { ContributionMetrics } from "@/metrics/metrics";
 import { formatNumber, formatPercent } from "./primitives";
 
 export type { StatFeatureId } from "@/config/features";
-/** Default metric order (also the frozen order for URLs without `ord`). */
 export const STAT_FEATURES: readonly StatFeatureId[] = STAT_FEATURE_IDS;
 
 export function isStatFeature(id: FeatureId): id is StatFeatureId {
   return (STAT_FEATURES as readonly FeatureId[]).includes(id);
 }
 
-/** Visible metrics in the user's chosen order (unknown/missing ids fall back to the default order). */
 export function orderedStats(
   order: readonly StatFeatureId[],
   isVisible: (id: StatFeatureId) => boolean,
@@ -27,9 +25,7 @@ export interface StatItem {
   id: StatFeatureId;
   value: string;
   label: string;
-  /** Extra context, shown by detailed layouts. */
   detail: string;
-  /** Compact phrase for one-line summaries. */
   inline: string;
 }
 

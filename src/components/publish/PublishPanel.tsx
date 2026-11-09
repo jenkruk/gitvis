@@ -20,21 +20,13 @@ import { CardDownloadError, fetchPublishedSvg, saveBlob, svgToPng } from "./down
 
 export interface PublishPanelProps {
   origin: string;
-  /** The request behind the live data; null when showing sample data. */
   request: ConnectRequest | null;
   results: PlatformResult[];
   config: VisualizationConfig;
-  /** README snippet options (theme matching, mobile image), shared with the preview modes. */
   options: SnippetOptions;
   onOptionsChange: (options: SnippetOptions) => void;
-  /** Vercel preview deployment: show that published URLs point at production. */
   isPreviewDeployment?: boolean;
-  /** Returns to the design step (settings are kept). */
   onEdit?: () => void;
-  /**
-   * Offline card source for environments without the /api/card route (Storybook).
-   * Given a published card URL, returns its SVG markup. Production omits it.
-   */
   renderCard?: (cardUrl: string) => string;
 }
 
@@ -111,7 +103,6 @@ function PublishContent({
   const [busy, setBusy] = useState<"svg" | "png" | null>(null);
   const details = useRef<HTMLDetailsElement>(null);
   const imageUrl = cardUrl(origin, params);
-  // Defer the preview so rapid option changes don't fire an image request per click.
   const previewUrl = useDeferredValue(imageUrl);
   const snippet = readmeSnippet(origin, params, options);
   const edit = editUrl(origin, params);
@@ -120,16 +111,13 @@ function PublishContent({
   const transparent = params.config.background === "transparent";
   const { theme } = effectiveSnippetOptions(options, params.config);
 
-  const announce = (message: string) =>
-    // Alternate a trailing space so repeating the same message is announced again.
-    setStatus((previous) => (previous === message ? `${message} ` : message));
+  const announce = (message: string) => setStatus((previous) => (previous === message ? `${message} ` : message));
 
   async function copyMarkdown() {
     try {
       await navigator.clipboard.writeText(snippet);
       announce("README Markdown copied. Paste it into your profile README.");
     } catch {
-      // Reveal and select the snippet so it can be copied by hand.
       if (details.current) details.current.open = true;
       const field = document.getElementById(MARKDOWN_ID) as HTMLTextAreaElement | null;
       field?.focus();
@@ -175,7 +163,6 @@ function PublishContent({
         key={previewUrl}
         src={renderCard ? svgDataUri(renderCard(previewUrl)) : previewUrl}
         alt={altText(params.request)}
-        // Transparent cards are shown on the GitHub page they're made for, not the studio's background.
         page={transparent ? GITHUB_SURFACES[params.config.mode][0] : undefined}
       />
 
@@ -298,11 +285,8 @@ function PublishContent({
   );
 }
 
-/** The real published image, fetched from the same URL GitHub will use. */
 function PublishedPreview({ src, alt, page }: { src: string; alt: string; page?: string }) {
   const [state, setState] = useState<"loading" | "loaded" | "error">("loading");
-  // A server-rendered <img> can finish before hydration attaches onLoad/onError,
-  // so read its settled state once the element is attached.
   const syncSettledState = (img: HTMLImageElement | null) => {
     if (img?.complete) setState(img.naturalWidth > 0 ? "loaded" : "error");
   };

@@ -6,23 +6,6 @@ import { Visualization } from "@/renderers/Visualization";
 import { decodeCardParams } from "./card-params";
 import { renderSvgMarkup } from "./svg-markup";
 
-/**
- * Published-URL compatibility guard: URLs generated before Phase 4 must keep
- * rendering byte-identical SVG. Snapshots were recorded BEFORE Phase 4 changes;
- * never update them to make a test pass — a diff here means old READMEs changed.
- *
- * One deliberate, pre-launch exception (Nov 2026, before any deployment): source
- * attribution became mandatory in v1, so "minimal-mono-light" and "no-features"
- * (which hid account labels) were re-recorded once. Nothing had been published.
- *
- * Second pre-launch exception (Nov 8, 2026, still undeployed): every card gained the
- * "Made with GitVis · created by Jen Kruk" credit line, so all snapshots
- * were re-recorded once. The only differences are the credit <text> and the taller card (+36px).
- * In the same pre-launch window the graphic lost all links (profile links live under the image in
- * the README snippet instead): header handles became plain <tspan>s and the root got cursor="default".
- * Also pre-launch: the combined total became always-on (it's the point of GitVis), so "no-features"
- * (f=, which hid it) now shows it.
- */
 const LEGACY_URLS: Record<string, string> = {
   "dashboard-default": "v=1&github=jenkruk&gitlab=contactkruk",
   "minimal-mono-light": "v=1&github=jenkruk&layout=minimal&palette=monochrome&mode=light&f=heatmap,total,active,streak",

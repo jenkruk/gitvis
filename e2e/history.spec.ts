@@ -17,13 +17,13 @@ test.describe("published multi-year card", () => {
     const { res, svg, desc, status } = await getCard(request, `github=${user}&gitlab=${user}&yrs=3`);
     expect(res.status()).toBe(200);
     expect(status).toBe("ok");
-    expect(svg.match(/>More</g)).toHaveLength(1); // one legend for all calendars
-    expect(svg.match(/>GitHub only · GitLab unavailable</g)).toHaveLength(2); // the two older year cards
-    expect(svg).toContain(">GitHub + GitLab<"); // the newest card
-    expect(svg).toContain(">Platform breakdown · Last 12 months<"); // stats name their period
+    expect(svg.match(/>More</g)).toHaveLength(1);
+    expect(svg.match(/>GitHub only · GitLab unavailable</g)).toHaveLength(2);
+    expect(svg).toContain(">GitHub + GitLab<");
+    expect(svg).toContain(">Platform breakdown · Last 12 months<");
     expect(desc).toContain("Summary statistics: Last 12 months, GitHub + GitLab.");
     expect(desc).toContain("By 12-month period, newest first");
-    expect(svg).not.toMatch(/<pattern/); // no hatching
+    expect(svg).not.toMatch(/<pattern/);
   });
 
   test("earlier years are cached: later views and other ranges don't refetch history", async ({ request }) => {
@@ -111,7 +111,6 @@ test.describe("phones (375px)", () => {
     await page.goto(`/?v=1&github=${user}&gitlab=${user}&yrs=3`);
     await expandAll(page);
     await page.getByRole("button", { name: "Expand preview" }).click();
-    // The full README image, scaled to fit (published cards have no phone variant).
     const graphic = page.getByRole("img", { name: /^Contribution activity/ }).first();
     await expect(graphic).toHaveAttribute("width", "840");
     await expectAccessible(page, "3-year history on a phone");

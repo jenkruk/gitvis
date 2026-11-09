@@ -6,11 +6,6 @@ import type { IdentityConfig } from "@/config/config";
 import { PLATFORM_IDS } from "@/domain/types";
 import type { AvatarImages } from "@/renderers/IdentityHeader";
 
-/**
- * Loads avatars (as data: URIs from /api/avatar) for the preview, only for
- * platforms the user turned on with a profile header. Results are
- * kept per username, so toggling options never refetches.
- */
 export function useAvatars(request: ConnectRequest | null, identity: IdentityConfig): AvatarImages {
   const [loaded, setLoaded] = useState<Record<string, string | null>>({});
 

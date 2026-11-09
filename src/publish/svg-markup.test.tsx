@@ -30,7 +30,6 @@ const datasets = {
   ),
 };
 
-/** The published image must be byte-identical to what React renders in the studio. */
 describe("renderSvgMarkup parity with react-dom/server", () => {
   it("matches for compact (mobile) images in every layout and edge dataset", () => {
     for (const layout of LAYOUT_IDS) {

@@ -28,7 +28,6 @@ describe("palettes", () => {
     });
 
     it("works with a transparent background on the matching GitHub theme", () => {
-      // Transparent graphics are published with theme matching, so each mode meets its GitHub surfaces.
       for (const page of GITHUB_SURFACES[mode]) {
         expect(contrastRatio(theme.text, page), `text on ${page}`).toBeGreaterThanOrEqual(4.5);
         expect(contrastRatio(theme.textMuted, page), `muted on ${page}`).toBeGreaterThanOrEqual(4.5);
@@ -89,7 +88,6 @@ describe("custom platform colors", () => {
     "adjusts low-contrast custom colors to ≥ 3:1 on %s (%s)",
     (id, mode) => {
       const surface = resolveTheme(id, mode).surface;
-      // Worst case: a color equal to the surface itself.
       const theme = resolveTheme(id, mode, { series: [surface, "#808080"] });
       for (const color of theme.series) expect(contrastRatio(color, surface)).toBeGreaterThanOrEqual(3);
     },
@@ -110,7 +108,6 @@ describe("outlined and borderless panels", () => {
   );
 
   it.each(combos)("%s (%s, %s background, %s) stays readable on what's actually underneath", (id, mode, bg, style) => {
-    // Worst case custom series: a color equal to the backdrop.
     const base = resolveTheme(id, mode, { series: [resolveTheme(id, mode).background, undefined] });
     const backdrops = panelBackdrops(base, bg, mode);
     const theme = applyPanelStyle(base, style, backdrops);
@@ -121,7 +118,6 @@ describe("outlined and borderless panels", () => {
       expect(contrastRatio(theme.heatmap[4], backdrop), `heatmap on ${backdrop}`).toBeGreaterThanOrEqual(3);
       for (const series of theme.series) expect(contrastRatio(series, backdrop)).toBeGreaterThanOrEqual(3);
     }
-    // The Sample badge keeps its filled surface: its text must still read there.
     expect(contrastRatio(theme.text, theme.surface)).toBeGreaterThanOrEqual(4.5);
     expect(theme.panelFill).toBe("none");
     expect(theme.panelStroke).toBe(style === "outlined" ? theme.border : "none");

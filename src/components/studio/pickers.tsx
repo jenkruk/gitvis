@@ -13,13 +13,22 @@ import {
 import { type Dispatch, useEffect, useId, useRef, useState } from "react";
 import {
   type ConfigAction,
+  configReducer,
   getFeatureVisibility,
+  isFeatureOn,
   presetOf,
   STARTING_PRESETS,
   type StartingPresetId,
   type VisualizationConfig,
 } from "@/config/config";
-import { FEATURE_GROUP_LABELS, FEATURES, type FeatureGroup, getFeature, type StatFeatureId } from "@/config/features";
+import {
+  FEATURE_GROUP_LABELS,
+  FEATURES,
+  type FeatureGroup,
+  type FeatureId,
+  getFeature,
+  type StatFeatureId,
+} from "@/config/features";
 import { getLayout, LAYOUTS, type LayoutId } from "@/config/layouts";
 import type { ContributionDataset } from "@/domain/types";
 import { type ColorMode, CURATED_PALETTE_IDS, PALETTES, type PaletteId, resolveTheme } from "@/theme/palettes";
@@ -209,22 +218,36 @@ const toggleable = (group: FeatureGroup) =>
   FEATURES.filter((f) => f.group === group && !("alwaysOn" in f && f.alwaysOn));
 
 export function FeatureToggles({ config, dispatch, dataset }: PickerProps & { dataset: ContributionDataset }) {
-  const layoutLabel = getLayout(config.layout).label;
-  const noteFor = (visibility: ReturnType<typeof getFeatureVisibility>) => {
-    if (visibility.visible) return undefined;
-    if (visibility.reason === "unsupportedByLayout") return `Not shown in the ${layoutLabel} layout`;
-    if (visibility.reason === "needsMultiplePlatforms") return "Shown when both platforms are connected";
-    return undefined;
-  };
+  const [layoutNote, setLayoutNote] = useState("");
+  const noteFor = (visibility: ReturnType<typeof getFeatureVisibility>) =>
+    !visibility.visible && visibility.reason === "needsMultiplePlatforms"
+      ? "Shown when both platforms are connected"
+      : undefined;
+
+  /** Turning a feature on or off can change the layout (see configReducer); say so when it does. */
+  function setFeature(feature: FeatureId, enabled: boolean) {
+    const action = { type: "setFeature", feature, enabled } as const;
+    const next = configReducer(config, action);
+    dispatch(action);
+    setLayoutNote(
+      next.layout === config.layout
+        ? ""
+        : `Layout switched to ${getLayout(next.layout).label} ${enabled ? "to show" : "after hiding"} ${getFeature(feature).label}.`,
+    );
+  }
 
   return (
     <div className="space-y-6">
+      <p role="status" className={layoutNote ? "text-sm font-medium text-zinc-700 dark:text-zinc-300" : "sr-only"}>
+        {layoutNote}
+      </p>
       {GROUP_ORDER.map((group) =>
         group === "stats" ? (
           <MetricList
             key={group}
             config={config}
             dispatch={dispatch}
+            setFeature={setFeature}
             noteFor={(id) => noteFor(getFeatureVisibility(id, config, dataset))}
           />
         ) : (
@@ -237,8 +260,9 @@ export function FeatureToggles({ config, dispatch, dataset }: PickerProps & { da
                     id={`feature-${feature.id}`}
                     label={feature.label}
                     description={feature.description}
-                    checked={config.features[feature.id]}
-                    onChange={(enabled) => dispatch({ type: "setFeature", feature: feature.id, enabled })}
+                    // Off when the current layout can't show it; turning it on switches to a layout that can.
+                    checked={isFeatureOn(feature.id, config)}
+                    onChange={(enabled) => setFeature(feature.id, enabled)}
                     note={noteFor(getFeatureVisibility(feature.id, config, dataset))}
                   />
                 ))}
@@ -258,8 +282,12 @@ export function FeatureToggles({ config, dispatch, dataset }: PickerProps & { da
 function MetricList({
   config,
   dispatch,
+  setFeature,
   noteFor,
-}: PickerProps & { noteFor: (id: StatFeatureId) => string | undefined }) {
+}: PickerProps & {
+  setFeature: (feature: FeatureId, enabled: boolean) => void;
+  noteFor: (id: StatFeatureId) => string | undefined;
+}) {
   const [announcement, setAnnouncement] = useState("");
   const order = config.metricOrder;
 
@@ -282,8 +310,8 @@ function MetricList({
                   id={`feature-${id}`}
                   label={feature.label}
                   description={feature.description}
-                  checked={config.features[id]}
-                  onChange={(enabled) => dispatch({ type: "setFeature", feature: id, enabled })}
+                  checked={isFeatureOn(id, config)}
+                  onChange={(enabled) => setFeature(id, enabled)}
                   note={noteFor(id)}
                 />
               </div>

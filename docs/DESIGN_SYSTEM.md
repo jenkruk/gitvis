@@ -15,7 +15,7 @@ Width is fixed at 840px, with 24px outer padding and 16px section gaps. Height c
 | **Dashboard** | Header · stat cards row · heatmap panel · platform breakdown bar                                             | all except activity trends                                             |
 | **Data-rich** | Header · detailed stat cards (with sub-metrics) · heatmap panel · weekly trend + monthly platform comparison | all                                                                    |
 
-When a feature is enabled but the current layout doesn't support it, the setting is **kept**, and the toggle shows "Not shown in _Layout_".
+When the current layout can't show a feature, its switch reads as **off** (the setting itself is kept for other layouts). Turning it on moves to the smallest layout that shows it (Minimal → Dashboard → Data-rich); turning off the last feature Minimal lacks (breakdown, trends) moves to Minimal. Statistics never change the layout. Each automatic switch is announced in a visible status line ("Layout switched to Dashboard to show GitHub / GitLab breakdown.").
 
 ## Visual components (`src/renderers`)
 
@@ -77,7 +77,7 @@ Each palette defines **light and dark** variants with these tokens:
 
 Contrast thresholds are **enforced by unit tests** (`src/theme/palettes.test.ts`) for every palette × mode. Any new palette must pass them.
 
-Palette, layout, and mode are independent axes of `VisualizationConfig`, and changing one never resets the others. So are background, identity, platform colors, range, density and metric order.
+Palette, layout, and mode are independent axes of `VisualizationConfig`, and changing one never resets the others (the one coupling: feature switches can move the layout, above). So are background, identity, platform colors, range, density and metric order.
 
 ### Panel styles
 

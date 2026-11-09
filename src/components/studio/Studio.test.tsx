@@ -262,14 +262,40 @@ describe("design step", () => {
     expect(within(preview()).getByText("Best day")).toBeInTheDocument();
   });
 
-  it("explains when an enabled feature isn't shown by the current layout", async () => {
+  it("shows layout-only features as off, and moves the layout when they're switched", async () => {
     const { user, preview } = design();
-    await user.click(screen.getByRole("radio", { name: /minimal/i }));
+    const layout = (name: RegExp) => screen.getByRole("radio", { name });
+    await user.click(layout(/minimal/i));
+    await user.click(screen.getByText("Metrics & Charts"));
 
-    const breakdown = screen.getByRole("switch", { name: /breakdown/i });
-    expect(breakdown).toBeChecked();
-    expect(breakdown).toHaveAccessibleDescription(/not shown in the minimal layout/i);
-    expect(within(preview()).queryByText("Platform breakdown")).not.toBeInTheDocument();
+    // Minimal can't show the breakdown or trends, so their switches read as off (no explanatory note).
+    const breakdown = () => screen.getByRole("switch", { name: /breakdown/i });
+    const trends = () => screen.getByRole("switch", { name: /trends/i });
+    expect(breakdown()).not.toBeChecked();
+    expect(trends()).not.toBeChecked();
+    expect(screen.queryByText(/not shown in the/i)).not.toBeInTheDocument();
+
+    // Turning one on moves to the smallest layout that shows it, and says so.
+    breakdown().focus();
+    await user.keyboard(" ");
+    expect(layout(/dashboard/i)).toBeChecked();
+    expect(breakdown()).toBeChecked();
+    expect(screen.getByText("Layout switched to Dashboard to show GitHub / GitLab breakdown.")).toBeVisible();
+    expect(within(preview()).getByText("Platform breakdown")).toBeInTheDocument();
+
+    await user.click(trends());
+    expect(layout(/data-rich/i)).toBeChecked();
+
+    // Turning off the last feature Minimal lacks moves back to Minimal.
+    await user.click(trends());
+    expect(layout(/data-rich/i)).toBeChecked(); // the breakdown is still on
+    await user.click(breakdown());
+    expect(layout(/minimal/i)).toBeChecked();
+    expect(screen.getByText("Layout switched to Minimal after hiding GitHub / GitLab breakdown.")).toBeVisible();
+
+    // Statistics never move the layout.
+    await user.click(screen.getByRole("switch", { name: /active days/i }));
+    expect(layout(/minimal/i)).toBeChecked();
   });
 
   it("supports keyboard: arrow keys move between layouts, Space toggles a switch", async () => {

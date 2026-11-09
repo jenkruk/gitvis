@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { PlatformContributions } from "@/domain/types";
-import { configReducer, createDefaultConfig, getFeatureVisibility, presetOf } from "./config";
-import { FEATURES } from "./features";
+import {
+  configReducer,
+  createDefaultConfig,
+  getFeatureVisibility,
+  isFeatureOn,
+  presetOf,
+  type VisualizationConfig,
+} from "./config";
+import { type FeatureId, FEATURES } from "./features";
 import { LAYOUTS } from "./layouts";
 
 const gh: PlatformContributions = { platform: "github", username: "a", days: [] };
@@ -147,5 +154,42 @@ describe("switching presets back and forth", () => {
       restore: { style: profile.identity.style as "compact", avatars: profile.identity.avatars },
     });
     expect(back.identity).toEqual(profile.identity);
+  });
+});
+
+describe("features move the layout", () => {
+  const on = (config: VisualizationConfig, ...features: FeatureId[]) =>
+    features.reduce((c, feature) => configReducer(c, { type: "setFeature", feature, enabled: true }), config);
+  const off = (config: VisualizationConfig, ...features: FeatureId[]) =>
+    features.reduce((c, feature) => configReducer(c, { type: "setFeature", feature, enabled: false }), config);
+  const minimal = configReducer(createDefaultConfig(), { type: "setLayout", layout: "minimal" });
+
+  it("reads a feature the layout can't show as off, without discarding the choice", () => {
+    expect(minimal.features.platformBreakdown).toBe(true);
+    expect(isFeatureOn("platformBreakdown", minimal)).toBe(false);
+    expect(isFeatureOn("heatmap", minimal)).toBe(true);
+    const back = configReducer(minimal, { type: "setLayout", layout: "dashboard" });
+    expect(isFeatureOn("platformBreakdown", back)).toBe(true);
+  });
+
+  it("turning one on picks the smallest layout that shows it and everything already shown", () => {
+    expect(on(minimal, "platformBreakdown").layout).toBe("dashboard");
+    expect(on(minimal, "activityTrends").layout).toBe("dataRich");
+    const dashboard = { ...createDefaultConfig(), layout: "dashboard" as const };
+    expect(on(dashboard, "activityTrends")).toMatchObject({ layout: "dataRich", features: { activityTrends: true } });
+  });
+
+  it("turning off the last feature Minimal lacks moves to Minimal", () => {
+    const dataRich = on(minimal, "activityTrends");
+    expect(off(dataRich, "activityTrends").layout).toBe("dataRich"); // breakdown still shown
+    expect(off(dataRich, "activityTrends", "platformBreakdown").layout).toBe("minimal");
+    expect(off({ ...createDefaultConfig(), layout: "dashboard" }, "platformBreakdown").layout).toBe("minimal");
+  });
+
+  it("never moves the layout for statistics, or for features the layout already shows", () => {
+    expect(off({ ...createDefaultConfig(), layout: "dashboard" }, "activeDays").layout).toBe("dashboard");
+    expect(on(minimal, "bestDay").layout).toBe("minimal");
+    const dataRich = { ...createDefaultConfig(), layout: "dataRich" as const };
+    expect(on(dataRich, "activityTrends").layout).toBe("dataRich");
   });
 });

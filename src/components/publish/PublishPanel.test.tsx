@@ -92,7 +92,7 @@ describe("PublishPanel", () => {
     const url = new URL(img.getAttribute("src")!);
     expect(url.pathname).toBe("/api/card");
     expect(decodeCardParams(url.searchParams)).toEqual({ request: { github: "jenkruk" }, config, issues: [] });
-    expect(markdown()).toHaveAccessibleDescription(/get yours!/i);
+    expect(markdown()).toHaveAccessibleDescription(/get yours/i);
   });
 
   it("shows the real published image with the same alt text", () => {

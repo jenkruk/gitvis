@@ -582,7 +582,7 @@ const CREDIT_SIZE = 14;
 
 /**
  * "Made with GitVis · created by Jen Kruk" on every card, as plain text. The
- * "Get yours!" link lives under the image in the README snippet, where it can
+ * "Get Yours" link lives under the image in the README snippet, where it can
  * actually be clicked.
  */
 export function Credit({ theme, y }: { theme: ThemeTokens; y: number }) {

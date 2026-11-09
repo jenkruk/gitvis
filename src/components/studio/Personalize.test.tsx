@@ -96,12 +96,13 @@ describe("colors and backgrounds", () => {
     expect(theme).toHaveAccessibleDescription(/always match the reader's theme/i);
   });
 
-  it("ends the README snippet with 'Get yours!' and no option to add other links", async () => {
+  it("ends the README snippet with 'Get Yours' and no option to add other links", async () => {
     const { user } = setup({ initialRequest: { github: "jenkruk" }, initialResponse: live });
     await user.click(screen.getByRole("button", { name: "Continue to publish" }));
     expect(screen.queryByRole("checkbox", { name: /profile links/i })).not.toBeInTheDocument();
     const snippet = (screen.getByRole("textbox", { name: /markdown/i }) as HTMLTextAreaElement).value;
-    expect(snippet).toMatch(/<p align="left"><a href="https:\/\/gitvis\.test">Get yours!<\/a><\/p>$/);
+    // Ends with the "Get Yours" link (drawn as a label image) to the GitVis site.
+    expect(snippet).toMatch(/<a href="https:\/\/gitvis\.test">\s*<picture>[\s\S]*alt="Get Yours"[\s\S]*<\/a>\s*<\/p>$/);
     expect(snippet).not.toContain("https://gitvis.test/?"); // the image never links into the studio
   });
 

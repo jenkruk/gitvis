@@ -1,0 +1,83 @@
+import { renderToStaticMarkup } from "react-dom/server";
+import { NextRequest } from "next/server";
+import { describe, expect, it } from "vitest";
+import { LINK_LABEL_INSET, LinkLabel } from "@/renderers/LinkLabel";
+import { renderSvgMarkup } from "@/publish/svg-markup";
+import { GET } from "./route";
+
+let ip = 0;
+const get = (query: string) =>
+  GET(new NextRequest(`http://localhost/api/label?${query}`, { headers: { "x-forwarded-for": `198.51.100.${++ip}` } }));
+const textOf = (svg: string) => /<text ([^>]*)>([^<]*)<\/text>/.exec(svg)!;
+const attr = (attrs: string, name: string) => new RegExp(`${name}="([^"]*)"`).exec(attrs)?.[1];
+const width = (svg: string) => Number(/^<svg [^>]*width="(\d+)"/.exec(svg)![1]);
+
+describe("GET /api/label", () => {
+  it("draws the GitLab link: smaller, underlined, right-aligned, light text for dark pages", async () => {
+    const res = await get("gitlab=contactkruk&mode=dark");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("image/svg+xml; charset=utf-8");
+    const svg = await res.text();
+    expect(svg).toMatch(
+      /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"[^>]*role="img" aria-label="GitLab @contactkruk"/,
+    );
+    const [, attrs, text] = textOf(svg);
+    expect(text).toBe("GitLab @contactkruk");
+    expect(attr(attrs!, "font-size")).toBe("13");
+    expect(attr(attrs!, "fill")).toBe("#f0f6fc");
+    expect(attr(attrs!, "text-decoration")).toBe("underline");
+    expect(attr(attrs!, "text-anchor")).toBe("end");
+    expect(Number(attr(attrs!, "x"))).toBe(width(svg)); // flush with the right edge
+    expect(svg).not.toMatch(/<a |<script|href=/);
+  });
+
+  it("draws 'Get Yours' larger than the GitLab link, left-aligned, dark text for light pages", async () => {
+    const svg = await (await get("cta=1&mode=light")).text();
+    const [, attrs, text] = textOf(svg);
+    expect(text).toBe("Get Yours");
+    expect(Number(attr(attrs!, "font-size"))).toBeGreaterThan(13);
+    expect(attr(attrs!, "fill")).toBe("#1f2328");
+    expect(attr(attrs!, "text-anchor")).toBe("start");
+    expect(attr(attrs!, "x")).toBe("0");
+  });
+
+  it("insets the text by the card's padding for transparent cards", async () => {
+    const gitlab = await (await get("gitlab=contactkruk&mode=dark&inset=1")).text();
+    expect(Number(attr(textOf(gitlab)[1]!, "x"))).toBe(width(gitlab) - LINK_LABEL_INSET);
+    const cta = await (await get("cta=1&mode=dark&inset=1")).text();
+    expect(Number(attr(textOf(cta)[1]!, "x"))).toBe(LINK_LABEL_INSET);
+  });
+
+  it("is cached for a long time and locked down", async () => {
+    const res = await get("gitlab=contactkruk&mode=dark");
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=86400");
+    expect(res.headers.get("Vercel-CDN-Cache-Control")).toBe("public, s-maxage=31536000");
+    expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(res.headers.get("Content-Security-Policy")).toContain("sandbox");
+  });
+
+  it.each([
+    "",
+    "gitlab=",
+    "gitlab=bad..name&mode=dark",
+    "gitlab=contactkruk&mode=sepia",
+    "gitlab=%3Cscript%3E",
+    "cta=1&gitlab=contactkruk",
+    "cta=yes",
+    "gitlab=contactkruk&inset=24",
+    "text=anything",
+  ])("rejects %s (no free text, one label per URL)", async (query) => {
+    const res = await get(query);
+    expect(res.status).toBe(400);
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+  });
+
+  it("serializes the same markup as React", () => {
+    for (const element of [
+      <LinkLabel key="g" kind="gitlab" text="GitLab @a.b_c" mode="light" inset />,
+      <LinkLabel key="c" kind="cta" text="Get Yours" mode="dark" />,
+    ]) {
+      expect(renderSvgMarkup(element)).toBe(renderToStaticMarkup(element));
+    }
+  });
+});

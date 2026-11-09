@@ -352,7 +352,7 @@ Unfilled panels put their content directly on whatever is behind them, so `apply
   - Stat cards in 2 columns, the last 20 weeks of heatmap (cells ≈ GitHub's 10px on a phone), stacked charts, and wrapped text.
   - `size` is an optional v1 parameter. It's absent from full-size URLs, so every previously published URL is unchanged.
 - The graphic contains **no links** (`<a>`): in READMEs it's an image, so they could never be clicked. The SVG sets `cursor="default"`, and the card route's CSP is a plain `sandbox` (no popups).
-- **Links under the image** (always): `<p align="left">` "Get yours!" (production origin) and, when GitLab is connected, `<p align="right">` the GitLab profile. No GitHub link: the README is on GitHub. The image is always an unlinked `<picture>`, since GitHub auto-links a plain Markdown image but not a `<picture>`.
+- **Links under the image** (always): one `<p align="left">` with "Get Yours" (production origin) and, when GitLab is connected, the GitLab profile link as a right-floated image (`<img align="right">` in a `<picture>` with a dark-theme `<source>`). GitHub keeps no styling, and only images float, so `GET /api/label?gitlab=<user>&mode=dark|light` (`src/renderers/LinkLabel.tsx`) draws the text: 13px, underlined, GitHub's own text colors; output depends only on the URL, so it's cached for a year at the edge. No GitHub link: the README is on GitHub. The image is always an unlinked `<picture>`, since GitHub auto-links a plain Markdown image but not a `<picture>`.
 - **Transparent background** forces theme matching (`effectiveSnippetOptions`), so the light variant is never shown on a dark page.
 - SVG download fetches the published card. PNG rasterizes that same SVG on a `<canvas>` at 2× (no dependency).
 

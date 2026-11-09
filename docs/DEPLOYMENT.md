@@ -116,7 +116,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -H "If-None-Match: <etag>" "$SITE/api/c
 - [ ] github.com desktop in light and dark shows the right variant.
 - [ ] A phone (or devtools at 375px) shows the 400px compact image.
 - [ ] The image URL is `camo.githubusercontent.com/...`. `curl -sI <camo-url>` shows camo's headers; record its `cache-control` and `etag` behavior.
-- [ ] The image isn't a link; "Get yours!" (and the GitLab link, when connected) under it work.
+- [ ] The image isn't a link; "Get Yours" and the GitLab link share one line under it (GitLab right-aligned, in both themes) and both work.
 
 **E. Freshness after idle.** Leave one test card unrequested for **> 13h**: 12h window plus 1h edge, and make sure no README views it.
 

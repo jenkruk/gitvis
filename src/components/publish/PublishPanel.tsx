@@ -5,6 +5,7 @@ import { useDeferredValue, useRef, useState } from "react";
 import type { ConnectRequest, PlatformResult } from "@/adapters/connect";
 import type { VisualizationConfig } from "@/config/config";
 import { PLATFORMS } from "@/domain/types";
+import { GITHUB_SURFACES } from "@/theme/palettes";
 import type { CardParams } from "@/publish/card-params";
 import {
   altText,
@@ -174,6 +175,8 @@ function PublishContent({
         key={previewUrl}
         src={renderCard ? svgDataUri(renderCard(previewUrl)) : previewUrl}
         alt={altText(params.request)}
+        // Transparent cards are shown on the GitHub page they're made for, not the studio's background.
+        page={transparent ? GITHUB_SURFACES[params.config.mode][0] : undefined}
       />
 
       <div className="space-y-3">
@@ -296,7 +299,7 @@ function PublishContent({
 }
 
 /** The real published image, fetched from the same URL GitHub will use. */
-function PublishedPreview({ src, alt }: { src: string; alt: string }) {
+function PublishedPreview({ src, alt, page }: { src: string; alt: string; page?: string }) {
   const [state, setState] = useState<"loading" | "loaded" | "error">("loading");
   // A server-rendered <img> can finish before hydration attaches onLoad/onError,
   // so read its settled state once the element is attached.
@@ -306,7 +309,10 @@ function PublishedPreview({ src, alt }: { src: string; alt: string }) {
 
   return (
     <figure className="min-w-0">
-      <div className="relative rounded-lg border border-zinc-200 bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-[length:16px_16px] p-2 dark:border-zinc-800 dark:bg-[repeating-conic-gradient(#18181b_0_25%,#09090b_0_50%)]">
+      <div
+        style={page ? { background: page } : undefined}
+        className="relative rounded-lg border border-zinc-200 bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-[length:16px_16px] p-2 dark:border-zinc-800 dark:bg-[repeating-conic-gradient(#18181b_0_25%,#09090b_0_50%)]"
+      >
         {/* eslint-disable-next-line @next/next/no-img-element -- must load the exact external-style URL GitHub embeds, unoptimized */}
         <img
           ref={syncSettledState}

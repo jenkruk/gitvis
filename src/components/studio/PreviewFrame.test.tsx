@@ -5,7 +5,8 @@ import { describe, expect, it } from "vitest";
 import { createSampleDataset } from "@/fixtures/sample-dataset";
 import { computeMetrics } from "@/metrics/metrics";
 import { DataView } from "./DataView";
-import { README_COLUMN_WIDTH } from "./PreviewFrame";
+import { PreviewFrame, README_COLUMN_WIDTH } from "./PreviewFrame";
+import { createDefaultConfig, type VisualizationConfig } from "@/config/config";
 import { Studio } from "./Studio";
 
 describe("preview", () => {
@@ -17,6 +18,35 @@ describe("preview", () => {
     expect(screen.getByRole("img", { name: "Contribution activity" })).toHaveAttribute("width", "840");
   });
 });
+
+describe("transparent backgrounds", () => {
+  const dataset = createSampleDataset();
+  const metrics = computeMetrics(dataset);
+  const frame = (config: VisualizationConfig) => {
+    const { container } = render(<PreviewFrame dataset={dataset} config={config} metrics={metrics} busy={false} />);
+    return container.querySelector("[aria-busy]") as HTMLElement;
+  };
+
+  it.each([
+    ["light", "#ffffff"],
+    ["dark", "#0d1117"],
+  ] as const)("shows a transparent %s card on GitHub's %s page, and says so", (mode, page) => {
+    const el = frame({ ...createDefaultConfig(), background: "transparent", mode });
+    expect(el.style.background).toBe(hexToRgb(page));
+    expect(screen.getByText(new RegExp(`shown on GitHub's ${mode} page`))).toBeVisible();
+  });
+
+  it("keeps the studio's own background for cards with a background", () => {
+    expect(frame({ ...createDefaultConfig(), mode: "light" }).style.background).toBe("");
+    expect(screen.queryByText(/shown on GitHub's/)).not.toBeInTheDocument();
+  });
+});
+
+/** jsdom reports inline colors as rgb(). */
+const hexToRgb = (hex: string) => {
+  const n = Number.parseInt(hex.slice(1), 16);
+  return `rgb(${n >> 16}, ${(n >> 8) & 255}, ${n & 255})`;
+};
 
 describe("DataView", () => {
   const dataset = createSampleDataset();

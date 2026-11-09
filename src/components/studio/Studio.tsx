@@ -196,12 +196,6 @@ export function Studio({
         headingRef={designHeading}
         title="Design your graphic"
         describedBy="design-source"
-        actions={
-          <button type="button" onClick={() => dispatch({ type: "reset" })} className={secondaryButton}>
-            <RotateCcw aria-hidden="true" className="size-4" />
-            Reset design
-          </button>
-        }
       >
         <SourceLine
           id="design-source"
@@ -232,12 +226,23 @@ export function Studio({
             <h3 id="preview-heading" className="sr-only">
               Live preview
             </h3>
-            {loading && (
-              <p className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                <Loader2 aria-hidden="true" className="size-3.5 motion-safe:animate-spin" />
-                Updating preview…
-              </p>
-            )}
+            {/* Right above the graphic it resets; shares the row with the loading note. */}
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              {loading && (
+                <p className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                  <Loader2 aria-hidden="true" className="size-3.5 motion-safe:animate-spin" />
+                  Updating preview…
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => dispatch({ type: "reset" })}
+                className={`${secondaryButton} ml-auto`}
+              >
+                <RotateCcw aria-hidden="true" className="size-4" />
+                Reset design
+              </button>
+            </div>
             <CollapsiblePreview>
               <PreviewFrame dataset={view} avatars={avatars} config={config} metrics={metrics} busy={loading} />
             </CollapsiblePreview>

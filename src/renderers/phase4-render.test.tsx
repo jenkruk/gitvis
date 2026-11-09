@@ -6,7 +6,7 @@ import { combineSources } from "@/domain/combine";
 import { addDays, toISODate, trailingYear } from "@/domain/dates";
 import { renderSvgMarkup } from "@/publish/svg-markup";
 import { contrastRatio } from "@/theme/color";
-import { PALETTE_IDS, resolveTheme, withPlatformHeatmap } from "@/theme/palettes";
+import { resolveTheme, withPlatformHeatmap } from "@/theme/palettes";
 import { CANVAS_WIDTHS } from "./primitives";
 import { Visualization } from "./Visualization";
 
@@ -201,37 +201,15 @@ describe("centered profile header", () => {
 });
 
 describe("credit line", () => {
-  const credit = (svg: string) => /<text[^>]*>(<tspan>Made with GitVis[\s\S]*?)<\/text><\/svg>$/.exec(svg)?.[1];
-
-  it("is on every card, at the bottom, and only 'Get yours!' links to GitVis (new tab, hand cursor)", () => {
+  it("is plain text at the bottom of every card, with no links", () => {
     for (const layout of LAYOUT_IDS) {
       for (const size of ["full", "compact"] as const) {
-        const svg = render({ ...createDefaultConfig(), layout }, { size, siteUrl: "https://gitvis.example" });
-        const line = credit(svg);
-        expect(line).toBe(
-          '<tspan>Made with GitVis · created by Jen Kruk ·</tspan><a href="https://gitvis.example" target="_blank"><tspan cursor="pointer"><tspan dx="4" fill="' +
-            /fill="(#[0-9a-f]{6})" font-weight="600"/.exec(line!)![1] +
-            '" font-weight="600" text-decoration="underline">Get yours!</tspan></tspan></a>',
+        const svg = render({ ...createDefaultConfig(), layout }, { size });
+        // Last element, left-aligned at the content edge, after the footnote.
+        expect(svg).toMatch(
+          /<text x="24" y="[\d.]+" font-size="12"[^>]*>Made with GitVis · created by Jen Kruk<\/text><\/svg>$/,
         );
-        expect(svg.match(/href="https:\/\/gitvis\.example"/g)).toHaveLength(1);
-      }
-    }
-  });
-
-  it("is plain text without a site URL or in the studio preview (no links there)", () => {
-    expect(credit(render(createDefaultConfig()))).not.toContain("<a ");
-    const preview = render(createDefaultConfig(), { siteUrl: "https://gitvis.example", links: false });
-    expect(credit(preview)).toContain("Get yours!");
-    expect(preview).not.toContain("gitvis.example");
-  });
-
-  it("keeps readable contrast for the call to action in every palette and mode", () => {
-    for (const palette of PALETTE_IDS) {
-      for (const mode of ["light", "dark"] as const) {
-        const svg = render({ ...createDefaultConfig(), palette, mode }, { siteUrl: "https://gitvis.example" });
-        const fill =
-          /<tspan dx="4" fill="(#[0-9a-f]{6})" font-weight="600" text-decoration="underline">Get yours!/.exec(svg)![1]!;
-        expect(contrastRatio(fill, resolveTheme(palette, mode).background)).toBeGreaterThanOrEqual(4.5);
+        expect(svg).not.toContain("Get yours");
       }
     }
   });

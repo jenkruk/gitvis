@@ -73,8 +73,6 @@ export async function renderCard(
   search: URLSearchParams,
   loaders: ContributionLoaders,
   loadAvatars?: AvatarLoader,
-  /** The production GitVis origin, for the credit's "Get yours!" link (see src/server/origin.ts). */
-  siteUrl?: string,
 ): Promise<CardResult> {
   const { request, config, issues, size = "full" } = decodeCardParams(search);
   const look: Look = { config, size };
@@ -110,9 +108,7 @@ export async function renderCard(
     }
     if (!response.dataset) throw new Error("No dataset despite successful results");
 
-    const svg = renderSvgMarkup(
-      createElement(Visualization, { dataset: response.dataset, config, size, avatars, siteUrl }),
-    );
+    const svg = renderSvgMarkup(createElement(Visualization, { dataset: response.dataset, config, size, avatars }));
     // Last-known-good data is labeled in the image; keep it short-lived at the edge so recovery shows quickly.
     return response.dataset.freshness?.stale
       ? { svg, status: "stale", edgeMaxAge: MINUTE, asOf: response.dataset.freshness.asOf }

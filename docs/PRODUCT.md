@@ -73,8 +73,8 @@ The user's goal is to **paste one Markdown snippet into a GitHub README** and ne
 - **Copy Markdown** in one click. It can match the reader's GitHub light or dark theme using a `<picture>` element.
 - **Published-image preview**: the actual image GitHub will fetch, shown before copying.
 - **Edit configuration link**: reopens the studio with every choice restored. It's shown on the Publish screen; the README image never links there, because readers clicking a card want the accounts, not the editor.
-- **Clicking through to the accounts**: in a README, clicking the image opens it on its own, where each account's avatar and username link to its profile in a new tab. Profile links under the image (on by default) give README readers one-click links too, plus a "Get yours!" link to GitVis.
-- **Credit line**: every card ends with "Made with GitVis · created by Jen Kruk · Get yours!". Only "Get yours!" links (to the production site, new tab); the README never links the image itself to GitVis.
+- **Clicking through to the accounts**: in a README, clicking the image opens it on its own, where each account's avatar and username link to its profile in a new tab. The profile link under the image (on by default) gives README readers a one-click GitLab link; there's no GitHub link because the README is already on GitHub. README links use GitHub's own link style (GitHub strips colors and styling).
+- **Credit line**: every card ends with plain-text "Made with GitVis · created by Jen Kruk". Every README snippet ends with a separate "Get yours!" link to the production site; the image itself never links to GitVis.
 - **Downloads**: SVG and PNG, both generated from the published image.
 - **Stability promise**: a URL generated today renders the same design in future versions. Version bumps are only for breaking changes, and old versions keep working.
 

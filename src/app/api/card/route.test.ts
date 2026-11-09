@@ -27,14 +27,6 @@ beforeEach(() => {
 });
 
 describe("GET /api/card", () => {
-  it("links 'Get yours!' to the production site, never the request host", async () => {
-    vi.stubEnv("SITE_URL", "https://gitvis.example");
-    const svg = await (await get("v=1&github=jenkruk", { host: "preview-abc.vercel.app" })).text();
-    vi.unstubAllEnvs();
-    expect(svg).toContain('<a href="https://gitvis.example" target="_blank"><tspan cursor="pointer">');
-    expect(svg).not.toContain("preview-abc");
-  });
-
   it("stays sandboxed (no scripts) while letting its links open a new tab", async () => {
     const csp = (await get("v=1&github=jenkruk")).headers.get("Content-Security-Policy")!;
     expect(csp).toContain("default-src 'none'");

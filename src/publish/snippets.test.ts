@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultConfig } from "@/config/config";
 import { decodeCardParams } from "./card-params";
-import { altText, cardUrl, downloadName, editUrl, labelUrl, readmeSnippet, type SnippetOptions } from "./snippets";
+import { resolveTheme } from "@/theme/palettes";
+import {
+  altText,
+  cardUrl,
+  downloadName,
+  editUrl,
+  labelUrl,
+  linkColor,
+  readmeSnippet,
+  type SnippetOptions,
+} from "./snippets";
 
 const origin = "https://gitvis.example";
 const params = { request: { github: "jenkruk", gitlab: "contactkruk" }, config: createDefaultConfig() };
@@ -174,16 +184,16 @@ describe("links under the image", () => {
       href: "https://gitlab.com/contactkruk",
       alt: "GitLab @contactkruk",
       align: "right",
-      light: labelUrl(origin, { gitlab: "contactkruk" }, "light"),
-      dark: labelUrl(origin, { gitlab: "contactkruk" }, "dark"),
+      light: labelUrl(origin, { gitlab: "contactkruk" }, "light", { color: linkColor(params.config, "light") }),
+      dark: labelUrl(origin, { gitlab: "contactkruk" }, "dark", { color: linkColor(params.config, "dark") }),
       media: "(prefers-color-scheme: dark)",
     });
     expect(getYours).toEqual({
       href: "https://gitvis.example",
       alt: "Get Yours",
       align: null,
-      light: labelUrl(origin, { cta: true }, "light"),
-      dark: labelUrl(origin, { cta: true }, "dark"),
+      light: labelUrl(origin, { cta: true }, "light", { color: linkColor(params.config, "light") }),
+      dark: labelUrl(origin, { cta: true }, "dark", { color: linkColor(params.config, "dark") }),
       media: "(prefers-color-scheme: dark)",
     });
     for (const el of body.querySelectorAll("*")) {
@@ -222,9 +232,24 @@ describe("links under the image", () => {
     expect(labelUrl(origin, { gitlab: "a.b_c" }, "dark")).toBe(
       "https://gitvis.example/api/label?gitlab=a.b_c&mode=dark",
     );
-    expect(labelUrl(origin, { cta: true }, "light", true)).toBe(
-      "https://gitvis.example/api/label?cta=1&mode=light&inset=1",
+    expect(labelUrl(origin, { cta: true }, "light", { inset: true, color: "#5BAE9E" })).toBe(
+      "https://gitvis.example/api/label?cta=1&mode=light&color=5bae9e&inset=1",
     );
+  });
+
+  it("colors both links with the graphic's GitLab color, per reader theme", () => {
+    const custom = { ...params, config: { ...params.config, platformColors: { gitlab: "#5bae9e" } } };
+    const urls = [
+      ...links(readmeSnippet(origin, custom, { theme: "auto", responsive: true })).querySelectorAll("img, source"),
+    ].map((el) => new URL((el.getAttribute("src") ?? el.getAttribute("srcset"))!).searchParams);
+    expect(urls).toHaveLength(4);
+    for (const q of urls) {
+      expect(q.get("color")).toBe(linkColor(custom.config, q.get("mode") as "dark" | "light").slice(1));
+    }
+    // A custom GitLab color is used as given where it's readable on the card.
+    expect(linkColor(custom.config, "dark")).toBe("#5bae9e");
+    // Otherwise the palette's own GitLab color.
+    expect(linkColor(params.config, "dark")).toBe(resolveTheme(params.config.palette, "dark").series[1]);
   });
 });
 

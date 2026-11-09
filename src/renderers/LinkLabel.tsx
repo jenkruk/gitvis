@@ -1,10 +1,12 @@
+import { ensureContrast } from "@/theme/color";
 import { FONT_STACK, PADDING } from "./primitives";
 
 /**
  * README link text drawn as a tiny SVG ("Get Yours", "GitLab @user"). GitHub
  * strips colors, sizes and layout from README HTML but keeps images (and lets
  * them float right), so this is how the links sit on one line under the card,
- * white and underlined on dark pages, lined up with the card's content.
+ * in the card's GitLab color, lined up with the card's content. Images can't
+ * react to hover, so there's no hover color.
  */
 
 export const LINK_LABEL_MODES = ["dark", "light"] as const;
@@ -18,8 +20,15 @@ export const LINK_LABEL_KINDS = {
 } as const;
 export type LinkLabelKind = keyof typeof LINK_LABEL_KINDS;
 
-/** GitHub's default text colors for each theme, so the labels read like page text. */
-const COLORS: Record<LinkLabelMode, string> = { dark: "#f0f6fc", light: "#1f2328" };
+/** GitHub's page backgrounds, which the labels sit on. */
+export const README_BACKGROUNDS: Record<LinkLabelMode, string> = { dark: "#0d1117", light: "#ffffff" };
+/** GitHub's own link blues, used when no color is given. */
+const DEFAULT_COLORS: Record<LinkLabelMode, string> = { dark: "#4493f8", light: "#0969da" };
+
+/** The label's text color: the requested color, adjusted until it's readable (4.5:1) on GitHub's page. */
+export function linkLabelColor(mode: LinkLabelMode, color?: string): string {
+  return ensureContrast(color ?? DEFAULT_COLORS[mode], README_BACKGROUNDS[mode], 4.5);
+}
 /** Shared by every label, so text in the inline and floated images shares a baseline. */
 const HEIGHT = 22;
 const BASELINE = 16;
@@ -39,11 +48,14 @@ export function LinkLabel({
   kind,
   text,
   mode,
+  color,
   inset = false,
 }: {
   kind: LinkLabelKind;
   text: string;
   mode: LinkLabelMode;
+  /** #rrggbb; readability-adjusted for GitHub's page in this mode. */
+  color?: string;
   inset?: boolean;
 }) {
   const { fontSize, fontWeight, align } = LINK_LABEL_KINDS[kind];
@@ -65,9 +77,8 @@ export function LinkLabel({
         textAnchor={align === "left" ? "start" : "end"}
         fontSize={fontSize}
         fontWeight={fontWeight}
-        fill={COLORS[mode]}
+        fill={linkLabelColor(mode, color)}
         fontFamily={FONT_STACK}
-        textDecoration="underline"
       >
         {text}
       </text>

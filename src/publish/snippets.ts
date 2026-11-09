@@ -1,7 +1,7 @@
 import type { ConnectRequest } from "@/adapters/connect";
 import { createDefaultConfig, type VisualizationConfig } from "@/config/config";
 import type { CardSize } from "@/renderers/primitives";
-import type { ColorMode } from "@/theme/palettes";
+import { type ColorMode, resolveTheme } from "@/theme/palettes";
 import { PLATFORM_IDS, PLATFORMS } from "@/domain/types";
 import { type CardParams, encodeCardParams } from "./card-params";
 import { escapeMarkup } from "./svg-markup";
@@ -61,18 +61,30 @@ export function readmeSnippet(origin: string, params: CardParams, options: Snipp
 export type LabelTarget = { cta: true } | { gitlab: string };
 
 /** GitVis's image of a link's text, in GitHub's dark or light theme (see /api/label). */
-export function labelUrl(origin: string, target: LabelTarget, mode: "dark" | "light", inset = false): string {
+export function labelUrl(
+  origin: string,
+  target: LabelTarget,
+  mode: ColorMode,
+  { inset = false, color }: { inset?: boolean; color?: string } = {},
+): string {
   const query = new URLSearchParams("cta" in target ? { cta: "1" } : { gitlab: target.gitlab });
   query.set("mode", mode);
+  if (color) query.set("color", color.replace("#", "").toLowerCase());
   if (inset) query.set("inset", "1");
   return `${origin}/api/label?${query}`;
+}
+
+/** The design's GitLab color in each theme (the palette's, or the user's custom color). */
+export function linkColor(config: VisualizationConfig, mode: ColorMode): string {
+  const custom = config.platformColors.gitlab;
+  return resolveTheme(config.palette, mode, custom ? { series: [undefined, custom] } : {}).series[1];
 }
 
 /**
  * One line under the card: "Get Yours" on the left and, when GitLab is
  * connected, the GitLab profile on the right (smaller). GitHub keeps no colors,
  * sizes or padding in READMEs and only images can float, so both are small images
- * GitVis draws (white and underlined on dark pages); their alt text is the link
+ * GitVis draws (in the graphic's GitLab color); their alt text is the link
  * text. Transparent cards hide their padding, so the labels are inset to line up
  * with the card's content instead of the image edge. The float comes first so it
  * sits on the same line.
@@ -80,12 +92,15 @@ export function labelUrl(origin: string, target: LabelTarget, mode: "dark" | "li
 function linksSnippet(origin: string, params: CardParams): string {
   const { request, config } = params;
   const inset = config.background === "transparent";
+  // The links use the graphic's GitLab color, in the reader's theme.
+  const url = (target: LabelTarget, mode: ColorMode) =>
+    labelUrl(origin, target, mode, { inset, color: linkColor(config, mode) });
   const attr = escapeMarkup;
   const label = (href: string, target: LabelTarget, alt: string, align?: "right") => [
     `  <a href="${attr(href)}">`,
     "    <picture>",
-    `      <source media="(prefers-color-scheme: dark)" srcset="${attr(labelUrl(origin, target, "dark", inset))}">`,
-    `      <img${align ? ` align="${align}"` : ""} alt="${attr(alt)}" src="${attr(labelUrl(origin, target, "light", inset))}">`,
+    `      <source media="(prefers-color-scheme: dark)" srcset="${attr(url(target, "dark"))}">`,
+    `      <img${align ? ` align="${align}"` : ""} alt="${attr(alt)}" src="${attr(url(target, "light"))}">`,
     "    </picture>",
     "  </a>",
   ];

@@ -3,13 +3,14 @@ import { type ContributionDataset, PLATFORM_IDS, type PlatformId } from "@/domai
 import type { ColorMode, PaletteId, PanelStyle } from "@/theme/palettes";
 import {
   defaultFeatureFlags,
+  FEATURE_IDS,
   type FeatureFlags,
   type FeatureId,
   getFeature,
   STAT_FEATURE_IDS,
   type StatFeatureId,
 } from "./features";
-import { getLayout, type LayoutId } from "./layouts";
+import { getLayout, LAYOUT_IDS, type LayoutId } from "./layouts";
 
 /** Header presets. "none" is the original header (title, date range, handles). */
 export type IdentityStyle = "none" | "compact" | "full" | "centered";
@@ -185,7 +186,11 @@ function toggle(list: PlatformId[], platform: PlatformId, enabled: boolean): Pla
 
 const HEX = /^#[0-9a-f]{6}$/i;
 
-/** Each axis is updated independently; no action resets another axis. */
+/**
+ * Each axis is updated independently; no action resets another axis. The one
+ * coupling: turning a visualization on or off can move the layout (see withFeature),
+ * but never changes another feature.
+ */
 export function configReducer(state: VisualizationConfig, action: ConfigAction): VisualizationConfig {
   const identity = (patch: Partial<IdentityConfig>) => ({ ...state, identity: { ...state.identity, ...patch } });
   switch (action.type) {
@@ -194,9 +199,7 @@ export function configReducer(state: VisualizationConfig, action: ConfigAction):
     case "setFeature":
       // Source attribution can't be switched off (see withAttribution).
       if (!action.enabled && getFeature(action.feature).alwaysOn) return state;
-      return state.features[action.feature] === action.enabled
-        ? state
-        : { ...state, features: { ...state.features, [action.feature]: action.enabled } };
+      return withFeature(state, action.feature, action.enabled);
     case "setPalette":
       return state.palette === action.palette ? state : { ...state, palette: action.palette };
     case "setMode":
@@ -249,6 +252,39 @@ export function configReducer(state: VisualizationConfig, action: ConfigAction):
     case "reset":
       return createDefaultConfig();
   }
+}
+
+const supports = (layout: LayoutId, feature: FeatureId) => getLayout(layout).supportedFeatures.includes(feature);
+
+/**
+ * Whether a feature's switch shows as on: enabled AND part of the current layout.
+ * A feature the layout can't show reads as off, even if it stays enabled for
+ * other layouts (switching layouts never discards a choice).
+ */
+export function isFeatureOn(feature: FeatureId, config: Pick<VisualizationConfig, "features" | "layout">): boolean {
+  return config.features[feature] && supports(config.layout, feature);
+}
+
+/**
+ * Features follow the switches, and the layout follows the features:
+ * - Turning on a feature the layout can't show moves to the smallest layout that
+ *   shows it and everything currently shown (Minimal → Dashboard → Data-rich).
+ * - Turning off the last shown feature that Minimal lacks (breakdown, trends)
+ *   moves to Minimal. Other features (statistics) never change the layout.
+ */
+function withFeature(state: VisualizationConfig, feature: FeatureId, enabled: boolean): VisualizationConfig {
+  const features = { ...state.features, [feature]: enabled };
+  let layout = state.layout;
+  if (enabled && !supports(layout, feature)) {
+    const shown = FEATURE_IDS.filter((f) => isFeatureOn(f, state));
+    layout = LAYOUT_IDS.find((id) => supports(id, feature) && shown.every((f) => supports(id, f))) ?? layout;
+  }
+  if (!enabled && !supports("minimal", feature) && layout !== "minimal") {
+    const needsMore = FEATURE_IDS.some((f) => isFeatureOn(f, { features, layout }) && !supports("minimal", f));
+    if (!needsMore) layout = "minimal";
+  }
+  if (features[feature] === state.features[feature] && layout === state.layout) return state;
+  return { ...state, features, layout };
 }
 
 export type FeatureVisibility =

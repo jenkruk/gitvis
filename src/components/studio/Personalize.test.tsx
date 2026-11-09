@@ -101,7 +101,7 @@ describe("colors and backgrounds", () => {
     await user.click(screen.getByRole("button", { name: "Continue to publish" }));
     expect(screen.getByRole("checkbox", { name: /profile links under the image/i })).toBeChecked();
     const snippet = (screen.getByRole("textbox", { name: /markdown/i }) as HTMLTextAreaElement).value;
-    expect(snippet).toContain("[GitHub @jenkruk](https://github.com/jenkruk)");
+    expect(snippet).toMatch(/\n\n\[Get yours!\]\(https:\/\/gitvis\.test\)$/);
     expect(snippet).not.toContain("https://gitvis.test/?"); // the image never links into the studio
   });
 

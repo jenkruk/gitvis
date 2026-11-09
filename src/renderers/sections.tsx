@@ -589,27 +589,14 @@ export const CREDIT_BOTTOM = 16;
 const CREDIT_SIZE = 12;
 
 /**
- * "Made with GitVis · created by Jen Kruk · Get yours!" on every card. Only
- * "Get yours!" is a link (to the GitVis site, new tab); it works when the SVG is
- * opened on its own, so README snippets also carry a "Get yours!" text link.
+ * "Made with GitVis · created by Jen Kruk" on every card, as plain text. The
+ * "Get yours!" link lives under the image in the README snippet, where it can
+ * actually be clicked.
  */
-export function Credit({ theme, y, href }: { theme: ThemeTokens; y: number; href?: string }) {
-  const cta = (
-    // dx, not a trailing space: SVG drops whitespace at the end of a text run.
-    <tspan dx={4} fill={theme.text} fontWeight={600} textDecoration={href ? "underline" : undefined}>
-      Get yours!
-    </tspan>
-  );
+export function Credit({ theme, y }: { theme: ThemeTokens; y: number }) {
   return (
     <text x={PADDING} y={y + CREDIT_HEIGHT} fontSize={CREDIT_SIZE} fill={theme.textMuted} fontFamily={FONT_STACK}>
-      <tspan>Made with GitVis · created by Jen Kruk ·</tspan>
-      {href ? (
-        <a href={href} target="_blank">
-          <tspan cursor="pointer">{cta}</tspan>
-        </a>
-      ) : (
-        cta
-      )}
+      Made with GitVis · created by Jen Kruk
     </text>
   );
 }

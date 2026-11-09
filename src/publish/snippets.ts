@@ -32,8 +32,8 @@ export interface SnippetOptions {
   /** Serve the reflowed compact image on narrow screens (phones). */
   responsive: boolean;
   /**
-   * Add real Markdown profile links under the image. Links drawn inside an SVG
-   * don't work when GitHub shows it as an <img>; these do.
+   * Add real Markdown profile links under the image (GitLab; the README is already
+   * on GitHub). Links drawn inside an SVG don't work when GitHub shows it as an <img>; these do.
    */
   profileLinks?: boolean;
 }
@@ -43,9 +43,13 @@ export function effectiveSnippetOptions(options: SnippetOptions, config: Visuali
   return config.background === "transparent" ? { ...options, theme: "auto" } : options;
 }
 
-/** "[GitHub @user](https://github.com/user) · [GitLab @user](…)" for connected platforms. */
+/**
+ * "[GitLab @user](…)": profile links for connected platforms other than GitHub.
+ * The README itself lives on the user's GitHub profile, so a GitHub link would
+ * only point back to the page the reader is on. Empty for GitHub-only accounts.
+ */
 export function profileLinksLine(request: ConnectRequest): string {
-  return PLATFORM_IDS.filter((p) => request[p])
+  return PLATFORM_IDS.filter((p) => p !== "github" && request[p])
     .map((p) => `[${PLATFORMS[p].label} @${request[p]}](${PLATFORMS[p].profileUrl(request[p]!)})`)
     .join(" · ");
 }
@@ -68,8 +72,10 @@ export const NARROW_MEDIA = "(max-width: 600px)";
 export function readmeSnippet(origin: string, params: CardParams, options: SnippetOptions): string {
   const image = imageSnippet(origin, params, effectiveSnippetOptions(options, params.config));
   // A blank line ends an HTML block in GitHub Markdown, so the links line renders as Markdown.
-  // "Get yours!" here is the README's clickable way to GitVis (links inside the image can't be clicked there).
-  return options.profileLinks ? `${image}\n\n${profileLinksLine(params.request)} · [Get yours!](${origin})` : image;
+  // Blank lines end the HTML block and keep each link line its own paragraph, so GitHub renders them as
+  // Markdown and "Get yours!" stays separate from the user's own profile link.
+  const links = options.profileLinks ? profileLinksLine(params.request) : "";
+  return [image, links, `[Get yours!](${origin})`].filter(Boolean).join("\n\n");
 }
 
 function imageSnippet(origin: string, params: CardParams, { theme, responsive }: SnippetOptions): string {

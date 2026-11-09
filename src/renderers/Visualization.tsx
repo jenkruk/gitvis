@@ -23,8 +23,6 @@ export interface VisualizationProps {
   links?: boolean;
   /** Embedded avatar images (data: URIs) for the identity header. */
   avatars?: AvatarImages;
-  /** The GitVis site (production origin) that the credit's "Get yours!" links to; plain text without it. */
-  siteUrl?: string;
 }
 
 /** Multi-year additions to the text alternative (empty for a single period, so legacy text is unchanged). */
@@ -98,7 +96,6 @@ export function Visualization({
   size = "full",
   links = true,
   avatars = {},
-  siteUrl,
 }: VisualizationProps) {
   const prepared = prepareView(fullDataset, config);
   // `dataset` = what the calendars and header show; metrics only cover what every platform reports.
@@ -244,7 +241,7 @@ export function Visualization({
         />
       )}
       {nodes}
-      <Credit theme={theme} y={creditTop} href={links ? siteUrl : undefined} />
+      <Credit theme={theme} y={creditTop} />
     </svg>
   );
 }

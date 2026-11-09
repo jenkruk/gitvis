@@ -301,8 +301,8 @@ function PublishContent({
             <span>
               <span className="block text-sm font-medium">Profile links under the image</span>
               <span id="publish-links-hint" className="block text-xs text-zinc-600 dark:text-zinc-400">
-                Adds clickable GitHub and GitLab profile links. In a README, clicking the image opens it on its own,
-                where its account labels link to each profile.
+                Adds a clickable GitLab profile link (your README is already on GitHub). A &ldquo;Get yours!&rdquo; link
+                to GitVis is always added on its own line.
               </span>
             </span>
           </label>

@@ -86,7 +86,7 @@ describe("PublishPanel", () => {
     };
     const { markdown } = setup(config);
     // Not wrapped in a studio link: GitHub links a plain image to itself, in a new tab.
-    const match = /^!\[(.+)\]\((.+)\)$/.exec(markdown().value)!;
+    const match = /^!\[(.+)\]\((.+)\)$/.exec(markdown().value.split("\n\n")[0]!)!;
     expect(match[1]).toBe("GitVis contribution activity for GitHub @jenkruk");
     expect(decodeCardParams(new URL(match[2]!).searchParams)).toEqual({
       request: { github: "jenkruk" },

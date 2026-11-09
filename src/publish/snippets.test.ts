@@ -25,7 +25,7 @@ describe("publish snippets", () => {
 
   it("produces a plain Markdown image (GitHub links it to the image itself, in a new tab)", () => {
     const md = readmeSnippet(origin, params, { theme: "selected", responsive: false });
-    expect(md).toBe(`![${altText(params.request)}](${cardUrl(origin, params)})`);
+    expect(md.split("\n\n")[0]).toBe(`![${altText(params.request)}](${cardUrl(origin, params)})`);
     // Readers clicking a card never land in the studio.
     expect(md).not.toContain(editUrl(origin, params));
   });
@@ -143,16 +143,26 @@ describe("README <picture> markup audit", () => {
 });
 
 describe("Phase 4 snippet options", () => {
-  it("adds clickable Markdown profile links and a 'Get yours!' link to GitVis after the image", () => {
+  it("adds the GitLab profile link and, on its own line, 'Get yours!' (no GitHub link: the README is on GitHub)", () => {
     const md = readmeSnippet(origin, params, { theme: "selected", responsive: false, profileLinks: true });
-    expect(md.split("\n\n")[1]).toBe(
-      "[GitHub @jenkruk](https://github.com/jenkruk) · [GitLab @contactkruk](https://gitlab.com/contactkruk) · [Get yours!](https://gitvis.example)",
+    expect(md.split("\n\n").slice(1)).toEqual([
+      "[GitLab @contactkruk](https://gitlab.com/contactkruk)",
+      "[Get yours!](https://gitvis.example)",
+    ]);
+    expect(md).not.toContain("github.com");
+  });
+
+  it("always adds 'Get yours!', even without profile links or a GitLab account", () => {
+    const githubOnly = { ...params, request: { github: "jenkruk" } };
+    expect(readmeSnippet(origin, githubOnly, { theme: "selected", responsive: false, profileLinks: true })).toMatch(
+      /\)\n\n\[Get yours!\]\(https:\/\/gitvis\.example\)$/,
     );
+    expect(readmeSnippet(origin, params, { theme: "selected", responsive: false }).split("\n\n")).toHaveLength(2);
   });
 
   it("separates the links from a <picture> block with a blank line so GitHub renders them as Markdown", () => {
     const html = readmeSnippet(origin, params, { theme: "auto", responsive: true, profileLinks: true });
-    expect(html).toMatch(/<\/a>\n\n\[GitHub @jenkruk\]/);
+    expect(html).toMatch(/<\/a>\n\n\[GitLab @contactkruk\]/);
   });
 
   it("forces theme matching for transparent backgrounds", () => {

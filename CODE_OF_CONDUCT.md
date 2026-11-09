@@ -27,9 +27,9 @@ This Code of Conduct applies in all project spaces (issues, pull requests, discu
 
 ## Reporting
 
-To report a problem, use GitHub's **Report content** option on the comment, issue or pull request (the `···` menu). Reports go privately to the maintainer. For abuse of GitHub itself, you can also [contact GitHub Support](https://support.github.com/contact/report-abuse).
+To report a problem, use GitHub's **Report content** option on the comment, issue or pull request (the `···` menu), or [report abuse to GitHub](https://support.github.com/contact/report-abuse). These reports go to GitHub's Trust & Safety team, who enforce GitHub's own Community Guidelines.
 
-All reports will be reviewed and handled promptly and fairly, and the reporter's privacy will be respected.
+The maintainer also reviews project spaces regularly and will act on behavior that breaks this Code of Conduct.
 
 ## Enforcement
 

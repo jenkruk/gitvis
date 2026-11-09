@@ -15,8 +15,8 @@ export interface FeatureDefinition {
   /** Data condition required for the feature to be meaningful. */
   requires?: "multiplePlatforms";
   /**
-   * Always on (source attribution): not offered as a toggle, and a URL that
-   * disables it is decoded with it on (see withAttribution).
+   * Always on (source attribution, the combined total): can't be switched off,
+   * and a URL that disables it is decoded with it on (see withAttribution).
    */
   alwaysOn?: boolean;
 }
@@ -35,6 +35,8 @@ export const FEATURES = [
     description: "Sum of contributions reported by each platform.",
     group: "stats",
     defaultEnabled: true,
+    // The combined total is the point of GitVis: always shown, but still reorderable.
+    alwaysOn: true,
   },
   {
     id: "activeDays",

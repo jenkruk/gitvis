@@ -43,7 +43,7 @@ Switching layouts never discards the user's feature, palette, or mode choices. A
 
 ### Feature toggles
 
-Combined contribution heatmap · Total contributions · Active days · Longest streak · Best day (off by default) · Current streak (off by default) · GitHub/GitLab breakdown · Activity trends · Platform labels and links.
+Combined contribution heatmap · Total contributions (always shown) · Active days · Longest streak · Best day (off by default) · Current streak (off by default) · GitHub/GitLab breakdown · Activity trends · Platform labels (always shown).
 
 Metrics can be **reordered** (Move up / Move down buttons, keyboard-accessible and announced). The **date range** is 1 year (default), 2 years or 3 years: one calendar per 12-month period, newest first, each with its yearly total. Earlier years come from GitHub; GitLab publishes only the last 12 months, so for combined accounts earlier periods are clearly labelled "GitHub only", stats cover the newest 12 months (and say so), and GitLab-only accounts can't choose 2 or 3 years. Old links with 30- or 90-day ranges keep working unchanged. **Density** (Spacious or Compact) tightens cards and panels without changing the layout.
 

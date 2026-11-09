@@ -306,14 +306,24 @@ function MetricList({
           return (
             <li key={id} className="flex items-start gap-2">
               <div className="min-w-0 flex-1">
-                <Switch
-                  id={`feature-${id}`}
-                  label={feature.label}
-                  description={feature.description}
-                  checked={isFeatureOn(id, config)}
-                  onChange={(enabled) => setFeature(id, enabled)}
-                  note={noteFor(id)}
-                />
+                {"alwaysOn" in feature && feature.alwaysOn ? (
+                  // The combined total can't be hidden; it can still be reordered.
+                  <div className="py-2">
+                    <span className="block text-sm font-medium">{feature.label}</span>
+                    <span className="block text-xs text-zinc-600 dark:text-zinc-400">
+                      {feature.description} Always shown.
+                    </span>
+                  </div>
+                ) : (
+                  <Switch
+                    id={`feature-${id}`}
+                    label={feature.label}
+                    description={feature.description}
+                    checked={isFeatureOn(id, config)}
+                    onChange={(enabled) => setFeature(id, enabled)}
+                    note={noteFor(id)}
+                  />
+                )}
               </div>
               <div className="flex shrink-0 gap-1 pt-2">
                 <button

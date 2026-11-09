@@ -4,6 +4,7 @@ import type { ColorMode, PaletteId, PanelStyle } from "@/theme/palettes";
 import {
   defaultFeatureFlags,
   FEATURE_IDS,
+  FEATURES,
   type FeatureFlags,
   type FeatureId,
   getFeature,
@@ -96,15 +97,17 @@ export function presetOf(config: Pick<VisualizationConfig, "identity">): Startin
 
 /**
  * Source attribution: every connected account's platform and username are
- * shown whenever its contributions are. Applied when decoding every URL and to
- * every studio design.
+ * shown whenever its contributions are, and so is the combined total (the
+ * point of GitVis). Applied when decoding every URL and to every studio design.
  */
 export function withAttribution(config: VisualizationConfig): VisualizationConfig {
   const allHandles = PLATFORM_IDS.every((p) => config.identity.handles.includes(p));
-  if (config.features.platformLabels && allHandles) return config;
+  // Always-on features (attribution, the combined total) are forced on too.
+  const required = FEATURES.filter((f) => "alwaysOn" in f && f.alwaysOn).map((f) => f.id);
+  if (allHandles && required.every((id) => config.features[id])) return config;
   return {
     ...config,
-    features: { ...config.features, platformLabels: true },
+    features: { ...config.features, ...Object.fromEntries(required.map((id) => [id, true])) },
     identity: { ...config.identity, handles: [...PLATFORM_IDS] },
   };
 }
@@ -197,7 +200,7 @@ export function configReducer(state: VisualizationConfig, action: ConfigAction):
     case "setLayout":
       return state.layout === action.layout ? state : { ...state, layout: action.layout };
     case "setFeature":
-      // Source attribution can't be switched off (see withAttribution).
+      // Always-on features (attribution, the combined total) can't be switched off (see withAttribution).
       if (!action.enabled && getFeature(action.feature).alwaysOn) return state;
       return withFeature(state, action.feature, action.enabled);
     case "setPalette":

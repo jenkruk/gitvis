@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { LOGO_CELLS, LOGO_VIEWBOX } from "./logo-mark";
+import { GITVIS_REPO_URL } from "@/config/site";
 
 function LogoMark() {
   // 3×3 contribution-grid mark; decorative (the wordmark carries the name). Also the app icon.
@@ -51,9 +52,19 @@ export function AppShell({ children }: { children: ReactNode }) {
         {children}
       </main>
       <footer className="border-t border-zinc-200 dark:border-zinc-800">
-        <p className="mx-auto max-w-7xl px-4 py-4 text-xs text-zinc-600 sm:px-6 dark:text-zinc-400">
-          GitVis combines public contribution counts. It never reads private repository contents.
-        </p>
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-4 text-xs text-zinc-600 sm:px-6 dark:text-zinc-400">
+          <p>GitVis combines public contribution counts. It never reads private repository contents.</p>
+          {/* min-h-6: a 24px touch target (WCAG 2.5.8), like every other control. */}
+          <p>
+            Open source (MIT) ·{" "}
+            <a
+              href={GITVIS_REPO_URL}
+              className="inline-flex min-h-6 items-center font-medium text-zinc-800 underline underline-offset-2 hover:text-zinc-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-zinc-200 dark:hover:text-white"
+            >
+              View the source on GitHub
+            </a>
+          </p>
+        </div>
       </footer>
     </>
   );

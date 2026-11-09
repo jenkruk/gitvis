@@ -25,3 +25,7 @@ Requires Node 22+. Copy `.env.example` to `.env.local` when live data lands; tok
 ## A note on counts
 
 GitHub and GitLab count different activities (for example, GitLab counts comments and MR approvals). GitVis reports **contributions as each platform defines them**, not raw commits, and combined totals aren't deduplicated.
+
+## License
+
+GitVis is open source under the [MIT License](LICENSE). © 2026 Jennifer Kruk.

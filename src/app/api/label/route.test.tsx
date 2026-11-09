@@ -55,6 +55,14 @@ describe("GET /api/label", () => {
     }
   });
 
+  it("draws 'Open source on GitHub' like the GitLab label: smaller, at the right edge", async () => {
+    const svg = await (await get("repo=1&mode=dark")).text();
+    const [, attrs, text] = textOf(svg);
+    expect(text).toBe("Open source on GitHub");
+    expect(attr(attrs!, "font-size")).toBe("13");
+    expect(attr(attrs!, "text-anchor")).toBe("end");
+  });
+
   it("is half the card's width by default, and the full width with span=full", async () => {
     expect(width(await (await get("gitlab=contactkruk&mode=dark")).text())).toBe(420);
     expect(width(await (await get("cta=1&mode=dark")).text())).toBe(420);
@@ -89,6 +97,9 @@ describe("GET /api/label", () => {
     "cta=1&color=%23ff0000",
     "cta=1&color=red",
     "cta=1&span=quarter",
+    "cta=1&repo=1",
+    "repo=1&gitlab=contactkruk",
+    "repo=yes",
   ])("rejects %s (no free text, one label per URL)", async (query) => {
     const res = await get(query);
     expect(res.status).toBe(400);

@@ -1,5 +1,6 @@
 import type { ConnectRequest } from "@/adapters/connect";
 import { createDefaultConfig, type VisualizationConfig } from "@/config/config";
+import { GITVIS_REPO_URL } from "@/config/site";
 import { type ColorMode, resolveTheme } from "@/theme/palettes";
 import { PLATFORM_IDS, PLATFORMS } from "@/domain/types";
 import { type CardParams, encodeCardParams } from "./card-params";
@@ -36,9 +37,9 @@ export function effectiveSnippetOptions(options: SnippetOptions, config: Visuali
 }
 
 /**
- * The README snippet: the card as an unlinked image, then the only two links —
- * "Get Yours" (left) and the user's GitLab profile (right, when a GitLab
- * account is connected). The README lives on GitHub, so there's no GitHub link.
+ * The README snippet: the card as an unlinked image, then its only links:
+ * "Get Yours" right under the card's credit line and, on the same line,
+ * "Open source on GitHub" (the GitVis repo).
  *
  * The image is always an HTML <picture>: GitHub links a plain Markdown image to
  * itself, but leaves a <picture> unlinked (verified November 2026). The graphic
@@ -51,7 +52,7 @@ export function readmeSnippet(origin: string, params: CardParams, options: Snipp
   return `${image}\n\n${linksSnippet(origin, params)}`;
 }
 
-export type LabelTarget = { cta: true } | { gitlab: string };
+export type LabelTarget = { cta: true } | { repo: true } | { gitlab: string };
 
 /** GitVis's image of a link's text, in GitHub's dark or light theme (see /api/label). */
 export function labelUrl(
@@ -60,7 +61,9 @@ export function labelUrl(
   mode: ColorMode,
   { inset = false, color, span = "half" }: { inset?: boolean; color?: string; span?: "half" | "full" } = {},
 ): string {
-  const query = new URLSearchParams("cta" in target ? { cta: "1" } : { gitlab: target.gitlab });
+  const query = new URLSearchParams(
+    "cta" in target ? { cta: "1" } : "repo" in target ? { repo: "1" } : { gitlab: target.gitlab },
+  );
   query.set("mode", mode);
   if (span !== "half") query.set("span", span);
   if (color) query.set("color", color.replace("#", "").toLowerCase());
@@ -75,39 +78,29 @@ export function linkColor(config: VisualizationConfig, mode: ColorMode): string 
 }
 
 /**
- * The links line, exactly as wide as the card: "Get Yours" at the card's left
- * content edge and, when GitLab is connected, the GitLab profile at its right.
- * GitHub keeps no widths, colors or padding in READMEs, so both links are images
- * GitVis draws, each half the card's width; side by side and centered (like the
- * card) they span exactly the card. Without GitLab, "Get Yours" spans it alone.
- * README columns narrower than the card stack the halves on two lines, still
- * aligned to the card's edges. Alt text is each link's text. No whitespace
- * between or inside the links, which would render as gaps or underlined spaces.
+ * One line under the card, exactly as wide as it: "Get Yours" starting right
+ * under the card's "Made with GitVis" credit, and "Open source on GitHub" (the
+ * GitVis repo) ending at the card's right content edge. GitHub keeps no widths,
+ * colors or padding in READMEs, so both are images GitVis draws, each half the
+ * card's width with its text inset by the card's padding, in the card's GitLab
+ * color; side by side and centered (like the card) they span exactly the card.
+ * README columns narrower than the card stack them. Alt text is each link's text.
+ * No whitespace between or inside the links (it would render as gaps or
+ * underlined spaces).
  */
 function linksSnippet(origin: string, params: CardParams): string {
-  const { request, config } = params;
-  const inset = config.background === "transparent";
-  const span = request.gitlab ? "half" : "full";
   const attr = escapeMarkup;
   // The links use the graphic's GitLab color, in the reader's theme.
   const url = (target: LabelTarget, mode: ColorMode) =>
-    labelUrl(origin, target, mode, { inset, span, color: linkColor(config, mode) });
+    labelUrl(origin, target, mode, { inset: true, color: linkColor(params.config, mode) });
   const label = (href: string, target: LabelTarget, alt: string) =>
     `<a href="${attr(href)}"><picture>` +
     `<source media="(prefers-color-scheme: dark)" srcset="${attr(url(target, "dark"))}">` +
     `<img alt="${attr(alt)}" src="${attr(url(target, "light"))}">` +
     `</picture></a>`;
-  const links = [label(origin, { cta: true }, "Get Yours")];
-  if (request.gitlab) {
-    links.push(
-      label(
-        PLATFORMS.gitlab.profileUrl(request.gitlab),
-        { gitlab: request.gitlab },
-        `${PLATFORMS.gitlab.label} @${request.gitlab}`,
-      ),
-    );
-  }
-  return ['<p align="center">', `  ${links.join("")}`, "</p>"].join("\n");
+  const links =
+    label(origin, { cta: true }, "Get Yours") + label(GITVIS_REPO_URL, { repo: true }, "Open source on GitHub");
+  return ['<p align="center">', `  ${links}`, "</p>"].join("\n");
 }
 
 /**

@@ -93,7 +93,8 @@ describe("PublishPanel", () => {
     const { markdown } = setup(config);
     const doc = new DOMParser().parseFromString(markdown().value.split("\n\n")[0]!, "text/html");
     const img = doc.querySelector("picture > img")!;
-    expect(doc.body.firstElementChild!.tagName).toBe("PICTURE"); // the image itself isn't a link
+    expect(doc.querySelector("p > picture")).not.toBeNull(); // the image itself isn't a link
+    expect(doc.querySelector("a")).toBeNull();
     expect(img.getAttribute("alt")).toBe("GitVis contribution activity for GitHub @jenkruk");
     const url = new URL(img.getAttribute("src")!);
     expect(url.pathname).toBe("/api/card");

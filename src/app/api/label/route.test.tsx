@@ -55,6 +55,12 @@ describe("GET /api/label", () => {
     }
   });
 
+  it("is half the card's width by default, and the full width with span=full", async () => {
+    expect(width(await (await get("gitlab=contactkruk&mode=dark")).text())).toBe(420);
+    expect(width(await (await get("cta=1&mode=dark")).text())).toBe(420);
+    expect(width(await (await get("cta=1&mode=dark&span=full")).text())).toBe(840);
+  });
+
   it("insets the text by the card's padding for transparent cards", async () => {
     const gitlab = await (await get("gitlab=contactkruk&mode=dark&inset=1")).text();
     expect(Number(attr(textOf(gitlab)[1]!, "x"))).toBe(width(gitlab) - LINK_LABEL_INSET);
@@ -82,6 +88,7 @@ describe("GET /api/label", () => {
     "text=anything",
     "cta=1&color=%23ff0000",
     "cta=1&color=red",
+    "cta=1&span=quarter",
   ])("rejects %s (no free text, one label per URL)", async (query) => {
     const res = await get(query);
     expect(res.status).toBe(400);

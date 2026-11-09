@@ -1,11 +1,12 @@
 import { ensureContrast } from "@/theme/color";
-import { FONT_STACK, PADDING } from "./primitives";
+import { CANVAS_WIDTH, FONT_STACK, PADDING } from "./primitives";
 
 /**
  * README link text drawn as a tiny SVG ("Get Yours", "GitLab @user"). GitHub
- * strips colors, sizes and layout from README HTML but keeps images (and lets
- * them float right), so this is how the links sit on one line under the card,
- * in the card's GitLab color, lined up with the card's content. Images can't
+ * strips colors, sizes, widths and layout from README HTML but keeps images, so
+ * the links are images sized as halves of the card: side by side and centered,
+ * they're exactly as wide as the card, with "Get Yours" at its left content edge
+ * and the GitLab link at its right, in the card's GitLab color. Images can't
  * react to hover, so there's no hover color.
  */
 
@@ -13,12 +14,16 @@ export const LINK_LABEL_MODES = ["dark", "light"] as const;
 export type LinkLabelMode = (typeof LINK_LABEL_MODES)[number];
 
 export const LINK_LABEL_KINDS = {
-  /** "Get Yours": the call to action, at GitHub's body size, on the left. */
+  /** "Get Yours": the call to action, at GitHub's body size, at the card's left edge. */
   cta: { fontSize: 16, fontWeight: 600, align: "left" },
-  /** The user's GitLab profile: smaller, on the right. */
+  /** The user's GitLab profile: smaller, at the card's right edge. */
   gitlab: { fontSize: 13, fontWeight: 400, align: "right" },
 } as const;
 export type LinkLabelKind = keyof typeof LINK_LABEL_KINDS;
+
+/** How much of the card's width a label spans: half (beside the other link) or all of it (alone). */
+export const LINK_LABEL_SPANS = { half: CANVAS_WIDTH / 2, full: CANVAS_WIDTH } as const;
+export type LinkLabelSpan = keyof typeof LINK_LABEL_SPANS;
 
 /** GitHub's page backgrounds, which the labels sit on. */
 export const README_BACKGROUNDS: Record<LinkLabelMode, string> = { dark: "#0d1117", light: "#ffffff" };
@@ -29,26 +34,22 @@ const DEFAULT_COLORS: Record<LinkLabelMode, string> = { dark: "#4493f8", light: 
 export function linkLabelColor(mode: LinkLabelMode, color?: string): string {
   return ensureContrast(color ?? DEFAULT_COLORS[mode], README_BACKGROUNDS[mode], 4.5);
 }
-/** Shared by every label, so text in the inline and floated images shares a baseline. */
+
+/** Shared by every label, so text in side-by-side images shares a baseline. */
 const HEIGHT = 22;
 const BASELINE = 16;
-/** Generous average glyph width: spare space falls on the side away from the card's edge. */
-const GLYPH_EM = 0.62;
 /**
  * Transparent cards: the card's own padding is invisible, so its content starts
  * PADDING in from the image edge; the labels keep the same inset to line up with it.
  */
 export const LINK_LABEL_INSET = PADDING;
 
-export function linkLabelWidth(kind: LinkLabelKind, text: string, inset: boolean): number {
-  return Math.ceil([...text].length * LINK_LABEL_KINDS[kind].fontSize * GLYPH_EM) + 2 + (inset ? LINK_LABEL_INSET : 0);
-}
-
 export function LinkLabel({
   kind,
   text,
   mode,
   color,
+  span = "half",
   inset = false,
 }: {
   kind: LinkLabelKind;
@@ -56,10 +57,11 @@ export function LinkLabel({
   mode: LinkLabelMode;
   /** #rrggbb; readability-adjusted for GitHub's page in this mode. */
   color?: string;
+  span?: LinkLabelSpan;
   inset?: boolean;
 }) {
   const { fontSize, fontWeight, align } = LINK_LABEL_KINDS[kind];
-  const width = linkLabelWidth(kind, text, inset);
+  const width = LINK_LABEL_SPANS[span];
   const edge = inset ? LINK_LABEL_INSET : 0;
   return (
     <svg

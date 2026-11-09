@@ -70,7 +70,7 @@ describe("renderCard", () => {
     const card = await render(query, l);
     expect(card.status).toBe("invalid_config");
     expect(card.svg).toContain("Invalid GitVis image URL");
-    expect(card.svg).toContain(message.replace("<", "&lt;"));
+    expect(card.svg).toContain(message.replaceAll("<", "&lt;"));
     expect(card.svg).not.toContain("<script>");
     expect(l.github).not.toHaveBeenCalled();
   });

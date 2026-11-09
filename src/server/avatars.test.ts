@@ -38,6 +38,16 @@ describe("fetchAvatar", () => {
     expect(await fetchAvatar("github", "u", { fetchImpl: async () => response })).toBeNull();
   });
 
+  it("treats only gravatar.com and its subdomains as Gravatar, never lookalike hosts", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async (input) =>
+      String(input).includes("/api/v4/users")
+        ? Response.json([{ avatar_url: "https://evilgravatar.com/avatar/abc" }])
+        : image(),
+    );
+    expect(await fetchAvatar("gitlab", "u", { fetchImpl })).toBeNull();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it("refuses redirects and API-provided URLs outside the host allowlist (no SSRF)", async () => {
     const redirect = new Response(null, { status: 302, headers: { location: "http://169.254.169.254/latest" } });
     expect(await fetchAvatar("github", "u", { fetchImpl: async () => redirect })).toBeNull();

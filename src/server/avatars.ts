@@ -71,7 +71,8 @@ export async function fetchAvatar(
     const avatarUrl = Array.isArray(users) ? (users[0] as { avatar_url?: unknown } | undefined)?.avatar_url : null;
     if (typeof avatarUrl !== "string") return null;
     const url = new URL(avatarUrl, origin);
-    if (url.host.endsWith("gravatar.com")) url.searchParams.set("s", String(AVATAR_PIXELS));
+    const gravatar = url.hostname === "gravatar.com" || url.hostname.endsWith(".gravatar.com");
+    if (gravatar) url.searchParams.set("s", String(AVATAR_PIXELS));
     else url.searchParams.set("width", String(AVATAR_PIXELS));
     return await fetchImage(url.toString(), deps);
   } catch {

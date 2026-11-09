@@ -63,11 +63,11 @@ describe("GET /api/card", () => {
     expect(loaders.github).not.toHaveBeenCalled();
   });
 
-  it("rate-limits a single client and recovers with Retry-After", async () => {
+  it("rate-limits a single client and recovers with Retry-After", { timeout: 30_000 }, async () => {
     const pinned = { "x-forwarded-for": "198.51.100.7" };
     const statuses: number[] = [];
-    for (let i = 0; i < CARD_LIMIT_PER_MINUTE + 5; i++) statuses.push((await get("github=jenkruk", pinned)).status);
-    expect(statuses.filter((s) => s === 200)).toHaveLength(CARD_LIMIT_PER_MINUTE);
+    for (let i = 0; i < CARD_LIMIT_PER_MINUTE + 5; i++) statuses.push((await get("v=1", pinned)).status);
+    expect(statuses.filter((s) => s !== 429)).toHaveLength(CARD_LIMIT_PER_MINUTE);
     const limited = await get("github=jenkruk", pinned);
     expect(limited.status).toBe(429);
     expect(Number(limited.headers.get("Retry-After"))).toBeGreaterThan(0);

@@ -19,7 +19,7 @@ You can expect an acknowledgement within a week. Once the issue is fixed, you'll
 - The hosted site and its API (`/api/card`, `/api/label`, `/api/contributions`, `/api/avatar`).
 - Anything that could expose the server's tokens, let someone make GitVis fetch arbitrary URLs, inject content or scripts into a published image, or show one user's data as another's.
 
-Out of scope: rate limiting by GitHub or GitLab themselves, reports that need a compromised device, and issues in dependencies without a way to exploit them in GitVis (Dependabot covers those).
+Out of scope: rate limiting by GitHub or GitLab themselves, reports that need a compromised device, and issues in dependencies without a way to exploit them in GitVis (Dependabot alerts track those).
 
 ## Supported versions
 

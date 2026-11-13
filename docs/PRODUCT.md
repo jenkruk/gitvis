@@ -59,7 +59,7 @@ Features live in a registry (`src/config/features.ts`). Adding one is a data cha
 
 ### Color studio
 
-Twenty-four curated palettes, each with light and dark variants: Aurora, Amethyst, Desert Sunset, Ocean Depths, Forest & Gold, Rose Quartz, Electric Cobalt, Ember, Monochrome, GitHub Classic, GitLab Inspired, Nordic Frost, Solarized, Midnight Neon, Paper & Ink, Obsidian & Gold, Velvet Plum, Lagoon, Citrus, Terracotta, Mocha, Porcelain, Sage & Linen, Volt. Six are featured; "View all 24" shows the rest. Palettes coordinate background, surface, border, text, accent, chart series, and a 5-step heatmap ramp. Automated tests enforce contrast.
+Twenty-four curated palettes, each with light and dark variants: Aurora, Amethyst, Desert Sunset, Ocean Depths, Forest & Gold, Rose Quartz, Electric Cobalt, Ember, Monochrome, GitHub Classic, GitLab Inspired, Nordic Frost, Solarized, Midnight Neon, Paper & Ink, Obsidian & Gold, Velvet Plum, Lagoon, Citrus, Terracotta, Mocha, Porcelain, Sage & Linen, Volt. Six are featured (GitHub Classic, GitLab Inspired, Monochrome, Paper & Ink, Terracotta, Lagoon); "View all 24" shows the rest. A selected palette outside them takes Monochrome's place while the list is collapsed. Palettes coordinate background, surface, border, text, accent, chart series, and a 5-step heatmap ramp. Automated tests enforce contrast.
 
 - **Panels:** Filled, Outlined or Borderless cards and chart panels, independent of the background. Colors are re-checked for contrast against whatever is actually behind them.
 - **Background:** Solid, Gradient (a subtle diagonal tint) or Transparent (blends into the README). Transparent images always use theme matching, so text stays readable on GitHub light and dark.

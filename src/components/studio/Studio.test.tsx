@@ -94,7 +94,7 @@ describe("guided steps", () => {
       initialResponse: live,
     });
     await user.click(screen.getByRole("radio", { name: /minimal/i }));
-    await user.click(screen.getByRole("radio", { name: /nordic frost/i }));
+    await user.click(screen.getByRole("radio", { name: /terracotta/i }));
     await user.type(screen.getByRole("textbox", { name: /display name/i }), "Avery");
 
     await user.click(screen.getByRole("button", { name: "Continue to publish" }));
@@ -107,14 +107,14 @@ describe("guided steps", () => {
     await user.click(screen.getByRole("button", { name: "Edit design" }));
     expect(heading()).toHaveFocus();
     expect(screen.getByRole("radio", { name: /minimal/i })).toBeChecked();
-    expect(screen.getByRole("radio", { name: /nordic frost/i })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /terracotta/i })).toBeChecked();
     expect(screen.getByRole("textbox", { name: /display name/i })).toHaveValue("Avery");
 
     await user.click(stepButton("Connect"));
     expect(screen.getByRole("textbox", { name: /gitlab username/i })).toHaveValue("contactkruk");
     await user.click(stepButton("Design"));
     expect(screen.getByRole("radio", { name: /minimal/i })).toBeChecked();
-    expect(new URLSearchParams(window.location.search).get("palette")).toBe("nordic-frost");
+    expect(new URLSearchParams(window.location.search).get("palette")).toBe("terracotta");
   });
 
   it("restores the step from the URL hash and follows Back/Forward", async () => {
@@ -213,12 +213,15 @@ describe("design step", () => {
     expect(screen.getByRole("button", { name: "Show fewer palettes" })).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("always lists the selected palette, even outside the curated six", async () => {
+  it("keeps six palettes collapsed, swapping a selected palette outside the curated six into the Monochrome slot", async () => {
     const { user } = design();
     await user.click(screen.getByRole("button", { name: "View all 24 palettes" }));
     await user.click(screen.getByRole("radio", { name: /ember/i }));
     await user.click(screen.getByRole("button", { name: "Show fewer palettes" }));
-    expect(within(screen.getByRole("group", { name: "Palette" })).getAllByRole("radio")).toHaveLength(7);
+    const names = within(screen.getByRole("group", { name: "Palette" }))
+      .getAllByRole("radio")
+      .map((radio) => radio.closest("label")?.textContent);
+    expect(names).toEqual(["GitHub Classic", "GitLab Inspired", "Ember", "Paper & Ink", "Terracotta", "Lagoon"]);
     expect(screen.getByRole("radio", { name: /ember/i })).toBeChecked();
   });
 

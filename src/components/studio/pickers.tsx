@@ -31,7 +31,14 @@ import {
 } from "@/config/features";
 import { getLayout, LAYOUTS, type LayoutId } from "@/config/layouts";
 import type { ContributionDataset } from "@/domain/types";
-import { type ColorMode, CURATED_PALETTE_IDS, PALETTES, type PaletteId, resolveTheme } from "@/theme/palettes";
+import {
+  type ColorMode,
+  CURATED_PALETTE_IDS,
+  CURATED_SWAP_PALETTE_ID,
+  PALETTES,
+  type PaletteId,
+  resolveTheme,
+} from "@/theme/palettes";
 import { ControlGroup, RadioCard, SegmentLabel, SelectionMark, Switch } from "./controls";
 import { button, hint, iconButton } from "@/components/ui/recipes";
 
@@ -172,9 +179,11 @@ function PaletteSwatch({ palette, mode }: { palette: PaletteId; mode: ColorMode 
 export function PalettePicker({ config, dispatch }: PickerProps) {
   const [showAll, setShowAll] = useState(false);
   const listId = useId();
-  const visible = showAll
-    ? PALETTES
-    : PALETTES.filter((p) => CURATED_PALETTE_IDS.includes(p.id) || p.id === config.palette);
+  // Collapsed: always six, in curated order. A selected palette outside them takes Monochrome's slot.
+  const collapsedIds = CURATED_PALETTE_IDS.includes(config.palette)
+    ? CURATED_PALETTE_IDS
+    : CURATED_PALETTE_IDS.map((id) => (id === CURATED_SWAP_PALETTE_ID ? config.palette : id));
+  const visible = showAll ? PALETTES : collapsedIds.map((id) => PALETTES.find((p) => p.id === id)!);
   return (
     <ControlGroup legend="Palette">
       <div id={listId} className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">

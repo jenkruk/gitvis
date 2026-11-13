@@ -128,7 +128,7 @@ Consequences: GitLab counts tend to run higher for the same amount of work. Labe
 - **Starting presets** (`STARTING_PRESETS`, `presetOf`, the `applyPreset` action) are derived from `identity.style` — _Contribution graphic_ = no header, _Developer profile card_ = full header (+ avatars if none were chosen). They change nothing else and add no URL parameter, so every published URL renders exactly as before.
 - **Presets never discard identity choices:** name, title and handles are untouched by presets, and the picker remembers the last profile header (style and avatars) so Graphic → Profile restores it instead of the preset defaults.
 - **Storybook seam:** `PublishPanel`/`Studio` accept an optional `renderCard(cardUrl) → svg`. Storybook passes one that decodes the real URL and renders it with the production renderer and serializer; production omits it and uses `/api/card`.
-- **Curated palettes:** `CURATED_PALETTE_IDS` lists the six shown first; the selected palette is always listed too.
+- **Curated palettes:** `CURATED_PALETTE_IDS` lists the six shown first; collapsed, the list always shows exactly six — a selected palette outside them takes Monochrome's slot (`CURATED_SWAP_PALETTE_ID`).
 
 Feature visibility is computed, never stored: `getFeatureVisibility(featureId, layout, dataset)` returns whether the feature is rendered and why not (layout doesn't support it, or it needs two platforms). Toggles keep their values across layout switches.
 

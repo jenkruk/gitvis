@@ -738,14 +738,18 @@ export type PaletteId = (typeof PALETTES)[number]["id"];
 
 export const PALETTE_IDS: readonly PaletteId[] = PALETTES.map((p) => p.id);
 
+/** The six palettes shown before "View all", in display order. */
 export const CURATED_PALETTE_IDS: readonly PaletteId[] = [
-  "aurora",
   "githubClassic",
   "gitlabInspired",
-  "nordicFrost",
-  "midnightNeon",
+  "monochrome",
   "paperInk",
+  "terracotta",
+  "lagoon",
 ];
+
+/** The curated slot a selected non-curated palette takes while the list is collapsed. */
+export const CURATED_SWAP_PALETTE_ID: PaletteId = "monochrome";
 
 export function getPalette(id: PaletteId): PaletteDefinition {
   return PALETTES.find((p) => p.id === id)!;

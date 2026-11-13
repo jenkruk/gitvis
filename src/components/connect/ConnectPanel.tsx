@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, ArrowRight, CheckCircle2, Loader2, RotateCw, X } from "lucide-react";
+import { AlertCircle, ArrowRight, CheckCircle2, ChevronDown, Loader2, RotateCw, X } from "lucide-react";
 import { type FormEvent, useRef, useState } from "react";
 import {
   type ConnectRequest,
@@ -12,14 +12,12 @@ import {
 import { PLATFORM_IDS, PLATFORMS, type PlatformId } from "@/domain/types";
 import { formatNumber } from "@/renderers/primitives";
 import type { ConnectionState } from "./useContributions";
+import { button, callout, disclosureChevron, focusRing, focusWithin, hint, link } from "@/components/ui/recipes";
 
 const FIELD_HINTS: Record<PlatformId, { prefix: string; example: string }> = {
   github: { prefix: "github.com/", example: "octocat" },
   gitlab: { prefix: "gitlab.com/", example: "your-name" },
 };
-
-const buttonBase =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:focus-visible:outline-blue-400";
 
 interface ConnectPanelProps {
   state: ConnectionState;
@@ -82,13 +80,9 @@ export function ConnectPanel({
   }
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-800 dark:bg-zinc-900">
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        Enter one or both usernames. Public contribution counts only — no sign-in.
-      </p>
-
-      <form noValidate onSubmit={handleSubmit} aria-busy={loading} className="mt-4">
-        <div className="grid gap-4 sm:grid-cols-2">
+    <div className="rounded-stage border border-line bg-surface p-4 shadow-raised sm:p-6">
+      <form noValidate onSubmit={handleSubmit} aria-busy={loading}>
+        <div className="grid gap-5 sm:grid-cols-2">
           {PLATFORM_IDS.map((platform) => (
             <UsernameField
               key={platform}
@@ -105,17 +99,14 @@ export function ConnectPanel({
         </div>
 
         {formError && (
-          <p id="connect-form-error" className="mt-3 flex items-start gap-1.5 text-sm text-red-700 dark:text-red-400">
+          <p id="connect-form-error" className="mt-3 flex items-start gap-1.5 text-body text-danger">
             <AlertCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
             {formError}
           </p>
         )}
 
-        <div className="mt-5">
-          <button
-            type="submit"
-            className={`${buttonBase} w-full bg-zinc-900 text-white hover:bg-zinc-700 sm:w-auto dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300`}
-          >
+        <div className="mt-6">
+          <button type="submit" className={`${button("primary", "lg")} w-full sm:w-auto`}>
             {loading && <Loader2 aria-hidden="true" className="size-4 motion-safe:animate-spin" />}
             {loading ? "Loading…" : "See my contributions"}
           </button>
@@ -127,31 +118,19 @@ export function ConnectPanel({
       {(response || onUseSample) && (
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           {response && onContinue && (
-            <button
-              type="button"
-              onClick={onContinue}
-              className={`${buttonBase} border border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800`}
-            >
+            <button type="button" onClick={onContinue} className={button("secondary")}>
               {continueLabel}
               <ArrowRight aria-hidden="true" className="size-4" />
             </button>
           )}
           {response ? (
-            <button
-              type="button"
-              onClick={onDisconnect}
-              className={`${buttonBase} text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800`}
-            >
+            <button type="button" onClick={onDisconnect} className={button("ghost")}>
               <X aria-hidden="true" className="size-4" />
               Clear accounts
             </button>
           ) : (
             onUseSample && (
-              <button
-                type="button"
-                onClick={onUseSample}
-                className={`${buttonBase} px-2 text-zinc-700 underline underline-offset-4 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-zinc-50`}
-              >
+              <button type="button" onClick={onUseSample} className={`${link} min-h-11`}>
                 Just exploring? Try it with sample data
               </button>
             )
@@ -159,11 +138,14 @@ export function ConnectPanel({
         </div>
       )}
 
-      <details className="group mt-4 text-sm">
-        <summary className="cursor-pointer rounded-sm py-3 font-medium text-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-zinc-300">
+      <details className="group mt-5 border-t border-line pt-2 text-body">
+        <summary
+          className={`-mx-2 flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-control px-2 text-label font-medium text-fg-muted hover:bg-surface-hover hover:text-fg [&::-webkit-details-marker]:hidden ${focusRing}`}
+        >
           How contributions are counted
+          <ChevronDown aria-hidden="true" className={disclosureChevron} />
         </summary>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-zinc-600 dark:text-zinc-400">
+        <ul className="mt-1 mb-2 list-disc space-y-1.5 pl-5 text-fg-muted marker:text-fg-subtle">
           <li>
             Counts are <strong>contributions as each platform defines them</strong>, not raw commits. GitLab also counts
             comments, merge-request approvals and other activity; GitHub counts commits only under specific conditions.
@@ -203,16 +185,15 @@ function UsernameField({
 
   return (
     <div className="min-w-0">
-      <label htmlFor={id} className="block text-sm font-medium">
-        {PLATFORMS[platform].label} username{" "}
-        <span className="font-normal text-zinc-600 dark:text-zinc-400">(optional)</span>
+      <label htmlFor={id} className="block text-label font-semibold text-fg">
+        {PLATFORMS[platform].label} username <span className="font-normal text-fg-muted">(optional)</span>
       </label>
       <div
-        className={`mt-1 flex min-h-11 items-center rounded-md border bg-white has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-blue-600 dark:bg-zinc-950 dark:has-focus-visible:outline-blue-400 ${
-          error ? "border-red-600 dark:border-red-400" : "border-zinc-300 dark:border-zinc-700"
+        className={`mt-1.5 flex min-h-11 items-center rounded-control border bg-surface-raised font-mono ${focusWithin} ${
+          error ? "border-danger" : "border-line-strong"
         }`}
       >
-        <span aria-hidden="true" className="pl-3 text-sm text-zinc-600 select-none dark:text-zinc-400">
+        <span aria-hidden="true" className="pl-3 text-base text-fg-subtle select-none sm:text-code">
           {prefix}
         </span>
         <input
@@ -229,14 +210,14 @@ function UsernameField({
           spellCheck={false}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
-          className="min-w-0 flex-1 bg-transparent py-2 pr-3 pl-0.5 text-base outline-none placeholder:text-zinc-400 sm:text-sm dark:placeholder:text-zinc-500"
+          className="min-w-0 flex-1 bg-transparent py-2 pr-3 pl-0.5 text-base text-fg outline-none placeholder:text-fg-subtle sm:text-code"
         />
       </div>
-      <p id={`${id}-hint`} className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+      <p id={`${id}-hint`} className={`mt-1.5 ${hint}`}>
         The name in your profile URL, {prefix}…
       </p>
       {error && (
-        <p id={`${id}-error`} className="mt-1 flex items-start gap-1.5 text-sm text-red-700 dark:text-red-400">
+        <p id={`${id}-error`} className="mt-1.5 flex items-start gap-1.5 text-body text-danger">
           <AlertCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
           {error}
         </p>
@@ -281,9 +262,9 @@ function ConnectionStatus({ state, onRetry }: { state: ConnectionState; onRetry:
       </p>
 
       {state.phase === "loading" && (
-        <ul className="space-y-2 text-sm" aria-hidden="true">
+        <ul className="space-y-2 text-body" aria-hidden="true">
           {PLATFORM_IDS.filter((p) => state.request[p]).map((p) => (
-            <li key={p} className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
+            <li key={p} className="flex items-center gap-2 text-fg-muted">
               <Loader2 className="size-4 shrink-0 motion-safe:animate-spin" />
               Loading {PLATFORMS[p].label} @{state.request[p]}…
             </li>
@@ -292,7 +273,7 @@ function ConnectionStatus({ state, onRetry }: { state: ConnectionState; onRetry:
       )}
 
       {state.phase === "failed" && (
-        <div className="flex flex-col gap-2 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-800 sm:flex-row sm:items-center sm:justify-between dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+        <div className={`flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between ${callout("danger")}`}>
           <p className="flex items-start gap-2">
             <AlertCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
             {state.message}
@@ -302,19 +283,16 @@ function ConnectionStatus({ state, onRetry }: { state: ConnectionState; onRetry:
       )}
 
       {state.phase === "loaded" && (
-        <ul className="space-y-2 text-sm">
+        <ul className="space-y-2 text-body">
           {state.response.results.map((result) => (
             <li key={result.platform} className="flex flex-wrap items-start gap-x-3 gap-y-1">
               <span
                 className={`flex min-w-0 flex-1 items-start gap-2 ${
-                  result.status === "ok" ? "text-zinc-800 dark:text-zinc-200" : "text-red-800 dark:text-red-300"
+                  result.status === "ok" ? "text-fg" : "text-danger"
                 }`}
               >
                 {result.status === "ok" ? (
-                  <CheckCircle2
-                    aria-hidden="true"
-                    className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
-                  />
+                  <CheckCircle2 aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-success" />
                 ) : (
                   <AlertCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
                 )}
@@ -333,11 +311,7 @@ function ConnectionStatus({ state, onRetry }: { state: ConnectionState; onRetry:
 
 function RetryButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`${buttonBase} min-h-9 border border-current px-3 text-sm hover:bg-black/5 dark:hover:bg-white/10`}
-    >
+    <button type="button" onClick={onClick} className={button("secondary", "sm")}>
       <RotateCw aria-hidden="true" className="size-4" />
       {label}
     </button>

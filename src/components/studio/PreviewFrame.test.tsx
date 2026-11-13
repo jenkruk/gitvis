@@ -1,10 +1,8 @@
-import { prepareView } from "@/renderers/view";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { createSampleDataset } from "@/fixtures/sample-dataset";
 import { computeMetrics } from "@/metrics/metrics";
-import { DataView } from "./DataView";
 import { PreviewFrame, README_COLUMN_WIDTH } from "./PreviewFrame";
 import { createDefaultConfig, type VisualizationConfig } from "@/config/config";
 import { Studio } from "./Studio";
@@ -36,9 +34,50 @@ describe("transparent backgrounds", () => {
     expect(screen.getByText(new RegExp(`shown on GitHub's ${mode} page`))).toBeVisible();
   });
 
-  it("keeps the studio's own background for cards with a background", () => {
-    expect(frame({ ...createDefaultConfig(), mode: "light" }).style.background).toBe("");
+  it("shows every card on the GitHub page for its mode, and explains only transparent ones", () => {
+    expect(frame({ ...createDefaultConfig(), mode: "light" }).style.background).toBe(hexToRgb("#ffffff"));
     expect(screen.queryByText(/shown on GitHub's/)).not.toBeInTheDocument();
+  });
+});
+
+describe("preview backdrops", () => {
+  const dataset = createSampleDataset();
+  const metrics = computeMetrics(dataset);
+
+  it("inspects the graphic on GitHub's light and dark pages without changing the design", async () => {
+    const user = userEvent.setup();
+    const config = { ...createDefaultConfig(), mode: "dark" as const };
+    const { container } = render(<PreviewFrame dataset={dataset} config={config} metrics={metrics} busy={false} />);
+    const stage = () => container.querySelector("[data-backdrop]") as HTMLElement;
+    const backdrops = screen.getByRole("group", { name: "Backdrop" });
+    // Only GitHub's two README pages: the graphic never appears anywhere else.
+    expect(
+      within(backdrops)
+        .getAllByRole("radio")
+        .map((r) => r.getAttribute("value")),
+    ).toEqual(["light", "dark"]);
+    expect(within(backdrops).getByRole("radio", { name: "GitHub dark" })).toBeChecked();
+    expect(stage().style.background).toBe(hexToRgb("#0d1117"));
+
+    await user.click(within(backdrops).getByRole("radio", { name: "GitHub light" }));
+    expect(stage().style.background).toBe(hexToRgb("#ffffff"));
+    await user.click(within(backdrops).getByRole("radio", { name: "GitHub dark" }));
+    expect(stage().style.background).toBe(hexToRgb("#0d1117"));
+    // The graphic itself is untouched: same palette background, same size.
+    expect(screen.getByRole("img", { name: "Contribution activity" })).toHaveAttribute("width", "840");
+  });
+
+  it("offers a full-size view for the fitted (sticky) preview only", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <PreviewFrame dataset={dataset} config={createDefaultConfig()} metrics={metrics} busy={false} />,
+    );
+    expect(screen.queryByRole("button", { name: "View full size" })).not.toBeInTheDocument();
+    rerender(<PreviewFrame dataset={dataset} config={createDefaultConfig()} metrics={metrics} busy={false} fit />);
+    await user.click(screen.getByRole("button", { name: "View full size" }));
+    // The copy in the dialog has its own ids, so aria references never collide with the preview.
+    expect(document.getElementById("preview-full-title")).not.toBeNull();
+    expect(document.getElementById("preview-title")).not.toBeNull();
   });
 });
 
@@ -46,38 +85,3 @@ const hexToRgb = (hex: string) => {
   const n = Number.parseInt(hex.slice(1), 16);
   return `rgb(${n >> 16}, ${(n >> 8) & 255}, ${n & 255})`;
 };
-
-describe("DataView", () => {
-  const dataset = createSampleDataset();
-  const metrics = computeMetrics(dataset);
-
-  it("offers a text summary and an accessible monthly table", async () => {
-    const user = userEvent.setup();
-    render(<DataView prepared={prepareView(dataset, { years: 1, range: 365 })} metrics={metrics} />);
-    await user.click(screen.getByText("View the data as text and a table"));
-
-    const table = screen.getByRole("table", { name: "Contributions by month" });
-    expect(
-      within(table)
-        .getAllByRole("columnheader")
-        .map((h) => h.textContent),
-    ).toEqual(["Month", "GitHub", "GitLab", "Total"]);
-    expect(within(table).getAllByRole("rowheader")).toHaveLength(metrics.monthly.length);
-    expect(screen.getByRole("region", { name: "Contributions by month" })).toHaveAttribute("tabindex", "0");
-    expect(screen.getByText(/sample data, not real activity/i)).toBeVisible();
-  });
-
-  it("matches the graphic's totals", async () => {
-    const user = userEvent.setup();
-    render(<DataView prepared={prepareView(dataset, { years: 1, range: 365 })} metrics={metrics} />);
-    await user.click(screen.getByText("View the data as text and a table"));
-    const sum = metrics.monthly.reduce((s, m) => s + m.total, 0);
-    expect(sum).toBe(metrics.total);
-    expect(screen.getByText("Total contributions").nextSibling).toHaveTextContent(String(metrics.total));
-  });
-
-  it("is available from the studio for the default design", () => {
-    render(<Studio sampleDataset={dataset} origin="https://gitvis.test" initialStep="design" />);
-    expect(screen.getByText("View the data as text and a table")).toBeInTheDocument();
-  });
-});

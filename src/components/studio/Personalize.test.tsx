@@ -44,6 +44,41 @@ function setup(props: Partial<Parameters<typeof Studio>[0]> = {}) {
 }
 
 describe("profile header controls", () => {
+  it("offer Account sides only for the centered header, and swap GitHub and GitLab", async () => {
+    const { user, search } = setup();
+    const header = () => screen.getByRole("group", { name: "Profile header" });
+    expect(screen.queryByRole("group", { name: "Account sides", hidden: true })).not.toBeInTheDocument();
+
+    await user.click(within(header()).getByRole("radio", { name: /centered profile/i, hidden: true }));
+    const sides = screen.getByRole("group", { name: "Account sides", hidden: true });
+    expect(within(sides).getByRole("radio", { name: "GitHub on the left", hidden: true })).toBeChecked();
+    await user.click(within(sides).getByRole("radio", { name: "GitLab on the left", hidden: true }));
+    expect(search().get("left")).toBe("gitlab");
+    expect(screen.getByText("Identity", { selector: "summary span" }).closest("summary")).toHaveTextContent(
+      "GitLab on the left",
+    );
+    // Not offered for the other headers.
+    await user.click(within(header()).getByRole("radio", { name: /full profile/i, hidden: true }));
+    expect(screen.queryByRole("group", { name: "Account sides", hidden: true })).not.toBeInTheDocument();
+  });
+
+  it("offer Avatar position only when a compact or full header shows avatars", async () => {
+    const { user, search } = setup();
+    const header = () => screen.getByRole("group", { name: "Profile header" });
+    const position = () => screen.queryByRole("group", { name: "Avatar position", hidden: true });
+    await user.click(within(header()).getByRole("radio", { name: /compact identity/i, hidden: true }));
+    expect(position()).not.toBeInTheDocument();
+
+    const avatars = screen.getByRole("group", { name: "Avatars", hidden: true });
+    await user.click(within(avatars).getByRole("checkbox", { name: "GitHub", hidden: true }));
+    expect(within(position()!).getByRole("radio", { name: "Left", hidden: true })).toBeChecked();
+    await user.click(within(position()!).getByRole("radio", { name: "Right", hidden: true }));
+    expect(search().get("avs")).toBe("right");
+
+    await user.click(within(header()).getByRole("radio", { name: /centered profile/i, hidden: true }));
+    expect(position()).not.toBeInTheDocument();
+  });
+
   it("switch presets with arrow keys and show the typed name in the preview immediately", async () => {
     const { user, preview, search } = setup();
     const group = screen.getByRole("group", { name: "Profile header" });

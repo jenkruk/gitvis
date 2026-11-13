@@ -1,5 +1,13 @@
 import { expect, type Page, test } from "@playwright/test";
-import { expandAll, expectNoHorizontalScroll, stepHeading, uniqueUser, upstream } from "./helpers";
+import {
+  expandAll,
+  expectNoHorizontalScroll,
+  forEachSection,
+  openSection,
+  stepHeading,
+  uniqueUser,
+  upstream,
+} from "./helpers";
 
 async function undersizedTargets(page: Page) {
   return page.evaluate(() =>
@@ -19,8 +27,7 @@ test.describe("mobile editing (375px)", () => {
 
     await page.getByRole("button", { name: /try it with sample data/i }).tap();
     await expect(stepHeading(page)).toHaveText(/design your graphic/i);
-    await expandAll(page);
-    expect(await undersizedTargets(page)).toEqual([]);
+    await forEachSection(page, async () => expect(await undersizedTargets(page)).toEqual([]));
 
     const smallestText = await page.evaluate(() => {
       const sizes = [...document.body.querySelectorAll("*")]
@@ -30,6 +37,7 @@ test.describe("mobile editing (375px)", () => {
     });
     expect(smallestText).toBeGreaterThanOrEqual(11);
 
+    await openSection(page, "Metrics & Charts");
     await page.locator('label[for="feature-longestStreak"]').tap();
     await expect(page.getByRole("switch", { name: /longest streak/i })).not.toBeChecked();
     await expect(
@@ -83,9 +91,8 @@ for (const width of [320, 375, 768, 1280]) {
     await page.goto(`/?v=1&github=${user}&gitlab=${user}&hdr=full&name=Avery%20Example`);
 
     await expect(stepHeading(page)).toHaveText(/design your graphic/i);
-    await expandAll(page);
     if (width < 1024) await page.getByRole("button", { name: "Expand preview" }).click();
-    await expectNoHorizontalScroll(page);
+    await forEachSection(page, () => expectNoHorizontalScroll(page));
 
     await page.getByRole("button", { name: "Change accounts" }).click();
     await expandAll(page);

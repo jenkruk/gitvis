@@ -1,3 +1,12 @@
+/**
+ * Legacy v1 URLs must keep rendering. Until the first production deployment freezes the contract,
+ * deliberate pre-launch appearance changes may re-record these snapshots; each is listed here.
+ *
+ * Pre-launch re-recordings:
+ * - Nov 2026, visual refinement: quieter 10px credit line, panel titles at 12/600 in the text
+ *   color, stat/breakdown/chart text insets follow the density's panel padding, legend keys drawn
+ *   as SVG shapes, "Peak N per week". URLs, data and layout geometry of every section unchanged.
+ */
 import { describe, expect, it } from "vitest";
 import { combineSources } from "@/domain/combine";
 import { addDays, toISODate, trailingYear } from "@/domain/dates";

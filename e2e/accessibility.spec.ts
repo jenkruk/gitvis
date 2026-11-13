@@ -1,5 +1,13 @@
 import { expect, test } from "@playwright/test";
-import { expandAll, expectAccessible, expectNoHorizontalScroll, stepHeading, uniqueUser, upstream } from "./helpers";
+import {
+  expandAll,
+  expectAccessible,
+  forEachSection,
+  expectNoHorizontalScroll,
+  stepHeading,
+  uniqueUser,
+  upstream,
+} from "./helpers";
 
 const VIEWPORTS = [
   { name: "320 (small phone)", width: 320, height: 720 },
@@ -21,20 +29,22 @@ for (const viewport of VIEWPORTS) {
 
       await page.getByRole("button", { name: /try it with sample data/i }).click();
       await expect(stepHeading(page)).toHaveText(/design your graphic/i);
-      await expandAll(page);
-      await expectAccessible(page, `sample design ${viewport.name}`);
-      await expectNoHorizontalScroll(page);
+      await forEachSection(page, async (section) => {
+        await expectAccessible(page, `sample design · ${section} ${viewport.name}`);
+        await expectNoHorizontalScroll(page);
+      });
     });
 
-    test("connected Design (every section open) and Publish pass axe", async ({ page, request }) => {
+    test("connected Design (each section open in turn) and Publish pass axe", async ({ page, request }) => {
       const user = uniqueUser("a11y");
       await upstream(request, user, { count: 7 });
       await page.goto(`/?v=1&github=${user}&gitlab=${user}&layout=data-rich&hdr=full&name=Avery`);
       await expect(stepHeading(page)).toHaveText(/design your graphic/i);
-      await expandAll(page);
-      await expect(page.getByRole("table", { name: "Contributions by month" })).toBeVisible();
-      await expectAccessible(page, `connected design ${viewport.name}`);
-      await expectNoHorizontalScroll(page);
+      await forEachSection(page, async (section) => {
+        await expect(page.getByRole("table", { name: "Monthly contributions · Last 12 months" })).toBeVisible();
+        await expectAccessible(page, `connected design · ${section} ${viewport.name}`);
+        await expectNoHorizontalScroll(page);
+      });
 
       await page.getByRole("button", { name: "Continue to publish" }).click();
       await expect(stepHeading(page)).toHaveText(/publish to your readme/i);

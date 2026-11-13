@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { LOGO_CELLS, LOGO_VIEWBOX } from "./logo-mark";
+import { LOGO_CELLS, LOGO_COLOR, LOGO_VIEWBOX } from "./logo-mark";
+import { link } from "@/components/ui/recipes";
 import { GITVIS_REPO_URL } from "@/config/site";
 
 function LogoMark() {
@@ -9,7 +10,8 @@ function LogoMark() {
       height={LOGO_VIEWBOX}
       viewBox={`0 0 ${LOGO_VIEWBOX} ${LOGO_VIEWBOX}`}
       aria-hidden="true"
-      className="text-emerald-500"
+      className="shrink-0"
+      style={{ color: LOGO_COLOR }}
     >
       {LOGO_CELLS.map((cell, i) => (
         <rect
@@ -32,33 +34,27 @@ export function AppShell({ children }: { children: ReactNode }) {
     <>
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-md focus:bg-foreground focus:px-3 focus:py-2 focus:text-background"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-control focus:bg-ink focus:px-3 focus:py-2 focus:text-ink-fg"
       >
         Skip to content
       </a>
-      <header className="border-b border-zinc-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80">
-        <div className="mx-auto flex max-w-7xl items-center px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <LogoMark />
-            <div>
-              <p className="text-lg leading-tight font-semibold tracking-tight">GitVis</p>
-              <p className="text-xs text-zinc-600 dark:text-zinc-400">Every contribution counts.</p>
-            </div>
-          </div>
+      {/* Header and footer mirror each other: the same container, a hairline, caption-sized text. */}
+      <header className="border-b border-line">
+        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-4 sm:px-6">
+          <LogoMark />
+          <p className="text-section font-semibold tracking-tight">GitVis</p>
+          <p className="text-caption text-fg-muted max-[359px]:sr-only">Every contribution counts.</p>
         </div>
       </header>
       <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:py-10">
         {children}
       </main>
-      <footer className="border-t border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-4 text-xs text-zinc-600 sm:px-6 dark:text-zinc-400">
+      <footer className="border-t border-line">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-4 text-caption text-fg-muted sm:px-6">
           <p>GitVis combines public contribution counts. It never reads private repository contents.</p>
           <p>
             Open source (MIT) ·{" "}
-            <a
-              href={GITVIS_REPO_URL}
-              className="inline-flex min-h-6 items-center font-medium text-zinc-800 underline underline-offset-2 hover:text-zinc-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-zinc-200 dark:hover:text-white"
-            >
+            <a href={GITVIS_REPO_URL} className={link}>
               View the source on GitHub
             </a>
           </p>

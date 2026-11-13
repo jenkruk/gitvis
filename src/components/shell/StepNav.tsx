@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { focusRing } from "@/components/ui/recipes";
 
 export const STEP_IDS = ["connect", "design", "publish"] as const;
 export type StepId = (typeof STEP_IDS)[number];
@@ -33,7 +34,7 @@ export function StepNav({ active, available, onSelect }: StepNavProps) {
                 <span
                   aria-hidden="true"
                   className={`h-px w-3 shrink-0 max-[359px]:hidden sm:w-10 ${
-                    index <= activeIndex ? "bg-zinc-900 dark:bg-zinc-100" : "bg-zinc-300 dark:bg-zinc-700"
+                    index <= activeIndex ? "bg-accent" : "bg-line"
                   }`}
                 />
               )}
@@ -42,20 +43,20 @@ export function StepNav({ active, available, onSelect }: StepNavProps) {
                 onClick={() => onSelect(id)}
                 disabled={!available[id]}
                 aria-current={current ? "step" : undefined}
-                className={`group flex min-h-11 items-center gap-1.5 rounded-full py-1.5 pr-2 pl-1 text-[13px] sm:gap-2 sm:pr-3 sm:pl-1.5 sm:text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed motion-safe:transition-colors dark:focus-visible:outline-blue-400 ${
+                className={`group flex min-h-11 items-center gap-1.5 rounded-full py-1.5 pr-2 pl-1 text-caption sm:gap-2 sm:pr-3 sm:pl-1.5 sm:text-label disabled:cursor-not-allowed motion-safe:transition-colors ${focusRing} ${
                   current
-                    ? "font-semibold text-zinc-900 dark:text-zinc-50"
-                    : "text-zinc-700 enabled:hover:bg-zinc-100 disabled:text-zinc-500 dark:text-zinc-300 dark:enabled:hover:bg-zinc-800 dark:disabled:text-zinc-500"
+                    ? "font-semibold text-fg"
+                    : "font-medium text-fg-muted enabled:hover:bg-surface-hover enabled:hover:text-fg disabled:text-fg-subtle"
                 }`}
               >
                 <span
                   aria-hidden="true"
-                  className={`flex size-6 shrink-0 items-center justify-center rounded-full border text-xs tabular-nums sm:size-7 ${
+                  className={`flex size-6 shrink-0 items-center justify-center rounded-full border text-overline font-semibold tabular-nums sm:size-7 ${
                     current
-                      ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+                      ? "border-accent bg-accent text-accent-fg"
                       : done
-                        ? "border-emerald-700 bg-emerald-700 text-white dark:border-emerald-400 dark:bg-emerald-400 dark:text-zinc-950"
-                        : "border-zinc-400 dark:border-zinc-600"
+                        ? "border-accent bg-selected text-accent"
+                        : "border-line-strong bg-surface"
                   }`}
                 >
                   {done ? <Check className="size-4" /> : index + 1}

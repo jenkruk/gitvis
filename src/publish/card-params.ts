@@ -1,5 +1,6 @@
 import { type ConnectRequest, validateConnectRequest } from "@/adapters/connect";
 import {
+  type AvatarSide,
   type BackgroundStyle,
   type DateRangeDays,
   type Density,
@@ -92,6 +93,7 @@ const PANEL_CODES: Record<PanelStyle, string> = { filled: "filled", outlined: "o
 const YEARS_CODES: Record<`${HistoryYears}`, string> = { "1": "1", "2": "2", "3": "3" };
 const RANGE_CODES: Record<`${DateRangeDays}`, string> = { "30": "30", "90": "90", "365": "365" };
 const PLATFORM_CODES: Record<PlatformId, string> = { github: "github", gitlab: "gitlab" };
+const AVATAR_SIDE_CODES: Record<AvatarSide, string> = { left: "left", right: "right" };
 const LEGACY = {
   identity: "none" as IdentityStyle,
   handles: [...PLATFORM_IDS] as PlatformId[],
@@ -101,6 +103,8 @@ const LEGACY = {
   density: "spacious" as Density,
   panel: "filled" as PanelStyle,
   years: 1 as HistoryYears,
+  leftPlatform: "github" as PlatformId,
+  avatarSide: "left" as AvatarSide,
 };
 
 const V1_DEFAULTS = {
@@ -138,6 +142,7 @@ const PANEL_BY_CODE = invert(PANEL_CODES);
 const YEARS_BY_CODE = invert(YEARS_CODES);
 const RANGE_BY_CODE = invert(RANGE_CODES);
 const PLATFORM_BY_CODE = invert(PLATFORM_CODES);
+const AVATAR_SIDE_BY_CODE = invert(AVATAR_SIDE_CODES);
 const STAT_CODES = Object.fromEntries(STAT_FEATURE_IDS.map((id) => [id, FEATURE_CODES[id]])) as Record<
   StatFeatureId,
   string
@@ -191,6 +196,9 @@ export function encodeCardParams({ request, config: design, size }: CardParams):
   if (identity.avatars.length) params.set("av", identity.avatars.map((p) => PLATFORM_CODES[p]).join(","));
   if (finalText(identity.name)) params.set("name", finalText(identity.name));
   if (finalText(identity.title)) params.set("title", finalText(identity.title));
+  // Header arrangement (Nov 2026): written only when it differs from the original arrangement.
+  if (identity.leftPlatform !== LEGACY.leftPlatform) params.set("left", PLATFORM_CODES[identity.leftPlatform]);
+  if (identity.avatarSide !== LEGACY.avatarSide) params.set("avs", AVATAR_SIDE_CODES[identity.avatarSide]);
   if (config.background !== LEGACY.background) params.set("bg", BACKGROUND_CODES[config.background]);
   const colors = PLATFORM_IDS.flatMap((p) => {
     const hex = config.platformColors[p];
@@ -287,6 +295,8 @@ export function decodeCardParams(search: URLSearchParams): DecodedCardParams {
   const avatars = PLATFORM_IDS.filter((p) => list("av", PLATFORM_BY_CODE, []).includes(p));
   const name = text("name", NAME_MAX_LENGTH);
   const title = text("title", TITLE_MAX_LENGTH);
+  const leftPlatform = pick("left", PLATFORM_BY_CODE, LEGACY.leftPlatform);
+  const avatarSide = pick("avs", AVATAR_SIDE_BY_CODE, LEGACY.avatarSide);
   const background = pick("bg", BACKGROUND_BY_CODE, LEGACY.background);
   const range = Number(pick("range", RANGE_BY_CODE, `${LEGACY.range}`)) as DateRangeDays;
   const density = pick("den", DENSITY_BY_CODE, LEGACY.density);
@@ -315,7 +325,7 @@ export function decodeCardParams(search: URLSearchParams): DecodedCardParams {
     palette,
     mode,
     features: flagsFrom(enabled),
-    identity: { style, handles, avatars, name, title },
+    identity: { style, handles, avatars, name, title, leftPlatform, avatarSide },
     background,
     platformColors,
     metricOrder,

@@ -83,7 +83,7 @@ _Depends on:_ Phase 2.
 - [x] Responsive: no horizontal scroll at 320/375/768/1280; 24px targets; ≥ 11px UI text; mobile editing.
 - [x] Studio preview modes: desktop, tablet and mobile README widths (removed Nov 2026: README cards are always the full image).
 - [x] Mobile-optimized compact image (`size=compact`, 400px reflow). No longer offered in snippets (GitHub's `<themed-picture>` broke width media for signed-in readers); `size=compact` URLs still render.
-- [x] Alternative data view: written summary, key stats, and an accessible monthly table (pulled forward from Phase 4).
+- [x] Alternative data view: written summary, key stats, and an accessible monthly table (pulled forward from Phase 4). Refined Nov 2026 as "Detailed contribution data": a concise summary, a per-period history table, summary statistics and a nested monthly table.
 - [x] Error cards wrap text; usernames are truncated in messages (GitLab allows 255 characters).
 - [x] Fixed: step-number contrast, a nested-interactive SVG preview, and a 20px disclosure target (all found by axe or the E2E checks).
 - [x] Rate-limit review and production requirements documented (ARCHITECTURE "Abuse protection", "Production requirements").

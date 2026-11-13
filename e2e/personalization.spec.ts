@@ -1,6 +1,8 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, test } from "@playwright/test";
 import {
   expandAll,
+  openSection,
+  type SectionTitle,
   expectAccessible,
   expectNoHorizontalScroll,
   getCard,
@@ -63,12 +65,14 @@ test.describe("studio", () => {
     const user = uniqueUser("persist");
     await upstream(request, user, { count: 9 });
     await page.goto(`/?v=1&github=${user}&gitlab=${user}&${PERSONALIZED}`);
-    await expandAll(page);
+    await openSection(page, "Identity");
 
     await expect(page.getByRole("radio", { name: /developer profile card/i })).toBeChecked();
     await expect(page.getByRole("radio", { name: /full profile/i })).toBeChecked();
     await expect(page.getByRole("textbox", { name: /display name/i })).toHaveValue("Avery Example");
+    await openSection(page, "Colors & Background");
     await expect(page.getByRole("radio", { name: /gradient/i })).toBeChecked();
+    await openSection(page, "Display");
     await expect(page.getByRole("radio", { name: "90 days" })).toBeChecked();
     await expect(page.getByRole("radio", { name: "Compact", exact: true })).toBeChecked();
 
@@ -82,7 +86,7 @@ test.describe("studio", () => {
     await page.reload();
     await expect(stepHeading(page)).toHaveText(/publish to your readme/i);
     await page.getByRole("button", { name: "Edit design" }).click();
-    await expandAll(page);
+    await openSection(page, "Identity");
     await expect(page.getByRole("radio", { name: /full profile/i })).toBeChecked();
     await expect(page.getByRole("textbox", { name: /display name/i })).toHaveValue("Avery Example");
   });
@@ -125,7 +129,7 @@ test.describe("studio", () => {
     const user = uniqueUser("panelkbd");
     await upstream(request, user, { count: 4 });
     await page.goto(`/?v=1&github=${user}`);
-    await expandAll(page);
+    await openSection(page, "Colors & Background");
     const filled = page.getByRole("radio", { name: "Filled" });
     await filled.focus();
     await page.keyboard.press("ArrowRight");
@@ -136,7 +140,7 @@ test.describe("studio", () => {
     await expectAccessible(page, "outlined panels");
 
     await page.reload();
-    await expandAll(page);
+    await openSection(page, "Colors & Background");
     await expect(page.getByRole("radio", { name: "Outlined" })).toBeChecked();
   });
 
@@ -147,22 +151,22 @@ test.describe("studio", () => {
       await upstream(request, user, { count: 6 });
       await page.goto(`/?v=1&github=${user}&gitlab=${user}&${PERSONALIZED}&pc=github:ff7a59`);
       await expect(stepHeading(page)).toHaveText(/design your graphic/i);
-      await expandAll(page);
-
-      const targets = [
-        page.getByRole("button", { name: /^Move .* (up|down)$/ }),
-        page.getByRole("button", { name: /^Reset .* color$/ }),
-        page.locator("input[type=color]"),
+      const targets: [SectionTitle, Locator][] = [
+        ["Metrics & Charts", page.getByRole("button", { name: /^Move .* (up|down)$/ })],
+        ["Colors & Background", page.getByRole("button", { name: /^Reset .* color$/ })],
+        ["Colors & Background", page.locator("input[type=color]")],
       ];
-      for (const group of targets) {
+      for (const [section, group] of targets) {
+        await openSection(page, section);
+        expect(await group.count(), `${section} targets`).toBeGreaterThan(0);
         for (const target of await group.all()) {
           const box = await target.boundingBox();
           expect(box, "target is rendered").not.toBeNull();
           expect(Math.min(box!.width, box!.height), "WCAG 2.5.8 target size").toBeGreaterThanOrEqual(24);
         }
+        await expectAccessible(page, `personalized · ${section} ${width}`);
+        await expectNoHorizontalScroll(page);
       }
-      await expectAccessible(page, `personalized ${width}`);
-      await expectNoHorizontalScroll(page);
     });
   }
 });

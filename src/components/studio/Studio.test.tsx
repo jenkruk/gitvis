@@ -245,6 +245,38 @@ describe("design step", () => {
     }
   });
 
+  it("makes the advanced sections one single-open accordion that keeps settings when closed", async () => {
+    const { user } = design();
+    const section = (title: string) => screen.getByText(title, { selector: "summary span" }).closest("details")!;
+    const titles = ["Identity", "Colors & Background", "Metrics & Charts", "Display"];
+    // Native exclusive accordion: every section shares one name, so opening one closes the others.
+    expect(new Set(titles.map((t) => section(t).getAttribute("name")))).toEqual(new Set(["more-options"]));
+
+    await user.click(within(section("Colors & Background")).getByText("Colors & Background"));
+    await user.click(screen.getByRole("radio", { name: /gradient/i }));
+    await user.click(within(section("Colors & Background")).getByText("Colors & Background"));
+    expect(section("Colors & Background")).not.toHaveAttribute("open");
+    // Closed, the setting survives and its header still summarizes it.
+    expect(section("Colors & Background").querySelector("summary")).toHaveTextContent("Gradient");
+    expect(screen.getByRole("radio", { name: /gradient/i, hidden: true })).toBeChecked();
+  });
+
+  it("marks selected cards with a check as well as color, and keeps the radio semantics", () => {
+    design();
+    const layout = screen.getByRole("group", { name: "Layout" });
+    expect(layout).toHaveAccessibleDescription("Stat cards, heatmap and breakdown.");
+    const checked = within(layout).getByRole("radio", { checked: true });
+    expect(checked).toHaveAccessibleName("Dashboard");
+    const preset = within(screen.getByRole("group", { name: "Start with" })).getByRole("radio", { checked: true });
+    expect(preset.closest("label")!.querySelector("svg.lucide-check")).not.toBeNull();
+  });
+
+  it("keeps Reset design with the controls, away from the preview", () => {
+    design();
+    const reset = screen.getByRole("button", { name: "Reset design" });
+    expect(screen.getByRole("region", { name: "Live preview" })).not.toContainElement(reset);
+  });
+
   it("feature toggles are switches with defaults from the registry", () => {
     design();
     expect(screen.getByRole("switch", { name: /best day/i })).not.toBeChecked();
@@ -309,11 +341,11 @@ describe("design step", () => {
   it("changes palette without resetting layout or mode", async () => {
     const { user } = design();
     await user.click(screen.getByRole("radio", { name: /minimal/i }));
-    await user.click(screen.getByRole("radio", { name: /light/i }));
+    await user.click(within(screen.getByRole("group", { name: "Mode" })).getByRole("radio", { name: /light/i }));
     await user.click(screen.getByRole("radio", { name: /paper & ink/i }));
 
     expect(screen.getByRole("radio", { name: /minimal/i })).toBeChecked();
-    expect(screen.getByRole("radio", { name: /light/i })).toBeChecked();
+    expect(within(screen.getByRole("group", { name: "Mode" })).getByRole("radio", { name: /light/i })).toBeChecked();
     expect(screen.getByText("Minimal layout, Paper & Ink palette, light mode.")).toHaveAttribute("role", "status");
   });
 
@@ -421,8 +453,8 @@ describe("historical ranges", () => {
       initialResponse: both,
       initialConfig: config,
     });
-    await user.click(screen.getByText("View the data as text and a table"));
-    const table = screen.getByRole("table", { name: "Contributions by 12-month period" });
+    await user.click(screen.getByText("Detailed contribution data"));
+    const table = screen.getByRole("table", { name: /^Contribution history/ });
     const rows = within(table).getAllByRole("row").slice(1);
     expect(
       within(rows[0]!)
@@ -493,10 +525,11 @@ describe("source attribution", () => {
       initialResponse: both,
       initialConfig: config,
     });
-    await user.click(screen.getByText("View the data as text and a table"));
-    expect(
-      screen.getByRole("heading", { name: "Summary statistics · Last 12 months · GitHub + GitLab" }),
-    ).toBeVisible();
-    expect(screen.getByRole("table", { name: "Contributions by month · Last 12 months" })).toBeVisible();
+    await user.click(screen.getByText("Detailed contribution data"));
+    expect(screen.getByRole("region", { name: "Summary statistics" })).toHaveTextContent(
+      "Last 12 months · GitHub + GitLab",
+    );
+    await user.click(screen.getByText("Monthly contributions"));
+    expect(screen.getByRole("table", { name: "Monthly contributions · Last 12 months" })).toBeVisible();
   });
 });

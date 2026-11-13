@@ -1,6 +1,8 @@
 import { RotateCcw } from "lucide-react";
 import type { Dispatch } from "react";
 import {
+  AVATAR_SIDES,
+  type AvatarSide,
   type BackgroundStyle,
   type ConfigAction,
   type Density,
@@ -14,18 +16,17 @@ import {
 import type { HistoryYears } from "@/domain/history";
 import { type ContributionDataset, PLATFORM_IDS, PLATFORMS, type PlatformId } from "@/domain/types";
 import { resolveTheme } from "@/theme/palettes";
-import { ControlGroup, RadioCard } from "./controls";
+import { ControlGroup, RadioCard, SegmentLabel } from "./controls";
+import { button, field, focusRing, focusWithin, hint as hintClass } from "@/components/ui/recipes";
 
 interface Props {
   config: VisualizationConfig;
   dispatch: Dispatch<ConfigAction>;
 }
 
-const hint = "text-xs text-zinc-600 dark:text-zinc-400";
-const fieldClass =
-  "mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 sm:text-sm dark:border-zinc-700 dark:bg-zinc-950";
-const checkboxLabel =
-  "flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-zinc-200 px-3 text-sm has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-blue-600 dark:border-zinc-800";
+const hint = hintClass;
+const fieldClass = `mt-1.5 ${field}`;
+const checkboxLabel = `flex min-h-11 cursor-pointer items-center gap-2.5 rounded-control border border-line bg-surface px-3 text-label font-medium hover:bg-surface-hover ${focusWithin}`;
 
 const HEADER_PRESETS: { id: IdentityStyle; label: string; description: string }[] = [
   { id: "none", label: "None", description: "Standard title row." },
@@ -33,6 +34,43 @@ const HEADER_PRESETS: { id: IdentityStyle; label: string; description: string }[
   { id: "full", label: "Full profile", description: "Large avatars, name and title." },
   { id: "centered", label: "Centered profile", description: "Name and dates centered, an account on each side." },
 ];
+
+const SIDE_LABELS: Record<AvatarSide, string> = { left: "Left", right: "Right" };
+
+/** A two-option segmented choice inside the Identity section (account sides, avatar position). */
+function SideChoice<T extends string>({
+  legend,
+  name,
+  options,
+  value,
+  onChange,
+}: {
+  legend: string;
+  name: string;
+  options: { id: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <fieldset className="mt-6">
+      <legend className="text-label font-semibold">{legend}</legend>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        {options.map((option) => (
+          <RadioCard
+            key={option.id}
+            name={name}
+            value={option.id}
+            checked={value === option.id}
+            onSelect={() => onChange(option.id)}
+            className="items-center justify-center py-2 text-center"
+          >
+            <SegmentLabel checked={value === option.id}>{option.label}</SegmentLabel>
+          </RadioCard>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
 
 export function IdentityPicker({ config, dispatch }: Props) {
   const { identity } = config;
@@ -47,18 +85,19 @@ export function IdentityPicker({ config, dispatch }: Props) {
             value={preset.id}
             checked={identity.style === preset.id}
             onSelect={() => dispatch({ type: "setIdentityStyle", style: preset.id })}
-            className="flex-col"
+            mark
+            className="flex-col pr-8"
           >
-            <span className="text-sm font-medium">{preset.label}</span>
-            <span className={hint}>{preset.description}</span>
+            <span className="text-label font-medium">{preset.label}</span>
+            <span className={`mt-0.5 ${hint}`}>{preset.description}</span>
           </RadioCard>
         ))}
       </div>
 
-      <p className={`mt-4 ${hint}`}>Your GitHub and GitLab usernames always appear on the graphic.</p>
+      <p className={`mt-3 ${hint}`}>Your GitHub and GitLab usernames always appear on the graphic.</p>
 
-      <fieldset className="mt-4" aria-describedby="identity-avatars-hint">
-        <legend className="text-sm font-medium">Avatars</legend>
+      <fieldset className="mt-6" aria-describedby="identity-avatars-hint">
+        <legend className="text-label font-semibold">Avatars</legend>
         <p id="identity-avatars-hint" className={hint}>
           {off
             ? "Shown with a profile header."
@@ -69,7 +108,7 @@ export function IdentityPicker({ config, dispatch }: Props) {
             <label key={p} className={checkboxLabel}>
               <input
                 type="checkbox"
-                className="size-5 accent-zinc-900 dark:accent-zinc-100"
+                className="size-4.5 accent-accent"
                 checked={identity.avatars.includes(p)}
                 onChange={(e) => dispatch({ type: "setAvatar", platform: p, enabled: e.target.checked })}
               />
@@ -79,7 +118,26 @@ export function IdentityPicker({ config, dispatch }: Props) {
         </div>
       </fieldset>
 
-      <div className="mt-4 grid gap-3">
+      {identity.style === "centered" && (
+        <SideChoice
+          legend="Account sides"
+          name="identity-left-platform"
+          options={PLATFORM_IDS.map((p) => ({ id: p, label: `${PLATFORMS[p].label} on the left` }))}
+          value={identity.leftPlatform}
+          onChange={(platform) => dispatch({ type: "setLeftPlatform", platform })}
+        />
+      )}
+      {(identity.style === "compact" || identity.style === "full") && identity.avatars.length > 0 && (
+        <SideChoice
+          legend="Avatar position"
+          name="identity-avatar-side"
+          options={AVATAR_SIDES.map((side) => ({ id: side, label: SIDE_LABELS[side] }))}
+          value={identity.avatarSide}
+          onChange={(side) => dispatch({ type: "setAvatarSide", side })}
+        />
+      )}
+
+      <div className="mt-6 grid gap-5">
         <TextField
           id="identity-name"
           label="Display name"
@@ -120,8 +178,8 @@ function TextField({
 }) {
   return (
     <div>
-      <label htmlFor={id} className="text-sm font-medium">
-        {label} <span className="font-normal text-zinc-600 dark:text-zinc-400">(optional)</span>
+      <label htmlFor={id} className="text-label font-semibold">
+        {label} <span className="font-normal text-fg-muted">(optional)</span>
       </label>
       <input
         id={id}
@@ -133,8 +191,12 @@ function TextField({
         onChange={(e) => onChange(e.target.value)}
         className={fieldClass}
       />
-      <p id={`${id}-hint`} className={`${hint} mt-1`}>
-        {hintText} {[...value].length}/{max} characters.
+      <p id={`${id}-hint`} className={`${hint} mt-1.5`}>
+        {hintText}{" "}
+        <span className="tabular-nums">
+          {[...value].length}/{max}
+        </span>{" "}
+        characters.
       </p>
     </div>
   );
@@ -166,7 +228,7 @@ export function BackgroundPicker({ config, dispatch }: Props) {
             onSelect={() => dispatch({ type: "setBackground", background: bg.id })}
             className="items-center justify-center p-2"
           >
-            <span className="text-sm font-medium">{bg.label}</span>
+            <SegmentLabel checked={config.background === bg.id}>{bg.label}</SegmentLabel>
           </RadioCard>
         ))}
       </div>
@@ -182,7 +244,7 @@ const PANELS: { id: PanelStyle; label: string }[] = [
 
 function PanelSwatch({ style }: { style: PanelStyle }) {
   return (
-    <svg aria-hidden="true" width="40" height="24" viewBox="0 0 40 24" className="text-zinc-500 dark:text-zinc-400">
+    <svg aria-hidden="true" width="40" height="24" viewBox="0 0 40 24" className="text-fg-muted">
       <rect
         x="1"
         y="1"
@@ -213,7 +275,7 @@ export function PanelPicker({ config, dispatch }: Props) {
             className="flex-col items-center gap-1 p-2"
           >
             <PanelSwatch style={panel.id} />
-            <span className="text-sm font-medium">{panel.label}</span>
+            <SegmentLabel checked={config.panel === panel.id}>{panel.label}</SegmentLabel>
           </RadioCard>
         ))}
       </div>
@@ -234,7 +296,7 @@ export function PlatformColorPicker({ config, dispatch }: Props) {
           const adjusted = chosen && chosen.toLowerCase() !== shown.toLowerCase();
           return (
             <div key={p} className="flex flex-wrap items-center gap-3">
-              <label htmlFor={`color-${p}`} className="w-16 text-sm font-medium">
+              <label htmlFor={`color-${p}`} className="w-16 text-label font-medium">
                 {PLATFORMS[p].label}
               </label>
               <input
@@ -243,16 +305,28 @@ export function PlatformColorPicker({ config, dispatch }: Props) {
                 value={chosen ?? base.series[i]!}
                 aria-describedby={`color-${p}-hint`}
                 onChange={(e) => dispatch({ type: "setPlatformColor", platform: p, color: e.target.value })}
-                className="h-11 w-14 cursor-pointer rounded-md border border-zinc-300 bg-white p-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-zinc-700 dark:bg-zinc-950"
+                className={`h-11 w-14 cursor-pointer rounded-control border border-line-strong bg-surface-raised p-1 ${focusRing}`}
               />
               <span id={`color-${p}-hint`} className={`${hint} min-w-0 flex-1`}>
-                {chosen ? (adjusted ? `Adjusted to ${shown} for contrast.` : `Custom ${shown}.`) : "Palette default."}
+                {chosen ? (
+                  adjusted ? (
+                    <>
+                      Adjusted to <span className="font-mono">{shown}</span> for contrast.
+                    </>
+                  ) : (
+                    <>
+                      Custom <span className="font-mono">{shown}</span>.
+                    </>
+                  )
+                ) : (
+                  "Palette default."
+                )}
               </span>
               {chosen && (
                 <button
                   type="button"
                   onClick={() => dispatch({ type: "setPlatformColor", platform: p, color: null })}
-                  className="inline-flex min-h-9 items-center gap-1 rounded-md px-2 text-sm text-zinc-700 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  className={`${button("ghost", "sm")} px-2`}
                 >
                   <RotateCcw aria-hidden="true" className="size-4" />
                   Reset {PLATFORMS[p].label} color
@@ -312,7 +386,7 @@ export function DataPicker({ config, dispatch, history }: Props & { history: His
               onSelect={() => dispatch({ type: "setYears", years: option.id })}
               className="items-center justify-center py-2"
             >
-              <span className="text-sm font-medium">{option.label}</span>
+              <SegmentLabel checked={!legacyRange && config.years === option.id}>{option.label}</SegmentLabel>
             </RadioCard>
           ))}
           {legacyRange && (
@@ -323,7 +397,7 @@ export function DataPicker({ config, dispatch, history }: Props & { history: His
               onSelect={() => undefined}
               className="col-span-3 items-center justify-center py-2"
             >
-              <span className="text-sm font-medium">Last {legacyRange} days (from your link)</span>
+              <span className="text-label font-medium">Last {legacyRange} days (from your link)</span>
             </RadioCard>
           )}
         </div>
@@ -339,7 +413,7 @@ export function DataPicker({ config, dispatch, history }: Props & { history: His
               onSelect={() => dispatch({ type: "setDensity", density: d.id })}
               className="items-center justify-center py-2"
             >
-              <span className="text-sm font-medium">{d.label}</span>
+              <SegmentLabel checked={config.density === d.id}>{d.label}</SegmentLabel>
             </RadioCard>
           ))}
         </div>

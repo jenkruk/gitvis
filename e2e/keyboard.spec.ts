@@ -107,3 +107,20 @@ test("browser Back and reload keep the current step and design", async ({ page, 
   await expect(page.getByRole("heading", { level: 2 })).toHaveText(/design your graphic/i);
   await expect(page.getByRole("radio", { name: /nordic frost/i })).toBeChecked();
 });
+
+test("Detailed contribution data opens, and its monthly table is reachable, with the keyboard", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /try it with sample data/i }).click();
+  const panel = page.locator("summary", { hasText: "Detailed contribution data" });
+  await tabTo(page, panel);
+  await expectVisibleFocus(panel);
+  await page.keyboard.press("Enter");
+  await expect(panel.locator("..")).toHaveAttribute("open", "");
+  await expect(page.getByRole("table", { name: /^Contribution history/ })).toBeVisible();
+
+  const monthly = page.locator("summary", { hasText: "Monthly contributions" });
+  await tabTo(page, monthly, 10);
+  await expectVisibleFocus(monthly);
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("table", { name: "Monthly contributions · Last 12 months" })).toBeVisible();
+});

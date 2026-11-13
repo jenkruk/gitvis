@@ -50,6 +50,36 @@ function handleSources(dataset: ContributionDataset, identity: IdentityConfig, s
   return showHandles ? dataset.sources.filter((s) => identity.handles.includes(s.platform)) : [];
 }
 
+const AVATAR_TEXT_GAP = 12;
+
+/**
+ * Where the avatar stack and the text column go. Avatars sit on the chosen side (left by
+ * default); the text takes the rest of the row. With avatars on the right, the status badge
+ * moves to the left of the stack so the two never collide.
+ */
+function rowLayout(
+  dataset: ContributionDataset,
+  identity: IdentityConfig & { style: "compact" | "full" },
+  avatarSize: number,
+  width: number,
+) {
+  const avatarSources = dataset.sources.filter((s) => identity.avatars.includes(s.platform));
+  const overlap = avatarSize * 0.7;
+  const avatarsWidth = avatarSources.length ? avatarSize + overlap * (avatarSources.length - 1) : 0;
+  const reserved = avatarsWidth ? avatarsWidth + AVATAR_TEXT_GAP : 0;
+  const right = identity.avatarSide === "right" && avatarsWidth > 0;
+  return {
+    avatarSources,
+    overlap,
+    avatarsX: right ? PADDING + width - avatarsWidth : PADDING,
+    textX: right ? PADDING : PADDING + reserved,
+    /** Width of the text column (before any badge allowance). */
+    textWidth: width - reserved,
+    /** Right edge of the status badge. */
+    badgeRight: PADDING + width - (right ? reserved : 0),
+  };
+}
+
 function metaLayout(
   dataset: ContributionDataset,
   identity: IdentityConfig & { style: "compact" | "full" },
@@ -59,12 +89,10 @@ function metaLayout(
 ) {
   const handles = handleSources(dataset, identity, showHandles);
   const g0 = geometry(identity.style, compactCanvas, false, false);
-  const avatarCount = dataset.sources.filter((s) => identity.avatars.includes(s.platform)).length;
-  const avatarsWidth = avatarCount ? g0.avatar + g0.avatar * 0.7 * (avatarCount - 1) : 0;
-  const textX = PADDING + (avatarsWidth ? avatarsWidth + 12 : 0);
+  const row = rowLayout(dataset, identity, g0.avatar, width);
   const rangeLabel = `${formatDate(dataset.range.start)} – ${formatDate(dataset.range.end)}`;
-  const attribution = attributionLayout(handles, rangeLabel, PADDING + width - textX, compactCanvas);
-  return { handles, textX, rangeLabel, attribution, handlesOwnLine: handles.length > 0 && attribution.ownLine };
+  const attribution = attributionLayout(handles, rangeLabel, row.textWidth, compactCanvas);
+  return { handles, rangeLabel, attribution, handlesOwnLine: handles.length > 0 && attribution.ownLine };
 }
 
 export function identityHeaderHeight(
@@ -165,16 +193,20 @@ export function IdentityHeader({
   const hasTitle = identity.style === "full" && !!title;
   const g = geometry(identity.style, compactCanvas, hasTitle, handlesOwnLine);
 
-  const avatarSources = dataset.sources.filter((s) => identity.avatars.includes(s.platform));
-  const overlap = g.avatar * 0.7;
-  const avatarsWidth = avatarSources.length ? g.avatar + overlap * (avatarSources.length - 1) : 0;
-  const textX = PADDING + (avatarsWidth ? avatarsWidth + 12 : 0);
+  const {
+    avatarSources,
+    overlap,
+    avatarsX,
+    textX,
+    textWidth: columnWidth,
+    badgeRight,
+  } = rowLayout(dataset, identity, g.avatar, width);
   const badge = dataset.provenance === "sample" || dataset.freshness?.stale ? BADGE_ALLOWANCE : 0;
-  const textWidth = PADDING + width - textX - badge;
+  const textWidth = columnWidth - badge;
 
   const name = finalText(identity.name) || "Contribution activity";
   const [nameLine = ""] = wrapText(name, textWidth, g.nameSize, 1);
-  const [titleLine = ""] = hasTitle ? wrapText(title, PADDING + width - textX, g.titleSize, 1) : [];
+  const [titleLine = ""] = hasTitle ? wrapText(title, columnWidth, g.titleSize, 1) : [];
 
   const nameY = y + (identity.style === "full" ? g.nameSize + 2 : 15);
   const titleY = nameY + 19;
@@ -205,7 +237,7 @@ export function IdentityHeader({
           username={source.username}
           image={avatars[source.platform]}
           theme={theme}
-          x={PADDING + i * overlap}
+          x={avatarsX + i * overlap}
           y={avatarY}
           size={g.avatar}
           clipId={`${idPrefix}-avatar-${source.platform}`}
@@ -235,7 +267,7 @@ export function IdentityHeader({
           {handleNodes}
         </text>
       )}
-      <StatusBadge dataset={dataset} theme={theme} x={PADDING + width} y={y} />
+      <StatusBadge dataset={dataset} theme={theme} x={badgeRight} y={y} />
     </g>
   );
 }

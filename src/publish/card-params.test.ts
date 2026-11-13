@@ -53,7 +53,16 @@ describe("card params: round trip", () => {
 });
 
 const LEGACY_EXTRAS = {
-  identity: { style: "none", handles: ["github", "gitlab"], avatars: [], name: "", title: "" },
+  // Every pre-existing URL decodes to the original header arrangement: GitHub left, avatars left.
+  identity: {
+    style: "none",
+    handles: ["github", "gitlab"],
+    avatars: [],
+    name: "",
+    title: "",
+    leftPlatform: "github",
+    avatarSide: "left",
+  },
   background: "solid",
   platformColors: {},
   metricOrder: ["totalContributions", "activeDays", "longestStreak", "bestDay", "currentStreak"],

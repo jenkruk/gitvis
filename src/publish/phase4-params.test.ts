@@ -131,6 +131,46 @@ describe("centered profile header (hdr=centered)", () => {
   });
 });
 
+describe("header arrangement (left, avs)", () => {
+  it("is absent for the original arrangement, so existing URLs never change", () => {
+    const config = configReducer(createDefaultConfig(), { type: "setIdentityStyle", style: "centered" });
+    const query = encodeCardParams({ request: { github: "jenkruk" }, config }).toString();
+    expect(query).not.toMatch(/[?&](left|avs)=/);
+    const { config: decoded } = decode("v=1&github=jenkruk&hdr=centered");
+    expect(decoded.identity.leftPlatform).toBe("github");
+    expect(decoded.identity.avatarSide).toBe("left");
+  });
+
+  it("golden: left=gitlab puts GitLab on the left of the centered header", () => {
+    const { config, issues } = decode("v=1&github=jenkruk&gitlab=contactkruk&hdr=centered&left=gitlab");
+    expect(issues).toEqual([]);
+    expect(config.identity.leftPlatform).toBe("gitlab");
+  });
+
+  it("golden: avs=right puts the avatars on the right of a full profile", () => {
+    const { config, issues } = decode("v=1&github=jenkruk&hdr=full&av=github&avs=right");
+    expect(issues).toEqual([]);
+    expect(config.identity.avatarSide).toBe("right");
+  });
+
+  it("round-trips, and reports unknown values with a safe fallback", () => {
+    const config = [
+      { type: "setIdentityStyle", style: "full" },
+      { type: "setAvatar", platform: "github", enabled: true },
+      { type: "setLeftPlatform", platform: "gitlab" },
+      { type: "setAvatarSide", side: "right" },
+    ].reduce((c, a) => configReducer(c, a as Parameters<typeof configReducer>[1]), createDefaultConfig());
+    const query = encodeCardParams({ request: { github: "jenkruk" }, config }).toString();
+    expect(query).toContain("left=gitlab&avs=right");
+    expect(decode(query).config).toEqual(config);
+
+    const bad = decode("v=1&github=jenkruk&left=bitbucket&avs=top");
+    expect(bad.issues.map((i) => i.param)).toEqual(["left", "avs"]);
+    expect(bad.config.identity.leftPlatform).toBe("github");
+    expect(bad.config.identity.avatarSide).toBe("left");
+  });
+});
+
 describe("the combined total is always shown", () => {
   it.each(["v=1&github=jenkruk&f=heatmap", "v=1&github=jenkruk&f="])(
     "golden: %s decodes with the total on",

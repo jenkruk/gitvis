@@ -182,6 +182,7 @@ function statCardsBlock(ctx: LayoutContext, detailed: boolean, inCard = false): 
         detailed={detailed}
         columns={columns}
         cardHeight={cardHeight}
+        inset={ctx.spacing.panelPadding}
       />
     ),
   };
@@ -266,6 +267,7 @@ function breakdown(ctx: LayoutContext): Section | null {
         width={width(ctx)}
         height={ctx.spacing.breakdown}
         period={ctx.statsPeriod}
+        inset={ctx.spacing.panelPadding}
       />
     ),
   };
@@ -360,6 +362,7 @@ export const LAYOUT_SECTIONS: Record<LayoutId, (ctx: LayoutContext) => Section[]
             stacked={isCompact(ctx)}
             panelHeight={ctx.spacing.trends}
             period={ctx.statsPeriod}
+            inset={ctx.spacing.panelPadding}
           />
         ),
       },

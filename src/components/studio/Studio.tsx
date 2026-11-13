@@ -19,6 +19,17 @@ import { DataView } from "./DataView";
 import { DesignControls } from "./DesignControls";
 import { PreviewFrame } from "./PreviewFrame";
 import { useAvatars } from "./useAvatars";
+import {
+  button,
+  callout,
+  focusRing,
+  link,
+  linkButton,
+  mono,
+  studioControlsColumn,
+  studioGrid,
+  studioPreviewColumn,
+} from "@/components/ui/recipes";
 
 export interface StudioProps {
   sampleDataset: ContributionDataset;
@@ -31,12 +42,9 @@ export interface StudioProps {
   renderCard?: (cardUrl: string) => string;
 }
 
-const primaryButton =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-zinc-900 px-5 text-sm font-semibold text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 dark:focus-visible:outline-blue-400";
-const secondaryButton =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:focus-visible:outline-blue-400";
-const linkButton =
-  "inline-flex min-h-6 items-center rounded-sm font-medium underline underline-offset-4 hover:text-zinc-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:hover:text-zinc-50";
+const primaryButton = button("primary", "lg");
+const secondaryButton = button("secondary");
+const ghostButton = button("ghost", "lg");
 
 export function Studio({
   sampleDataset,
@@ -74,11 +82,27 @@ export function Studio({
   const designHeading = useRef<HTMLHeadingElement>(null);
   const publishHeading = useRef<HTMLHeadingElement>(null);
   const focusPending = useRef(false);
+  // Moving focus to the new step's heading is for screen readers and keyboard users. After a
+  // pointer click it shouldn't draw a focus ring around the heading (Safari otherwise does).
+  const pointerInput = useRef(false);
+  useEffect(() => {
+    const onPointer = () => (pointerInput.current = true);
+    const onKey = () => (pointerInput.current = false);
+    document.addEventListener("pointerdown", onPointer, true);
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer, true);
+      document.removeEventListener("keydown", onKey, true);
+    };
+  }, []);
   useEffect(() => {
     if (!focusPending.current) return;
     focusPending.current = false;
-    const heading = { connect: connectHeading, design: designHeading, publish: publishHeading }[step];
-    heading.current?.focus();
+    const heading = { connect: connectHeading, design: designHeading, publish: publishHeading }[step].current;
+    if (!heading) return;
+    if (pointerInput.current) heading.dataset.pointerFocus = "";
+    else delete heading.dataset.pointerFocus;
+    heading.focus();
   }, [step]);
 
   const goTo = useCallback((next: StepId) => {
@@ -141,13 +165,19 @@ export function Studio({
   const summary = `${getLayout(config.layout).label} layout, ${getPalette(config.palette).name} palette, ${config.mode} mode.`;
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Create your contribution graphic</h1>
+    <div className="space-y-8">
+      <div>
+        <h1 className="sr-only">Create your contribution graphic</h1>
         <StepNav active={step} available={available} onSelect={goTo} />
       </div>
 
-      <StepSection id="connect" active={step} headingRef={connectHeading} title="Connect your accounts">
+      <StepSection
+        id="connect"
+        active={step}
+        headingRef={connectHeading}
+        title="Connect your accounts"
+        lede="Enter one or both usernames. Public contribution counts only — no sign-in."
+      >
         <div className="max-w-3xl">
           <ConnectPanel
             state={connection.state}
@@ -174,16 +204,18 @@ export function Studio({
         headingRef={designHeading}
         title="Design your graphic"
         describedBy="design-source"
+        lede={
+          <SourceLine
+            id="design-source"
+            dataset={dataset}
+            connected={connection.response !== null}
+            totalIsZero={metrics.total === 0}
+            onChangeAccounts={() => goTo("connect")}
+          />
+        }
       >
-        <SourceLine
-          id="design-source"
-          dataset={dataset}
-          connected={connection.response !== null}
-          totalIsZero={metrics.total === 0}
-          onChangeAccounts={() => goTo("connect")}
-        />
         {historyFailed && connectedRequest && (
-          <p className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+          <p className={`mb-6 flex flex-wrap items-center gap-2 ${callout("warning")}`}>
             <Info aria-hidden="true" className="size-4 shrink-0" />
             <span>Earlier GitHub history couldn&apos;t be loaded, so only the last 12 months are shown.</span>
             <button
@@ -195,79 +227,106 @@ export function Studio({
             </button>
           </p>
         )}
-        <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(320px,400px)_1fr] lg:items-start">
+        <div className={studioGrid}>
+          {/* Sticky only beside the controls (lg+), fitted to the viewport so none of it is out of reach.
+              It lets go while the data view is open, so the table scrolls with the page. */}
           <section
             aria-labelledby="preview-heading"
-            className="min-w-0 lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1"
+            className={`${studioPreviewColumn} lg:sticky lg:top-6 lg:has-[[data-data-view][open]]:static`}
           >
             <h3 id="preview-heading" className="sr-only">
               Live preview
             </h3>
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              {loading && (
-                <p className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                  <Loader2 aria-hidden="true" className="size-3.5 motion-safe:animate-spin" />
-                  Updating preview…
-                </p>
-              )}
-              <button
-                type="button"
-                onClick={() => dispatch({ type: "reset" })}
-                className={`${secondaryButton} ml-auto`}
-              >
-                <RotateCcw aria-hidden="true" className="size-4" />
-                Reset design
-              </button>
-            </div>
             <CollapsiblePreview>
-              <PreviewFrame dataset={view} avatars={avatars} config={config} metrics={metrics} busy={loading} />
+              <PreviewFrame
+                dataset={view}
+                avatars={avatars}
+                config={config}
+                metrics={metrics}
+                busy={loading}
+                fit
+                status={
+                  loading && (
+                    <p className="inline-flex items-center gap-1.5 text-caption font-medium text-fg-muted">
+                      <Loader2 aria-hidden="true" className="size-3.5 motion-safe:animate-spin" />
+                      Updating preview…
+                    </p>
+                  )
+                }
+              />
             </CollapsiblePreview>
-            <DataView prepared={prepared} metrics={metrics} />
+            <DataView prepared={prepared} metrics={metrics} config={config} />
             <p role="status" className="sr-only">
               {summary}
             </p>
           </section>
 
-          <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+          <div className={studioControlsColumn}>
             <DesignControls config={config} dispatch={dispatch} dataset={view} />
-            <div className="mt-8 flex flex-col-reverse gap-2 border-t border-zinc-200 pt-6 sm:flex-row sm:justify-between dark:border-zinc-800">
-              <button type="button" onClick={() => goTo("connect")} className={secondaryButton}>
-                <ArrowLeft aria-hidden="true" className="size-4" />
-                Back
+            <div className="mt-6">
+              <button
+                type="button"
+                onClick={() => dispatch({ type: "reset" })}
+                className={`${button("ghost", "sm")} -ml-2 px-2`}
+              >
+                <RotateCcw aria-hidden="true" className="size-4" />
+                Reset design
               </button>
-              {live ? (
-                <button type="button" onClick={() => goTo("publish")} className={primaryButton}>
-                  Continue to publish
-                  <ArrowRight aria-hidden="true" className="size-4" />
-                </button>
-              ) : (
-                <button type="button" onClick={() => goTo("connect")} className={primaryButton}>
-                  Connect accounts to publish
-                  <ArrowRight aria-hidden="true" className="size-4" />
-                </button>
-              )}
             </div>
+            <StepFooter
+              back={{ label: "Back", onClick: () => goTo("connect") }}
+              next={
+                live
+                  ? { label: "Continue to publish", onClick: () => goTo("publish") }
+                  : { label: "Connect accounts to publish", onClick: () => goTo("connect") }
+              }
+            />
           </div>
         </div>
       </StepSection>
 
       {step === "publish" && (
-        <StepSection id="publish" active={step} headingRef={publishHeading} title="Publish to your README">
-          <div className="max-w-4xl">
-            <PublishPanel
-              origin={origin}
-              request={live ? connection.request : null}
-              results={connection.response?.results ?? []}
-              config={config}
-              options={publishOptions}
-              isPreviewDeployment={isPreviewDeployment}
-              onOptionsChange={setPublishOptions}
-              onEdit={() => goTo("design")}
-              renderCard={renderCard}
-            />
-          </div>
+        <StepSection
+          id="publish"
+          active={step}
+          headingRef={publishHeading}
+          title="Publish to your README"
+          lede="Copy the Markdown into your GitHub profile README. The image refreshes itself about every 12 hours — nothing to maintain."
+        >
+          <PublishPanel
+            origin={origin}
+            request={live ? connection.request : null}
+            results={connection.response?.results ?? []}
+            config={config}
+            options={publishOptions}
+            isPreviewDeployment={isPreviewDeployment}
+            onOptionsChange={setPublishOptions}
+            onEdit={() => goTo("design")}
+            renderCard={renderCard}
+          />
         </StepSection>
       )}
+    </div>
+  );
+}
+
+function StepFooter({
+  back,
+  next,
+}: {
+  back: { label: string; onClick: () => void };
+  next: { label: string; onClick: () => void };
+}) {
+  return (
+    <div className="mt-8 flex flex-col-reverse gap-2 border-t border-line pt-6 sm:flex-row sm:justify-between">
+      <button type="button" onClick={back.onClick} className={ghostButton}>
+        <ArrowLeft aria-hidden="true" className="size-4" />
+        {back.label}
+      </button>
+      <button type="button" onClick={next.onClick} className={primaryButton}>
+        {next.label}
+        <ArrowRight aria-hidden="true" className="size-4" />
+      </button>
     </div>
   );
 }
@@ -277,16 +336,16 @@ function StepSection({
   active,
   headingRef,
   title,
+  lede,
   describedBy,
-  actions,
   children,
 }: {
   id: StepId;
   active: StepId;
   headingRef: RefObject<HTMLHeadingElement | null>;
   title: string;
+  lede?: ReactNode;
   describedBy?: string;
-  actions?: ReactNode;
   children: ReactNode;
 }) {
   const index = STEP_IDS.indexOf(id);
@@ -296,26 +355,25 @@ function StepSection({
       hidden={active !== id}
       className="motion-safe:animate-[step-in_200ms_ease-out]"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2
-          ref={headingRef}
-          id={`step-${id}-heading`}
-          tabIndex={-1}
-          aria-describedby={describedBy}
-          className="rounded-sm text-xl font-semibold tracking-tight focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
-        >
-          <span className="sr-only">
-            Step {index + 1} of {STEP_IDS.length}, {STEP_LABELS[id]}:{" "}
-          </span>
-          {title}
-        </h2>
-        {actions}
-      </div>
-      <div className="mt-4">{children}</div>
+      <h2
+        ref={headingRef}
+        id={`step-${id}-heading`}
+        tabIndex={-1}
+        aria-describedby={describedBy}
+        className={`w-fit rounded-sm text-title font-semibold text-fg ${focusRing} focus-visible:outline-offset-4 data-pointer-focus:focus-visible:outline-none`}
+      >
+        <span className="sr-only">
+          Step {index + 1} of {STEP_IDS.length}, {STEP_LABELS[id]}:{" "}
+        </span>
+        {title}
+      </h2>
+      {lede && <div className="mt-1.5 max-w-3xl text-body text-fg-muted">{lede}</div>}
+      <div className="mt-6">{children}</div>
     </section>
   );
 }
 
+/** Phones and tablets: the preview starts at a capped height and expands in place (never sticky). */
 function CollapsiblePreview({ children }: { children: ReactNode }) {
   const [expanded, setExpanded] = useState(false);
   const regionId = "preview-region";
@@ -323,22 +381,20 @@ function CollapsiblePreview({ children }: { children: ReactNode }) {
     <div>
       <div
         id={regionId}
-        className={`relative ${expanded ? "" : "max-lg:max-h-[min(60vh,26rem)] max-lg:overflow-hidden"}`}
+        className={
+          expanded
+            ? ""
+            : "max-lg:max-h-[min(60vh,26rem)] max-lg:overflow-hidden max-lg:[mask-image:linear-gradient(to_bottom,black_calc(100%-3rem),transparent)]"
+        }
       >
         {children}
-        {!expanded && (
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-linear-to-t from-background to-transparent lg:hidden"
-          />
-        )}
       </div>
       <button
         type="button"
         aria-expanded={expanded}
         aria-controls={regionId}
         onClick={() => setExpanded((v) => !v)}
-        className={`${secondaryButton} mt-1 w-full border border-zinc-200 lg:hidden dark:border-zinc-800`}
+        className={`${secondaryButton} mt-2 w-full lg:hidden`}
       >
         <ChevronDown
           aria-hidden="true"
@@ -368,32 +424,33 @@ function SourceLine({
   if (sample) {
     message = connected ? (
       <>
-        None of the accounts could be loaded, so you&apos;re seeing <strong>sample data</strong>.
+        None of the accounts could be loaded, so you&apos;re seeing <strong className="text-fg">sample data</strong>.
       </>
     ) : (
       <>
-        You&apos;re previewing <strong>sample data</strong>.
+        You&apos;re previewing <strong className="text-fg">sample data</strong>.
       </>
     );
   } else {
-    const who = dataset.sources.map((s) => `${PLATFORMS[s.platform].label} @${s.username}`).join(" and ");
-    message = totalIsZero
-      ? `No contributions in the last 12 months for ${who} yet. The graphic fills in as you contribute.`
-      : `Showing contributions for ${who}.`;
+    const who = dataset.sources.map((s, i) => (
+      <span key={s.platform}>
+        {i > 0 && " and "}
+        {PLATFORMS[s.platform].label} <span className={`${mono} text-fg`}>@{s.username}</span>
+      </span>
+    ));
+    message = totalIsZero ? (
+      <>No contributions in the last 12 months for {who} yet. The graphic fills in as you contribute.</>
+    ) : (
+      <>Showing contributions for {who}.</>
+    );
   }
-  const warn = sample || totalIsZero;
+  const note = sample || totalIsZero;
 
   return (
-    <p
-      className={`flex flex-wrap items-start gap-x-2 gap-y-1 text-sm ${
-        warn
-          ? "rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
-          : "text-zinc-700 dark:text-zinc-300"
-      }`}
-    >
-      {warn && <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0" />}
+    <p className="flex flex-wrap items-start gap-x-2 gap-y-1">
+      {note && <Info aria-hidden="true" className="mt-1 size-4 shrink-0 text-accent" />}
       <span id={id}>{message}</span>
-      <button type="button" onClick={onChangeAccounts} className={linkButton}>
+      <button type="button" onClick={onChangeAccounts} className={`${link} min-h-0`}>
         {sample ? "Connect your accounts" : "Change accounts"}
       </button>
     </p>

@@ -17,12 +17,15 @@ export type IdentityStyle = "none" | "compact" | "full" | "centered";
 export type BackgroundStyle = "solid" | "gradient" | "transparent";
 export type DateRangeDays = 30 | 90 | 365;
 export type Density = "compact" | "spacious";
+/** Where the avatars sit in the Compact and Full profile headers. */
+export type AvatarSide = "left" | "right";
 
 export const IDENTITY_STYLES: readonly IdentityStyle[] = ["none", "compact", "full", "centered"];
 export const BACKGROUND_STYLES: readonly BackgroundStyle[] = ["solid", "gradient", "transparent"];
 export const DATE_RANGES: readonly DateRangeDays[] = [30, 90, 365];
 export const DENSITIES: readonly Density[] = ["spacious", "compact"];
 export const PANEL_STYLES: readonly PanelStyle[] = ["filled", "outlined", "borderless"];
+export const AVATAR_SIDES: readonly AvatarSide[] = ["left", "right"];
 export type { PanelStyle };
 
 export const hasTitle = (style: IdentityStyle): boolean => style === "full" || style === "centered";
@@ -36,6 +39,10 @@ export interface IdentityConfig {
   avatars: PlatformId[];
   name: string;
   title: string;
+  /** Centered profile: the platform shown on the left (the other takes the right). */
+  leftPlatform: PlatformId;
+  /** Compact and Full profiles: the side the avatars sit on. */
+  avatarSide: AvatarSide;
 }
 
 export interface VisualizationConfig {
@@ -84,7 +91,15 @@ export function withAttribution(config: VisualizationConfig): VisualizationConfi
 }
 
 export function defaultIdentity(): IdentityConfig {
-  return { style: "none", handles: ["github", "gitlab"], avatars: [], name: "", title: "" };
+  return {
+    style: "none",
+    handles: ["github", "gitlab"],
+    avatars: [],
+    name: "",
+    title: "",
+    leftPlatform: "github",
+    avatarSide: "left",
+  };
 }
 
 export function createDefaultConfig(): VisualizationConfig {
@@ -126,6 +141,8 @@ export type ConfigAction =
   | { type: "setAvatar"; platform: PlatformId; enabled: boolean }
   | { type: "setName"; name: string }
   | { type: "setTitle"; title: string }
+  | { type: "setLeftPlatform"; platform: PlatformId }
+  | { type: "setAvatarSide"; side: AvatarSide }
   | { type: "setBackground"; background: BackgroundStyle }
   | { type: "setPlatformColor"; platform: PlatformId; color: string | null }
   | { type: "moveMetric"; metric: StatFeatureId; direction: -1 | 1 }
@@ -169,6 +186,10 @@ export function configReducer(state: VisualizationConfig, action: ConfigAction):
       return identity({ name: sanitizeText(action.name, NAME_MAX_LENGTH, { finalize: false }) });
     case "setTitle":
       return identity({ title: sanitizeText(action.title, TITLE_MAX_LENGTH, { finalize: false }) });
+    case "setLeftPlatform":
+      return state.identity.leftPlatform === action.platform ? state : identity({ leftPlatform: action.platform });
+    case "setAvatarSide":
+      return state.identity.avatarSide === action.side ? state : identity({ avatarSide: action.side });
     case "setBackground":
       return state.background === action.background ? state : { ...state, background: action.background };
     case "setPlatformColor": {

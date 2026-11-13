@@ -189,7 +189,9 @@ describe("Connect flow", () => {
       results: [{ platform: "gitlab", username: "contactkruk", status: "ok", total: 0 }],
     };
     setup({ initialRequest: { gitlab: "contactkruk" }, initialResponse: empty });
-    expect(screen.getByText(/no contributions in the last 12 months for gitlab @contactkruk/i)).toBeVisible();
+    const heading = screen.getByRole("heading", { name: /design your graphic/i });
+    expect(heading).toHaveAccessibleDescription(/no contributions in the last 12 months for gitlab @contactkruk/i);
+    expect(document.getElementById("design-source")).toBeVisible();
   });
 
   it("keeps design choices when new data loads", async () => {

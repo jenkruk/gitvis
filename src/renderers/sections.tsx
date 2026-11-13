@@ -152,6 +152,24 @@ function Badge({
   );
 }
 
+/**
+ * Panel titles ("Platform breakdown", chart titles) sit one step above stat labels: 12/600 in
+ * the text color. Stat labels and axis text stay muted, so values and titles lead.
+ */
+export const PANEL_TITLE = { fontSize: 12, fontWeight: 600 } as const;
+
+/** Approximate width of `text` at `fontSize` in the system stack (for laying out legend rows). */
+const textWidth = (text: string, fontSize: number) => text.length * fontSize * 0.58;
+
+/** One legend entry drawn as a real shape (circle or rounded square) followed by its label. */
+function LegendKey({ x, y, color, shape }: { x: number; y: number; color: string; shape: "dot" | "square" }) {
+  return shape === "dot" ? (
+    <circle cx={x + 4} cy={y - 3.5} r={4} fill={color} />
+  ) : (
+    <rect x={x} y={y - 7.5} width={8} height={8} rx={2} fill={color} />
+  );
+}
+
 const STAT_GAP = 12;
 
 function cardHeight(detailed: boolean): number {
@@ -177,6 +195,7 @@ export function StatCards({
   detailed,
   columns = Infinity,
   cardHeight: height = cardHeight(detailed),
+  inset = 16,
 }: {
   items: StatItem[];
   theme: ThemeTokens;
@@ -186,6 +205,8 @@ export function StatCards({
   detailed: boolean;
   columns?: number;
   cardHeight?: number;
+  /** Text inset from the card edge: the density's panel padding, like every other panel. */
+  inset?: number;
 }) {
   const perRow = Math.min(columns, items.length);
   const cardWidth = (width - STAT_GAP * (perRow - 1)) / perRow;
@@ -203,14 +224,14 @@ export function StatCards({
         return (
           <g key={item.id}>
             <Panel x={x} y={cardY} width={cardWidth} height={height} theme={theme} />
-            <text x={x + 16} y={cardY + labelY} fontSize={11} fontWeight={500} fill={theme.textMuted} {...font}>
+            <text x={x + inset} y={cardY + labelY} fontSize={11} fontWeight={500} fill={theme.textMuted} {...font}>
               {item.label}
             </text>
-            <text x={x + 16} y={cardY + valueY} fontSize={22} fontWeight={700} fill={theme.text} {...font}>
+            <text x={x + inset} y={cardY + valueY} fontSize={22} fontWeight={700} fill={theme.text} {...font}>
               {item.value}
             </text>
             {detailed && (
-              <text x={x + 16} y={cardY + detailY} fontSize={10} fill={theme.textMuted} {...font}>
+              <text x={x + inset} y={cardY + detailY} fontSize={10} fill={theme.textMuted} {...font}>
                 {item.detail}
               </text>
             )}
@@ -284,6 +305,7 @@ export function PlatformBreakdown({
   width,
   height = BREAKDOWN_HEIGHT,
   period,
+  inset = 16,
 }: {
   metrics: ContributionMetrics;
   theme: ThemeTokens;
@@ -291,46 +313,46 @@ export function PlatformBreakdown({
   width: number;
   height?: number;
   period?: string;
+  inset?: number;
 }) {
-  const inner = width - 32;
+  const inner = width - inset * 2;
+  const left = PADDING + inset;
   const dense = height < BREAKDOWN_HEIGHT;
   const [titleY, barOffset, legendY] = dense ? [18, 26, 50] : [22, 32, 62];
   const barY = y + barOffset;
   const font = { fontFamily: FONT_STACK };
   const segments = metrics.platformTotals.map(({ platform, share }, i, all) => ({
     platform,
-    x: PADDING + 16 + inner * all.slice(0, i).reduce((sum, p) => sum + p.share, 0),
+    x: left + inner * all.slice(0, i).reduce((sum, p) => sum + p.share, 0),
     width: inner * share,
   }));
 
   return (
     <g>
       <Panel x={PADDING} y={y} width={width} height={height} theme={theme} />
-      <text x={PADDING + 16} y={y + titleY} fontSize={11} fontWeight={500} fill={theme.textMuted} {...font}>
+      <text x={left} y={y + titleY} {...PANEL_TITLE} fill={theme.text} {...font}>
         {period ? `Platform breakdown · ${period}` : "Platform breakdown"}
       </text>
-      <rect x={PADDING + 16} y={barY} width={inner} height={10} rx={5} fill={theme.heatmapEmpty} />
+      <rect x={left} y={barY} width={inner} height={10} rx={5} fill={theme.heatmapEmpty} />
       {segments.map(({ platform, x, width: w }) =>
         w > 0 ? <rect key={platform} x={x} y={barY} width={w} height={10} fill={seriesColor(theme, platform)} /> : null,
       )}
-      {metrics.platformTotals.map(({ platform, total, share }, i) => (
-        <text
-          key={platform}
-          x={PADDING + 16 + i * Math.min(220, inner / 2)}
-          y={y + legendY}
-          fontSize={11}
-          fill={theme.textMuted}
-          {...font}
-        >
-          <tspan fill={seriesColor(theme, platform)}>●</tspan>
-          <tspan dx={6} fill={theme.text} fontWeight={600}>
-            {PLATFORMS[platform].label}
-          </tspan>
-          <tspan dx={6}>
-            {formatNumber(total)} · {formatPercent(share)}
-          </tspan>
-        </text>
-      ))}
+      {metrics.platformTotals.map(({ platform, total, share }, i) => {
+        const x = left + i * Math.min(220, inner / 2);
+        return (
+          <g key={platform}>
+            <LegendKey x={x} y={y + legendY} color={seriesColor(theme, platform)} shape="dot" />
+            <text x={x + 14} y={y + legendY} fontSize={11} fill={theme.textMuted} {...font}>
+              <tspan fill={theme.text} fontWeight={600}>
+                {PLATFORMS[platform].label}
+              </tspan>
+              <tspan dx={6}>
+                {formatNumber(total)} · {formatPercent(share)}
+              </tspan>
+            </text>
+          </g>
+        );
+      })}
     </g>
   );
 }
@@ -351,6 +373,7 @@ export function TrendCharts({
   stacked = false,
   panelHeight = TRENDS_HEIGHT,
   period,
+  inset = CHART_SIDE,
 }: {
   metrics: ContributionMetrics;
   dataset: ContributionDataset;
@@ -360,6 +383,7 @@ export function TrendCharts({
   stacked?: boolean;
   panelHeight?: number;
   period?: string;
+  inset?: number;
 }) {
   const panelWidth = stacked ? width : (width - TRENDS_GAP) / 2;
   return (
@@ -372,6 +396,7 @@ export function TrendCharts({
         width={panelWidth}
         height={panelHeight}
         period={period}
+        inset={inset}
       />
       <MonthlyComparison
         months={metrics.monthly}
@@ -382,6 +407,7 @@ export function TrendCharts({
         height={panelHeight}
         width={panelWidth}
         period={period}
+        inset={inset}
       />
     </g>
   );
@@ -394,23 +420,37 @@ interface ChartProps {
   width: number;
   height: number;
   period?: string;
+  inset: number;
 }
 
-const CHART = { top: 40, bottom: 26, side: 16 };
+const CHART_SIDE = 16;
+const CHART = { top: 40, bottom: 26 };
 
-function ChartTitle({ theme, x, y, children }: { theme: ThemeTokens; x: number; y: number; children: string }) {
+function ChartTitle({
+  theme,
+  x,
+  y,
+  inset,
+  children,
+}: {
+  theme: ThemeTokens;
+  x: number;
+  y: number;
+  inset: number;
+  children: string;
+}) {
   return (
-    <text x={x + CHART.side} y={y + 22} fontSize={11} fontWeight={500} fill={theme.textMuted} fontFamily={FONT_STACK}>
+    <text x={x + inset} y={y + 22} {...PANEL_TITLE} fill={theme.text} fontFamily={FONT_STACK}>
       {children}
     </text>
   );
 }
 
-function WeeklyTrend({ weeks, theme, x, y, width, height, period }: ChartProps & { weeks: SeriesPoint[] }) {
+function WeeklyTrend({ weeks, theme, x, y, width, height, period, inset }: ChartProps & { weeks: SeriesPoint[] }) {
   const full = weeks.filter((w) => w.dayCount === 7);
-  const plotW = width - CHART.side * 2;
+  const plotW = width - inset * 2;
   const plotH = height - CHART.top - CHART.bottom;
-  const left = x + CHART.side;
+  const left = x + inset;
   const baseline = y + CHART.top + plotH;
   const max = Math.max(1, ...full.map((w) => w.total));
   const points = full.map((w, i) => [
@@ -423,11 +463,11 @@ function WeeklyTrend({ weeks, theme, x, y, width, height, period }: ChartProps &
   return (
     <g>
       <Panel x={x} y={y} width={width} height={height} theme={theme} />
-      <ChartTitle theme={theme} x={x} y={y}>
+      <ChartTitle theme={theme} x={x} y={y} inset={inset}>
         {period ? `Weekly contributions · ${period}` : "Weekly contributions"}
       </ChartTitle>
-      <text x={x + width - CHART.side} y={y + 22} textAnchor="end" {...font}>
-        peak {formatNumber(max)}/week
+      <text x={x + width - inset} y={y + 22} textAnchor="end" {...font}>
+        Peak {formatNumber(max)} per week
       </text>
       <line x1={left} x2={left + plotW} y1={baseline} y2={baseline} stroke={theme.border} />
       {points.length > 1 && (
@@ -461,6 +501,17 @@ function WeeklyTrend({ weeks, theme, x, y, width, height, period }: ChartProps &
   );
 }
 
+/** Right-aligned legend row (key 8px + 4px gap + label, 12px between entries) ending at `right`. */
+function legendRow(platforms: PlatformId[], right: number): { platform: PlatformId; x: number }[] {
+  const widths = platforms.map((p) => 12 + textWidth(PLATFORMS[p].label, 10));
+  let x = right - widths.reduce((sum, w) => sum + w, 0) - 12 * (platforms.length - 1);
+  return platforms.map((platform, i) => {
+    const entry = { platform, x };
+    x += widths[i]! + 12;
+    return entry;
+  });
+}
+
 function MonthlyComparison({
   months,
   platforms,
@@ -470,10 +521,11 @@ function MonthlyComparison({
   width,
   height,
   period,
+  inset,
 }: ChartProps & { months: SeriesPoint[]; platforms: PlatformId[] }) {
-  const plotW = width - CHART.side * 2;
+  const plotW = width - inset * 2;
   const plotH = height - CHART.top - CHART.bottom;
-  const left = x + CHART.side;
+  const left = x + inset;
   const baseline = y + CHART.top + plotH;
   const max = Math.max(1, ...months.map((m) => m.total));
   const slot = plotW / Math.max(months.length, 1);
@@ -483,16 +535,17 @@ function MonthlyComparison({
   return (
     <g>
       <Panel x={x} y={y} width={width} height={height} theme={theme} />
-      <ChartTitle theme={theme} x={x} y={y}>
+      <ChartTitle theme={theme} x={x} y={y} inset={inset}>
         {period ? `Monthly by platform · ${period}` : "Monthly by platform"}
       </ChartTitle>
-      <text x={x + width - CHART.side} y={y + 22} textAnchor="end" {...font}>
-        {platforms.map((p, i) => (
-          <tspan key={p} dx={i ? 10 : 0}>
-            <tspan fill={seriesColor(theme, p)}>■</tspan> {PLATFORMS[p].label}
-          </tspan>
-        ))}
-      </text>
+      {legendRow(platforms, x + width - inset).map(({ platform, x: lx }) => (
+        <g key={platform}>
+          <LegendKey x={lx} y={y + 22} color={seriesColor(theme, platform)} shape="square" />
+          <text x={lx + 12} y={y + 22} {...font}>
+            {PLATFORMS[platform].label}
+          </text>
+        </g>
+      ))}
       <line x1={left} x2={left + plotW} y1={baseline} y2={baseline} stroke={theme.border} />
       {months.map((month, i) => {
         const bx = left + i * slot + (slot - barW) / 2;
@@ -537,13 +590,21 @@ export function Footnote({ theme, y, width }: { theme: ThemeTokens; y: number; w
   );
 }
 
-export const CREDIT_HEIGHT = 44;
+/** The credit is a quiet signature, not a heading: the smallest text on the graphic, in the muted color. */
+export const CREDIT_HEIGHT = 30;
 export const CREDIT_BOTTOM = 16;
-const CREDIT_SIZE = 14;
+const CREDIT_SIZE = 10;
 
 export function Credit({ theme, y }: { theme: ThemeTokens; y: number }) {
   return (
-    <text x={PADDING} y={y + CREDIT_HEIGHT} fontSize={CREDIT_SIZE} fill={theme.textMuted} fontFamily={FONT_STACK}>
+    <text
+      x={PADDING}
+      y={y + CREDIT_HEIGHT}
+      fontSize={CREDIT_SIZE}
+      letterSpacing={0.2}
+      fill={theme.textMuted}
+      fontFamily={FONT_STACK}
+    >
       Made with GitVis · created by Jen Kruk
     </text>
   );

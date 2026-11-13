@@ -57,6 +57,33 @@ describe("profile identity", () => {
     expect(svg).toMatch(/<text[^>]*>C<\/text>/);
   });
 
+  it("can put the avatars on the right: text starts at the left edge and the badge moves clear", () => {
+    const right = configReducer(full, { type: "setAvatarSide", side: "right" });
+    const avatarX = (svg: string, platform: string) =>
+      Number(
+        new RegExp(`<image href="[^"]*" x="([\\d.]+)"[^>]*clip-path="url\\(#gitvis-avatar-${platform}\\)"`).exec(
+          svg,
+        )![1],
+      );
+    const svg = render(right, { avatars: { github: AVATAR, gitlab: AVATAR } });
+    // Two 64px avatars overlapping by 70%: 64 + 44.8 = 108.8 wide, flush with the right padding.
+    expect(avatarX(svg, "github")).toBeCloseTo(CANVAS_WIDTHS.full - 24 - 108.8, 5);
+    expect(avatarX(svg, "gitlab")).toBeCloseTo(CANVAS_WIDTHS.full - 24 - 64, 5);
+    expect(svg).toMatch(/<text x="24"[^>]*>Jen Kruk<\/text>/);
+    // The sample badge ends 12px left of the avatar stack instead of under it.
+    const sample = renderToStaticMarkup(
+      <Visualization
+        dataset={{ ...dataset, provenance: "sample" }}
+        config={right}
+        avatars={{ github: AVATAR, gitlab: AVATAR }}
+      />,
+    );
+    const badge = /<rect x="([\d.]+)" y="[\d.]+" width="84"/.exec(sample)!;
+    expect(Number(badge[1]) + 84).toBeCloseTo(CANVAS_WIDTHS.full - 24 - 108.8 - 12, 5);
+    // Left (the default) is unchanged.
+    expect(avatarX(render(full, { avatars: { github: AVATAR } }), "github")).toBe(24);
+  });
+
   it("describes the identity for screen readers and titles the graphic with the name", () => {
     const svg = render(full);
     expect(svg).toContain('<title id="gitvis-title">Contribution activity — Jen Kruk</title>');
@@ -118,6 +145,18 @@ describe("centered profile header", () => {
     expect(avatarX(svg, "gitlab")).toBe(CANVAS_WIDTHS.full - 24 - 44);
     expect(svg).toMatch(/x="24"[^>]*text-anchor="start"[^>]*>.*@jenkruk/);
     expect(svg).toMatch(new RegExp(`x="${CANVAS_WIDTHS.full - 24}"[^>]*text-anchor="end"[^>]*>.*@contactkruk`));
+  });
+
+  it("swaps the sides when GitLab is chosen for the left, keeping each avatar with its handle", () => {
+    const swapped = configReducer(centered, { type: "setLeftPlatform", platform: "gitlab" });
+    const svg = render(swapped, { avatars: { github: AVATAR, gitlab: AVATAR } });
+    expect(avatarX(svg, "gitlab")).toBe(24);
+    expect(avatarX(svg, "github")).toBe(CANVAS_WIDTHS.full - 24 - 44);
+    expect(svg).toMatch(/x="24"[^>]*text-anchor="start"[^>]*>.*@contactkruk/);
+    expect(svg).toMatch(new RegExp(`x="${CANVAS_WIDTHS.full - 24}"[^>]*text-anchor="end"[^>]*>.*@jenkruk`));
+    // Only the arrangement changes: same height, same description.
+    expect(svg.match(/height="(\d+)"/)![1]).toBe(render(centered).match(/height="(\d+)"/)![1]);
+    expect(desc(svg)).toBe(desc(render(centered)));
   });
 
   it("contains no links in any header style, and shows the arrow cursor everywhere", () => {
@@ -185,12 +224,12 @@ describe("calendar tooltips", () => {
 });
 
 describe("credit line", () => {
-  it("is plain text at the bottom of every card, with no links", () => {
+  it("is quiet plain text at the bottom of every card (the smallest size on it), with no links", () => {
     for (const layout of LAYOUT_IDS) {
       for (const size of ["full", "compact"] as const) {
         const svg = render({ ...createDefaultConfig(), layout }, { size });
         expect(svg).toMatch(
-          /<text x="24" y="[\d.]+" font-size="14"[^>]*>Made with GitVis · created by Jen Kruk<\/text><\/svg>$/,
+          /<text x="24" y="[\d.]+" font-size="10"[^>]*>Made with GitVis · created by Jen Kruk<\/text><\/svg>$/,
         );
         expect(svg).not.toContain("Get Yours");
       }

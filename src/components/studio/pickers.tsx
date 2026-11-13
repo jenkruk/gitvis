@@ -32,7 +32,8 @@ import {
 import { getLayout, LAYOUTS, type LayoutId } from "@/config/layouts";
 import type { ContributionDataset } from "@/domain/types";
 import { type ColorMode, CURATED_PALETTE_IDS, PALETTES, type PaletteId, resolveTheme } from "@/theme/palettes";
-import { ControlGroup, RadioCard, Switch } from "./controls";
+import { ControlGroup, RadioCard, SegmentLabel, SelectionMark, Switch } from "./controls";
+import { button, hint, iconButton } from "@/components/ui/recipes";
 
 interface PickerProps {
   config: VisualizationConfig;
@@ -59,7 +60,7 @@ export function PresetPicker({ config, dispatch }: PickerProps) {
   }, [style, avatars]);
   return (
     <ControlGroup legend="Start with">
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
         {STARTING_PRESETS.map((preset) => {
           const Icon = PRESET_ICONS[preset.id];
           return (
@@ -75,12 +76,20 @@ export function PresetPicker({ config, dispatch }: PickerProps) {
                   restore: preset.id === "profile" ? lastProfile.current : undefined,
                 })
               }
-              className="items-start gap-3"
+              mark
+              className="items-start gap-3 py-3.5 pr-8 pl-3.5"
             >
-              <Icon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-zinc-500 dark:text-zinc-400" />
-              <span>
-                <span className="block text-sm font-medium">{preset.label}</span>
-                <span className="block text-xs text-zinc-600 dark:text-zinc-400">{preset.description}</span>
+              <span
+                aria-hidden="true"
+                className={`flex size-9 shrink-0 items-center justify-center rounded-control ${
+                  selected === preset.id ? "bg-accent/12 text-accent" : "bg-surface-hover text-fg-muted"
+                }`}
+              >
+                <Icon className="size-5" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-label font-semibold text-fg">{preset.label}</span>
+                <span className={`mt-0.5 block ${hint}`}>{preset.description}</span>
               </span>
             </RadioCard>
           );
@@ -91,25 +100,24 @@ export function PresetPicker({ config, dispatch }: PickerProps) {
 }
 
 export function LayoutPicker({ config, dispatch }: PickerProps) {
+  const current = getLayout(config.layout);
   return (
-    <ControlGroup legend="Layout">
-      <div className="grid gap-2">
+    <ControlGroup legend="Layout" description={current.description}>
+      <div className="grid grid-cols-3 gap-2">
         {LAYOUTS.map((layout) => {
+          const checked = config.layout === layout.id;
           const Icon = LAYOUT_ICONS[layout.id];
           return (
             <RadioCard
               key={layout.id}
               name="layout"
               value={layout.id}
-              checked={config.layout === layout.id}
+              checked={checked}
               onSelect={() => dispatch({ type: "setLayout", layout: layout.id })}
-              className="items-start gap-3"
+              className="flex-col items-center gap-1.5 px-2 pt-3 pb-2.5 text-center"
             >
-              <Icon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-zinc-500 dark:text-zinc-400" />
-              <span>
-                <span className="block text-sm font-medium">{layout.label}</span>
-                <span className="block text-xs text-zinc-600 dark:text-zinc-400">{layout.description}</span>
-              </span>
+              <Icon aria-hidden="true" className={`size-5 shrink-0 ${checked ? "text-accent" : "text-fg-subtle"}`} />
+              <SegmentLabel checked={checked}>{layout.label}</SegmentLabel>
             </RadioCard>
           );
         })}
@@ -135,8 +143,8 @@ export function ModePicker({ config, dispatch }: PickerProps) {
             onSelect={() => dispatch({ type: "setMode", mode: id })}
             className="items-center justify-center gap-2 py-2"
           >
-            <Icon aria-hidden="true" className="size-4" />
-            <span className="text-sm font-medium">{label}</span>
+            <Icon aria-hidden="true" className={`size-4 ${config.mode === id ? "text-accent" : "text-fg-subtle"}`} />
+            <SegmentLabel checked={config.mode === id}>{label}</SegmentLabel>
           </RadioCard>
         ))}
       </div>
@@ -149,11 +157,11 @@ function PaletteSwatch({ palette, mode }: { palette: PaletteId; mode: ColorMode 
   return (
     <span
       aria-hidden="true"
-      className="flex h-8 items-center gap-1 rounded-md border px-1.5"
+      className="flex h-9 items-center gap-1 rounded-control border px-1.5"
       style={{ background: theme.background, borderColor: theme.border }}
     >
       {theme.heatmap.slice(1).map((color) => (
-        <span key={color} className="h-4 flex-1 rounded-[3px]" style={{ background: color }} />
+        <span key={color} className="h-4 flex-1 rounded-xs" style={{ background: color }} />
       ))}
       <span className="ml-1 h-4 w-1.5 rounded-full" style={{ background: theme.series[0] }} />
       <span className="h-4 w-1.5 rounded-full" style={{ background: theme.series[1] }} />
@@ -168,7 +176,7 @@ export function PalettePicker({ config, dispatch }: PickerProps) {
     ? PALETTES
     : PALETTES.filter((p) => CURATED_PALETTE_IDS.includes(p.id) || p.id === config.palette);
   return (
-    <ControlGroup legend="Palette" description={`Previewed in ${config.mode} mode.`}>
+    <ControlGroup legend="Palette">
       <div id={listId} className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
         {visible.map((palette) => (
           <RadioCard
@@ -177,12 +185,18 @@ export function PalettePicker({ config, dispatch }: PickerProps) {
             value={palette.id}
             checked={config.palette === palette.id}
             onSelect={() => dispatch({ type: "setPalette", palette: palette.id })}
-            className="flex-col gap-2 p-2"
+            className="flex-col gap-2 p-2 pb-2.5"
           >
             <PaletteSwatch palette={palette.id} mode={config.mode} />
-            <span className="min-w-0">
-              <span className="block truncate text-xs font-medium">{palette.name}</span>
-              <span className="block truncate text-[11px] text-zinc-600 dark:text-zinc-400">{palette.description}</span>
+            <span className="flex items-center gap-1.5 px-0.5">
+              <span
+                className={`min-w-0 flex-1 truncate text-caption ${
+                  config.palette === palette.id ? "font-semibold text-fg" : "font-medium text-fg-muted"
+                }`}
+              >
+                {palette.name}
+              </span>
+              <SelectionMark checked={config.palette === palette.id} inline />
             </span>
           </RadioCard>
         ))}
@@ -192,7 +206,7 @@ export function PalettePicker({ config, dispatch }: PickerProps) {
         aria-expanded={showAll}
         aria-controls={listId}
         onClick={() => setShowAll((v) => !v)}
-        className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        className={`${button("ghost", "sm")} mt-2 -ml-2 px-2`}
       >
         <ChevronDown
           aria-hidden="true"
@@ -229,7 +243,7 @@ export function FeatureToggles({ config, dispatch, dataset }: PickerProps & { da
 
   return (
     <div className="space-y-6">
-      <p role="status" className={layoutNote ? "text-sm font-medium text-zinc-700 dark:text-zinc-300" : "sr-only"}>
+      <p role="status" className={layoutNote ? "text-body font-medium text-fg" : "sr-only"}>
         {layoutNote}
       </p>
       {GROUP_ORDER.map((group) =>
@@ -244,7 +258,7 @@ export function FeatureToggles({ config, dispatch, dataset }: PickerProps & { da
         ) : (
           toggleable(group).length > 0 && (
             <ControlGroup key={group} legend={FEATURE_GROUP_LABELS[group]}>
-              <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+              <div className="divide-y divide-line">
                 {toggleable(group).map((feature) => (
                   <Switch
                     key={feature.id}
@@ -286,18 +300,16 @@ function MetricList({
 
   return (
     <ControlGroup legend={FEATURE_GROUP_LABELS.stats}>
-      <ol className="divide-y divide-zinc-200 dark:divide-zinc-800">
+      <ol className="divide-y divide-line">
         {order.map((id, index) => {
           const feature = getFeature(id);
           return (
             <li key={id} className="flex items-start gap-2">
               <div className="min-w-0 flex-1">
                 {"alwaysOn" in feature && feature.alwaysOn ? (
-                  <div className="py-2">
-                    <span className="block text-sm font-medium">{feature.label}</span>
-                    <span className="block text-xs text-zinc-600 dark:text-zinc-400">
-                      {feature.description} Always shown.
-                    </span>
+                  <div className="py-2.5">
+                    <span className="block text-label font-medium text-fg">{feature.label}</span>
+                    <span className={`mt-0.5 block ${hint}`}>{feature.description} Always shown.</span>
                   </div>
                 ) : (
                   <Switch
@@ -310,7 +322,7 @@ function MetricList({
                   />
                 )}
               </div>
-              <div className="flex shrink-0 gap-1 pt-2">
+              <div className="flex shrink-0 gap-1 pt-2.5">
                 <button
                   type="button"
                   onClick={() => move(id, -1)}
@@ -340,6 +352,3 @@ function MetricList({
     </ControlGroup>
   );
 }
-
-const iconButton =
-  "inline-flex size-9 items-center justify-center rounded-md border border-zinc-300 text-zinc-700 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800";

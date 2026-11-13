@@ -184,7 +184,7 @@ ConnectForm (client) ──GET /api/contributions?github=&gitlab=──▶ route
 
 | Param   | Values                                                                                                      | Missing        |
 | ------- | ----------------------------------------------------------------------------------------------------------- | -------------- |
-| `hdr`   | `none` · `compact` · `full`                                                                                 | `none`         |
+| `hdr`   | `none` · `compact` · `full` · `centered`                                                                    | `none`         |
 | `hl`    | handles shown: comma list of `github`, `gitlab` (may be empty)                                              | both           |
 | `av`    | avatars shown: comma list of `github`, `gitlab`                                                             | none           |
 | `name`  | display name, ≤ 40 characters after sanitizing                                                              | none           |
@@ -196,6 +196,8 @@ ConnectForm (client) ──GET /api/contributions?github=&gitlab=──▶ route
 | `den`   | `spacious` · `compact`                                                                                      | `spacious`     |
 | `pnl`   | `filled` · `outlined` · `borderless` (Phase 4.2)                                                            | `filled`       |
 | `yrs`   | `1` · `2` · `3` 12-month periods (Phase 4.2); `2`/`3` require the full range (with `range=30/90` → invalid) | `1`            |
+| `left`  | centered header: the platform on the left, `github` · `gitlab` (Nov 2026)                                   | `github`       |
+| `avs`   | compact/full header: the side the avatars sit on, `left` · `right` (Nov 2026)                               | `left`         |
 
 New palette codes: `github-classic` · `gitlab-inspired` · `nordic-frost` · `solarized` · `midnight-neon` · `paper-ink`. New feature code: `current` (current streak; off unless listed in `f`, so old URLs never gain it).
 

@@ -1,7 +1,48 @@
-import type { Preview } from "@storybook/nextjs-vite";
+import type { Decorator, Preview } from "@storybook/nextjs-vite";
+import { type ReactNode, useEffect } from "react";
+import { fontVariables } from "../src/app/fonts";
 import "../src/app/globals.css";
 
+/**
+ * Stories render like the app: the same Geist Sans / Geist Mono setup (src/app/fonts.ts) on
+ * <html>, the canvas background and body text. The toolbar's "Theme" switches the studio between
+ * the OS scheme, light and dark (data-theme on <html>; tokens are light-dark() pairs).
+ */
+function StudioFrame({ theme, children }: { theme?: string; children: ReactNode }) {
+  useEffect(() => {
+    const html = document.documentElement;
+    html.classList.add(...fontVariables.split(" "), "antialiased");
+    if (theme === "light" || theme === "dark") html.dataset.theme = theme;
+    else delete html.dataset.theme;
+    document.body.classList.add("bg-canvas", "font-sans", "text-body", "text-fg");
+  }, [theme]);
+  return children;
+}
+
+const withStudioFrame: Decorator = (Story, context) => (
+  <StudioFrame theme={context.globals.theme as string | undefined}>
+    <Story />
+  </StudioFrame>
+);
+
 const preview: Preview = {
+  decorators: [withStudioFrame],
+  globalTypes: {
+    theme: {
+      description: "Studio color scheme",
+      toolbar: {
+        title: "Theme",
+        icon: "mirror",
+        items: [
+          { value: "system", title: "System" },
+          { value: "light", title: "Light" },
+          { value: "dark", title: "Dark" },
+        ],
+        dynamicTitle: true,
+      },
+    },
+  },
+  initialGlobals: { theme: "system" },
   parameters: {
     layout: "padded",
     controls: { expanded: true },

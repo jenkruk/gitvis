@@ -1,6 +1,6 @@
 import { finalText, type IdentityConfig } from "@/config/config";
 import { formatDate } from "@/domain/dates";
-import { type ContributionDataset, PLATFORMS, type PlatformContributions, type PlatformId } from "@/domain/types";
+import { type ContributionDataset, PLATFORMS, type PlatformContributions } from "@/domain/types";
 import type { ThemeTokens } from "@/theme/palettes";
 import { type AvatarImages, Avatar } from "./IdentityHeader";
 import { FONT_STACK, PADDING } from "./primitives";
@@ -16,8 +16,6 @@ const SIDE_GUTTER = 16;
 const SIDE_MAX = 200;
 const HANDLE_CHROME = 4;
 const GLYPH_EM = 0.58;
-
-const SIDE_ORDER: Record<PlatformId, "left" | "right"> = { github: "left", gitlab: "right" };
 
 type CenteredIdentity = IdentityConfig & { style: "centered" };
 
@@ -52,7 +50,8 @@ function sides(
     return [
       {
         source,
-        align: SIDE_ORDER[source.platform],
+        // The chosen platform takes the left; the other the right (GitHub left by default).
+        align: source.platform === identity.leftPlatform ? "left" : "right",
         avatar,
         handle,
         width: Math.max(avatar ? avatarSize : 0, chars * META_SIZE * GLYPH_EM),

@@ -3,7 +3,7 @@
 There are two surfaces with different rules:
 
 1. **The graphic.** A standalone SVG that is themed by the selected palette. It must look right inside GitHub READMEs (light and dark), as a download, and inline in the studio.
-2. **The studio app.** A neutral (zinc) interface that stays out of the way so the palettes stand out.
+2. **The studio app.** Graphite + Mineral Teal: quiet graphite (dark) and cool off-white (light) surfaces with one restrained mineral-teal accent, so the palettes stand out. Its tokens never theme the graphic, and the graphic's palettes never theme the studio (see "Studio foundations").
 
 ## Layout families
 
@@ -28,9 +28,64 @@ When the current layout can't show a feature, its switch reads as **off** (the s
 - **Sample badge:** a pill in the header reading "Sample data". It is always shown when `provenance === "sample"`.
 - **Error card** (published images only): same frame and palette as the graphic, with a title, a one-line user-safe message, and a hint on how to fix it. It has its own `<title>`/`<desc>`, so a broken README embed still explains itself.
 
-## Typography
+## Typography (graphic)
 
-SVG text uses a system stack, `-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif`. Web fonts don't load inside `<img>` embeds. Sizes: title 16/600, stat value 22/700, label 11/500, axis 10/400. Numbers use `en-US` grouping for deterministic output.
+SVG text uses a system stack, `-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif`. Web fonts don't load inside `<img>` embeds. Hierarchy: title 16/600 → stat value 22/700 → panel titles ("Platform breakdown", chart titles) 12/600 in `text` → stat labels 11/500 and date range 11/400 in `textMuted` → axis, legends, footnote 10/400 → the credit ("Made with GitVis · created by Jen Kruk") 10/400 `textMuted`, the quietest line. Text inside a panel is inset by the density's panel padding (16 spacious, 10 compact). Legend keys are SVG shapes (circles in the breakdown, rounded squares in the monthly chart); only the header's inline platform dots stay text glyphs, because they follow text whose width isn't measured. Numbers use `en-US` grouping for deterministic output.
+
+## Studio foundations
+
+The studio UI is built from semantic tokens and a few class recipes. No component uses raw Tailwind palette colors (`zinc-*`, `blue-*` …) or `dark:` pairs: dark mode redefines the tokens once.
+
+- **Tokens:** `src/app/globals.css`. Each raw value (`--gv-*`) is written once as `light-dark(light, dark)`; the OS scheme picks one, and `data-theme="light" | "dark"` on any element forces it for that subtree (Storybook's Theme toolbar). They feed Tailwind utilities through `@theme`. `src/app/tokens.test.ts` checks contrast for every token pair in both schemes.
+- **Recipes:** `src/components/ui/recipes.ts`: `button(variant, size)`, `iconButton`, `link`, `linkButton`, `field`, `panel`, `selectableCard(checked, disabled)`, `disclosureSummary`/`disclosureChevron`, `callout(tone)`, `focusRing`/`focusWithin`, `studioGrid` (+ columns), and text helpers (`hint`, `overline`, `mono`). Plain class strings: no component library and no build step.
+- **Fonts:** `src/app/fonts.ts` (Geist Sans preloaded, Geist Mono on demand) is used by both the app layout and `.storybook/preview.tsx`, so stories render with the app's fonts.
+- **Storybook:** **Studio/Foundations** shows the tokens, type scale, buttons, controls, selection and focus states, the single-open accordion, light and dark side by side, callouts and the app shell.
+
+### Color tokens (Graphite + Mineral Teal)
+
+| Token                                               | Light                             | Dark                              | Use                                                            |
+| --------------------------------------------------- | --------------------------------- | --------------------------------- | -------------------------------------------------------------- |
+| `canvas`                                            | `#f4f7f8`                         | `#10151b`                         | Page background                                                |
+| `surface`                                           | `#ffffff`                         | `#161d24`                         | Controls, cards, closed disclosures                            |
+| `surface-raised`                                    | `#ffffff`                         | `#1b232b`                         | Elevated panels, inputs, open disclosures                      |
+| `surface-hover`                                     | `#ebf0f2`                         | `#212b34`                         | Hover fill, read-only copy fields                              |
+| `selected`                                          | `#eef6f5`                         | `#1c2c30`                         | Selected cards (a whisper of teal)                             |
+| `fg` / `fg-muted` / `fg-subtle`                     | `#13202a` / `#45545e` / `#5b6a74` | `#dce6e8` / `#9dabb3` / `#8796a0` | Text; all ≥ 4.5:1 on every surface                             |
+| `line` / `line-strong`                              | `#dde4e8` / `#75848f`             | `#26313a` / `#66757f`             | Hairlines (decorative) / control boundaries (≥ 3:1 everywhere) |
+| `accent` (+ `accent-fg`)                            | `#0d7470`                         | `#4baeaa`                         | Mineral teal: selection, progress, links (≥ 4.5:1)             |
+| `focus`                                             | `#0b4f4c`                         | `#8adbd5`                         | The keyboard focus ring (≥ 3:1 on every surface)               |
+| `ink` (+ `ink-hover`, `ink-fg`)                     | `#17242e`                         | `#dce6e8`                         | Primary buttons: neutral, never teal                           |
+| `thumb` / `thumb-on`                                | `#ffffff` / `#ffffff`             | `#dce6e8` / `#0c1116`             | Switch thumb on the off (line-strong) and on (accent) track    |
+| `success` / `warning` / `danger` (+ `-bg`, `-line`) |                                   |                                   | Status text, callout fill and border                           |
+
+The logo mark (`LOGO_COLOR`, `#4baeaa`) is mineral teal in the header, `icon.svg`, `favicon.ico` and `apple-icon.png`. Teal is for small marks only (selection borders and checks, step progress, links, the switch track), never large fills, and primary actions stay neutral ink, so the studio's color never competes with the palette being chosen.
+
+### Type scale
+
+Geist Sans (preloaded) for the interface; Geist Mono (`preload: false`) only for handles, URLs, hex values and code. Hierarchy comes from size first, then weight. Use `tabular-nums` wherever numbers line up (step numbers, tables, counters).
+
+| Utility         | Size/line height          | Weight     | Use                                                  |
+| --------------- | ------------------------- | ---------- | ---------------------------------------------------- |
+| `text-title`    | 26/32, −0.022em           | 600        | Page title (one per page)                            |
+| `text-heading`  | 20/28, −0.016em           | 600        | Step headings                                        |
+| `text-section`  | 15/22                     | 600        | Control-group legends, large button labels           |
+| `text-label`    | 14/20                     | 500–600    | Control and field labels, buttons, disclosure titles |
+| `text-body`     | 14/22                     | 400        | Running text, messages                               |
+| `text-caption`  | 13/18                     | 400        | Hints, descriptions, captions (`hint` recipe)        |
+| `text-overline` | 12/16, +0.06em, uppercase | 600        | Group headings such as "More options"                |
+| `text-code`     | 13/20                     | Geist Mono | Handles, URLs, Markdown                              |
+
+Nothing in the studio is smaller than 12px, and only the overline and step numbers use 12px. Descriptions are 13px. When copy feels too long, cut it rather than shrinking it.
+
+### Radii, surfaces and states
+
+- **Radii:** `rounded-control` 6px (buttons, inputs), `rounded-card` 10px (cards, disclosures, callouts), `rounded-stage` 14px (preview stage, Connect panel). The card and stage radii match the graphic's panel (10) and canvas (14).
+- **Buttons:** `primary` (neutral ink), `secondary` (hairline, raised), `ghost` (text only); sizes `sm` 36px, `md` 44px, `lg` 48px. Each step has one `primary lg` action (_See my contributions_, _Continue to publish_, _Copy README Markdown_).
+- **Selectable cards** (`selectableCard`): **default** surface + hairline; **hover** the hover fill; **selected** a 1px teal border on the `selected` tint, plus a small teal check (`SelectionMark`) on cards with a title and a semibold label on segmented options, so selection never rests on color alone; **disabled** dashed border and subtle text.
+- **Focus:** one detached 2px `focus` ring, offset 2px, shown only for keyboard focus (`:focus-visible`; `focusWithin` on labels wrapping a hidden input). Selection is drawn inside the control and focus outside it, so **selected + focused** shows both without competing borders. A step heading that receives focus after a pointer click (for screen readers) draws no ring.
+- **Non-text contrast:** text inputs, the color input, switch tracks and checkboxes use `line-strong` (≥ 3:1 on every surface); switch thumbs are ≥ 3:1 on their track; selection borders and focus rings are ≥ 3:1. Card hairlines are decorative (the label identifies the control).
+- **Disclosures:** one header style (`disclosureSummary` + a right-hand chevron that turns when open) for every `<details>`. The four Design "More options" sections share `name="more-options"`: a native single-open accordion (opening one closes the other; each can be closed; content stays mounted so no setting is lost; collapsed headers keep their summary). A small toggle handler keeps the clicked header in place where browsers lack scroll anchoring.
+- **Callouts:** `callout("warning" | "danger" | "success" | "neutral")`, always with an icon or words that carry the meaning.
 
 ## Palettes (`src/theme/palettes.ts`)
 
@@ -112,6 +167,7 @@ Independent of the background: any panel style works with Solid, Gradient or Tra
 - Avatars are circles clipped with a per-graphic `clipPath` id (`{idPrefix}-avatar-{platform}`) and ringed in the platform color. `<image href>` is always a `data:` URI.
 - **Monogram fallback:** a circle in the series color with the initial in `bestTextOn(color)`.
 - Name and title are single lines with an ellipsis, and leave room for the Sample badge. They are also in `<title>`/`<desc>`.
+- **Arrangement (Identity section):** the Centered profile can swap which account sits on the left ("Account sides", URL `left`; GitHub left by default); Compact and Full profiles with avatars can put the avatar stack on the right ("Avatar position", URL `avs`). With avatars on the right, the text starts at the left padding and the status badge sits 12px left of the stack. Each control appears only for the headers it affects; the setting is kept when hidden. Neither changes the height or the description.
 
 ## History calendars (`src/renderers/HistoryCalendars.tsx`)
 
@@ -136,6 +192,7 @@ Every published graphic names the accounts behind its data: "● GitHub @jenkruk
 - **Graphic/Visualization:** every layout, the 24 × 2 palette gallery, year cards in every panel style, long-username attribution, backgrounds over GitHub light/dark, ranges, densities, profile headers (avatar and monogram), custom colors, the compact phone image.
 - **Graphic/Heatmap** and **Graphic/Metric cards:** the section components with palette, mode, width, density and count controls.
 - **Studio/Guided studio:** each step (Connect, Design with data or sample data, Publish) at desktop and phone viewports. Publish stories render the real published URL offline via `renderSampleCard` (production decoder + renderer), so they show a meaningful image instead of a failed request.
+- **Studio/Foundations:** tokens, type scale, buttons, controls, callouts and the app shell (desktop and phone).
 - **Studio/Design controls** (the Design column on the real reducer, including the profile-card preset and a non-curated palette), **Studio/Step navigation** and **Studio/Preview modes**.
 
 The a11y addon runs axe with the WCAG 2.2 AA tags and `test: "error"`. `src/stories/stories.test.tsx` renders every story in Vitest, so a broken story fails `npm test`.
@@ -153,7 +210,7 @@ The a11y addon runs axe with the WCAG 2.2 AA tags and `test: "error"`. `src/stor
 - Step changes move focus to the new step's `<h2 tabIndex={-1}>`, whose accessible name includes "Step N of 3". The Design heading is described by the data-source line ("Showing contributions for …"), so arriving there announces what loaded.
 - The step lives in the URL hash (`#connect`, `#design`, `#publish`): reloads keep it, browser Back/Forward move between steps, and a hash for an unreachable step is ignored.
 - One primary action per step: _See my contributions_, _Continue to publish_, _Copy README Markdown_. Everything else is secondary or collapsed.
-- Collapsed sections use `Disclosure` (native `<details>`/`<summary>`, uncontrolled), with a one-line summary of the current state ("Gradient · Outlined panels", "6 of 9 shown").
+- Collapsed sections use `Disclosure` (native `<details>`/`<summary>`, uncontrolled), with a one-line summary of the current state ("Gradient · Outlined panels", "6 of 9 shown"). The Design "More options" sections form a single-open accordion (shared `name`).
 - Step panels fade in over 200ms under `motion-safe:` only.
 
 **Controls**
@@ -180,7 +237,7 @@ The a11y addon runs axe with the WCAG 2.2 AA tags and `test: "error"`. `src/stor
 **Motion and layout**
 
 - Animation is limited to short color, opacity, and transform transitions under `motion-safe:`. Under `prefers-reduced-motion` nothing moves.
-- Mobile-first: one column under `lg`. In Design, the preview comes before the controls in the DOM, so small screens see feedback first; it starts at a capped height (≤ 60vh) with an _Expand preview_ button (`aria-expanded`) and is never sticky on phones. At `lg` the grid places the controls left and the sticky preview right.
+- Mobile-first: one column under `lg`. In Design, the preview comes before the controls in the DOM, so small screens see feedback first; it starts at a capped height (≤ 60vh) with an _Expand preview_ button (`aria-expanded`) and is never sticky on phones. At `lg` the grid places the controls left and the sticky preview right, fitted to the viewport height (so no part of it is out of reach) and released while the data view is open. Publish uses the same grid: actions left, the published image right. Each step has one visible title (the step heading); the page's `<h1>` is visually hidden so the step navigation and title don't repeat each other.
 - The preview scales to fit (`width: 100%`, preserved aspect ratio) with no horizontal scroll at 320px (1.4.10 Reflow). Text stays usable at 200% zoom.
 
 ### Graphic and charts
@@ -195,12 +252,12 @@ The a11y addon runs axe with the WCAG 2.2 AA tags and `test: "error"`. `src/stor
 
 ### Preview modes
 
-| Mode                                | Purpose                                                                                                                                                        | Status                                        |
-| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| README-width preview                | The full image in an ~830px README column that shrinks with the studio on small screens. No device switcher: published cards have no phone or tablet variants. | Shipped (3.1; device modes removed Nov 2026)  |
-| README surface: GitHub light / dark | Previews the graphic against both GitHub themes                                                                                                                | Planned                                       |
-| Grayscale                           | Checks that meaning survives without hue (CSS `filter: grayscale(1)` on the preview only)                                                                      | Phase 4                                       |
-| Accessible-data view                | Shows the data view instead of the graphic                                                                                                                     | Phase 4 (the data view itself shipped in 3.1) |
+| Mode                          | Purpose                                                                                                                                                                                                                                                                                                                                       | Status                                        |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| README-width preview          | The full image in an ~830px README column that shrinks with the studio on small screens. No device switcher: published cards have no phone or tablet variants.                                                                                                                                                                                | Shipped (3.1; device modes removed Nov 2026)  |
+| Backdrop: GitHub light / dark | One flat stage (Design and Publish) showing GitHub's light (`#ffffff`) or dark (`#0d1117`) README page; it starts on the page for the graphic's mode. At lg the sticky Design preview is fitted to the viewport height and "View full size" opens a modal dialog, so tall three-year graphics stay fully inspectable without nested scrolling | Shipped (Nov 2026)                            |
+| Grayscale                     | Checks that meaning survives without hue (CSS `filter: grayscale(1)` on the preview only)                                                                                                                                                                                                                                                     | Phase 4                                       |
+| Accessible-data view          | Shows the data view instead of the graphic                                                                                                                                                                                                                                                                                                    | Phase 4 (the data view itself shipped in 3.1) |
 
 Preview modes change only the **preview container**. They are never part of `VisualizationConfig` or the exported graphic.
 
@@ -216,15 +273,16 @@ Shrinking the 840px graphic into a ~360px phone column puts labels at about 4px.
 
 README snippets no longer serve it: GitHub's `<themed-picture>` drops width conditions from theme queries for signed-in readers, which served the phone image on desktops, and a README image doesn't need phone or tablet variants. Every snippet uses the full image, which GitHub scales to fit. `size=compact` URLs still render, so older embeds keep working.
 
-### Alternative data view
+### Alternative data view: "Detailed contribution data"
 
-"View the data as text and a table" is a native `<details>` element under the preview. It contains:
+A native `<details>` under the preview (collapsed by default, visually secondary). Its content comes from `src/components/studio/data-view-model.ts` (pure, unit-tested), built only from the same `PreparedView` and `ContributionMetrics` as the graphic, so it can't drift. Each fact appears once:
 
-- the same text summary as the SVG `<desc>`
-- key stats in a `<dl>`
-- a monthly `<table>` with a `<caption>`, `scope`d headers and row headers
+1. **Summary**: one or two sentences: the total, the accounts it covers, active days (only when that statistic is selected), the period ("in the last 12 months", or a legacy link's "last 90 days"), and what's missing ("Earlier GitLab history is unavailable.", the history note). Sample and stale data say so first.
+2. **Contribution history**: a `<table>` whose `<caption>` holds the section heading (`<h4>`) and its scope. One row per 12-month period, newest first (a single row for one-year designs); row headers name the period ("Last 12 months" + dates), columns are each platform and, for combined accounts, Total. A platform that doesn't provide a period reads **Not available** and that row's total **Incomplete**: missing data is never shown or announced as zero. Notes below the table explain this, and the differing GitHub/GitLab start dates, only when they apply.
+3. **Summary statistics**: a `<dl>` with its scope ("Last 12 months · GitHub + GitLab") that mirrors the graphic's stat cards: only the enabled statistics, in the user's order, minus the total (already in the summary and the table), plus the platform split when the graphic shows the breakdown. Omitted when the graphic shows only the total; the history and monthly tables are always available.
+4. **Monthly contributions**: a nested disclosure holding the monthly `<table>` (caption, column and row headers). Coverage is measured day by day per platform: a month the reporting period cuts says so ("Oct 2025 (from Oct 26)"); a platform covering part of a month shows its known count with the dates ("4 from Mar 10"), one covering none of it reads **Not available**, and that month's total is marked **incomplete**. Genuine zero activity stays 0.
 
-The table scrolls inside its own focusable, labelled region, never the page. All of it comes from the same `ContributionMetrics` as the graphic.
+Tables wrap rather than scroll, so they need no extra tab stops at 320px or 200% zoom; numbers are right-aligned with tabular numerals. The SVG keeps its own `<title>`/`<desc>`, because a README embed has none of this panel.
 
 ### Verification
 

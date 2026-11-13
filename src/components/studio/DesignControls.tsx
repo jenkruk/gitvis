@@ -1,8 +1,9 @@
 import type { Dispatch } from "react";
 import { type ConfigAction, isFeatureVisible, type VisualizationConfig } from "@/config/config";
 import { FEATURES } from "@/config/features";
-import type { ContributionDataset } from "@/domain/types";
+import { type ContributionDataset, PLATFORMS } from "@/domain/types";
 import { Disclosure } from "./controls";
+import { overline } from "@/components/ui/recipes";
 import {
   BackgroundPicker,
   DataPicker,
@@ -19,6 +20,8 @@ interface DesignControlsProps {
   dataset: ContributionDataset;
 }
 
+const ACCORDION = "more-options";
+
 const IDENTITY_SUMMARY = {
   none: "Off",
   compact: "Compact identity",
@@ -29,11 +32,23 @@ const BACKGROUND_SUMMARY = { solid: "Solid", gradient: "Gradient", transparent: 
 const PANEL_SUMMARY = { filled: "", outlined: "Outlined panels", borderless: "Borderless panels" } as const;
 const YEARS_SUMMARY = { 1: "1 year", 2: "2 years", 3: "3 years" } as const;
 
+/** Mentions the header arrangement only when it differs from the default and applies. */
+function arrangement({ identity }: VisualizationConfig): string {
+  if (identity.style === "centered" && identity.leftPlatform !== "github") {
+    return `${PLATFORMS[identity.leftPlatform].label} on the left`;
+  }
+  const avatarStyle = identity.style === "compact" || identity.style === "full";
+  if (avatarStyle && identity.avatars.length > 0 && identity.avatarSide === "right") return "Avatars right";
+  return "";
+}
+
 export function sectionSummaries(config: VisualizationConfig, dataset: ContributionDataset) {
   const shown = FEATURES.filter((f) => isFeatureVisible(f.id, config, dataset)).length;
   const custom = Object.keys(config.platformColors).length > 0;
   return {
-    identity: [IDENTITY_SUMMARY[config.identity.style], config.identity.name.trim()].filter(Boolean).join(" · "),
+    identity: [IDENTITY_SUMMARY[config.identity.style], arrangement(config), config.identity.name.trim()]
+      .filter(Boolean)
+      .join(" · "),
     colors: [BACKGROUND_SUMMARY[config.background], PANEL_SUMMARY[config.panel], custom ? "Custom colors" : ""]
       .filter(Boolean)
       .join(" · "),
@@ -47,26 +62,27 @@ export function sectionSummaries(config: VisualizationConfig, dataset: Contribut
 export function DesignControls({ config, dispatch, dataset }: DesignControlsProps) {
   const summaries = sectionSummaries(config, dataset);
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
       <PresetPicker config={config} dispatch={dispatch} />
       <LayoutPicker config={config} dispatch={dispatch} />
       <ModePicker config={config} dispatch={dispatch} />
       <PalettePicker config={config} dispatch={dispatch} />
 
-      <div className="space-y-3">
-        <h3 className="text-sm font-semibold">More options</h3>
-        <Disclosure title="Identity" summary={summaries.identity}>
+      {/* A single-open accordion: opening one section closes the other (settings are kept). */}
+      <div className="space-y-2 border-t border-line pt-6">
+        <h3 className={`${overline} mb-3`}>More options</h3>
+        <Disclosure name={ACCORDION} title="Identity" summary={summaries.identity}>
           <IdentityPicker config={config} dispatch={dispatch} />
         </Disclosure>
-        <Disclosure title="Colors & Background" summary={summaries.colors}>
+        <Disclosure name={ACCORDION} title="Colors & Background" summary={summaries.colors}>
           <BackgroundPicker config={config} dispatch={dispatch} />
           <PanelPicker config={config} dispatch={dispatch} />
           <PlatformColorPicker config={config} dispatch={dispatch} />
         </Disclosure>
-        <Disclosure title="Metrics & Charts" summary={summaries.metrics}>
+        <Disclosure name={ACCORDION} title="Metrics & Charts" summary={summaries.metrics}>
           <FeatureToggles config={config} dispatch={dispatch} dataset={dataset} />
         </Disclosure>
-        <Disclosure title="Display" summary={summaries.display}>
+        <Disclosure name={ACCORDION} title="Display" summary={summaries.display}>
           <DataPicker config={config} dispatch={dispatch} history={historyAvailability(dataset)} />
         </Disclosure>
       </div>

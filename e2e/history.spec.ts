@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
-  expandAll,
+  openSection,
   expectAccessible,
   expectNoHorizontalScroll,
   getCard,
@@ -62,21 +62,21 @@ test.describe("studio", () => {
     const user = uniqueUser("histui");
     await upstream(request, user, { count: 5 });
     await page.goto(`/?v=1&github=${user}&gitlab=${user}`);
-    await expandAll(page);
+    await openSection(page, "Display");
     const group = page.getByRole("group", { name: /date range/i });
     await group.locator("label", { has: page.getByRole("radio", { name: "3 years" }) }).click();
 
     const graphic = page.getByRole("img", { name: /^Contribution activity/ }).first();
     await expect(graphic).toHaveAccessibleDescription(/By 12-month period, newest first/);
     await expect(page).toHaveURL(/[?&]yrs=3/);
-    await expect(page.getByRole("table", { name: "Contributions by 12-month period" })).toBeVisible();
-    await expect(page.getByRole("table", { name: "Contributions by 12-month period" })).toContainText("Not available");
+    await expect(page.getByRole("table", { name: /^Contribution history/ })).toBeVisible();
+    await expect(page.getByRole("table", { name: /^Contribution history/ })).toContainText("Not available");
     await expectAccessible(page, "3-year history");
     await expectNoHorizontalScroll(page);
 
     await page.reload();
     await expect(stepHeading(page)).toHaveText(/design your graphic/i);
-    await expandAll(page);
+    await openSection(page, "Display");
     await expect(page.getByRole("radio", { name: "3 years" })).toBeChecked();
     await expect(graphic).toHaveAccessibleDescription(/By 12-month period/);
   });
@@ -85,7 +85,7 @@ test.describe("studio", () => {
     const user = uniqueUser("histgl");
     await upstream(request, user, { count: 2 });
     await page.goto(`/?v=1&gitlab=${user}`);
-    await expandAll(page);
+    await openSection(page, "Display");
     const group = page.getByRole("group", { name: /date range/i });
     await expect(group.getByRole("radio", { name: "2 years" })).toBeDisabled();
     await expect(group.getByRole("radio", { name: "3 years" })).toBeDisabled();
@@ -96,7 +96,7 @@ test.describe("studio", () => {
     const user = uniqueUser("histold");
     await upstream(request, user, { count: 2 });
     await page.goto(`/?v=1&github=${user}&range=90`);
-    await expandAll(page);
+    await openSection(page, "Display");
     await expect(page.getByRole("radio", { name: /last 90 days \(from your link\)/i })).toBeChecked();
     await expect(page).toHaveURL(/[?&]range=90/);
   });
@@ -109,7 +109,7 @@ test.describe("phones (375px)", () => {
     const user = uniqueUser("histmob");
     await upstream(request, user, { count: 3 });
     await page.goto(`/?v=1&github=${user}&gitlab=${user}&yrs=3`);
-    await expandAll(page);
+    await openSection(page, "Display");
     await page.getByRole("button", { name: "Expand preview" }).click();
     const graphic = page.getByRole("img", { name: /^Contribution activity/ }).first();
     await expect(graphic).toHaveAttribute("width", "840");

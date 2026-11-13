@@ -1,11 +1,10 @@
 "use client";
 
-import { AlertCircle, Copy, Download, ImageIcon, Loader2, Pencil } from "lucide-react";
+import { AlertCircle, ArrowLeft, ChevronDown, Copy, Download, ImageIcon, Loader2 } from "lucide-react";
 import { useDeferredValue, useRef, useState } from "react";
 import type { ConnectRequest, PlatformResult } from "@/adapters/connect";
 import type { VisualizationConfig } from "@/config/config";
 import { PLATFORMS } from "@/domain/types";
-import { GITHUB_SURFACES } from "@/theme/palettes";
 import type { CardParams } from "@/publish/card-params";
 import {
   altText,
@@ -17,6 +16,18 @@ import {
   type SnippetOptions,
 } from "@/publish/snippets";
 import { CardDownloadError, fetchPublishedSvg, saveBlob, svgToPng } from "./download";
+import { type Backdrop, BackdropPicker, defaultBackdrop, PreviewStage } from "@/components/studio/PreviewStage";
+import {
+  button,
+  callout,
+  disclosureChevron,
+  disclosureSummary,
+  focusRing,
+  selectableCard,
+  studioControlsColumn,
+  studioGrid,
+  studioPreviewColumn,
+} from "@/components/ui/recipes";
 
 export interface PublishPanelProps {
   origin: string;
@@ -32,11 +43,10 @@ export interface PublishPanelProps {
 
 const svgDataUri = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 
-const focusRing =
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:focus-visible:outline-blue-400";
-const buttonClass = `inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800 ${focusRing}`;
-const primaryClass = `inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-zinc-900 px-5 text-base font-semibold text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300 ${focusRing}`;
-const fieldClass = `w-full min-w-0 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 font-mono text-xs text-zinc-800 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200 ${focusRing}`;
+const buttonClass = button("secondary");
+const primaryClass = button("primary", "lg");
+// Read-only: the hover fill (not the input surface) says it can't be typed into; the boundary stays ≥ 3:1.
+const fieldClass = `block w-full min-w-0 rounded-control border border-line-strong bg-surface-hover px-3 py-2 font-mono text-code text-fg ${focusRing}`;
 
 const MARKDOWN_ID = "publish-markdown";
 
@@ -54,7 +64,7 @@ export function PublishPanel({
   return (
     <div className="space-y-4">
       {isPreviewDeployment && (
-        <p className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+        <p className={`flex items-start gap-2 ${callout("warning")}`}>
           <AlertCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
           <span>
             This is a preview deployment. Published URLs point to production (<strong>{new URL(origin).host}</strong>),
@@ -74,7 +84,7 @@ export function PublishPanel({
           renderCard={renderCard}
         />
       ) : (
-        <p className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">
+        <p className={callout("neutral")}>
           Connect a GitHub or GitLab account to publish. Sample data can&apos;t be published.
         </p>
       )}
@@ -149,7 +159,7 @@ function PublishContent({
   return (
     <div className="space-y-6">
       {failed.length > 0 && (
-        <p className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+        <p className={`flex items-start gap-2 ${callout("warning")}`}>
           <AlertCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
           <span>
             {failed.map((r) => `${PLATFORMS[r.platform].label} @${r.username}`).join(" and ")} couldn&apos;t be loaded.
@@ -159,144 +169,149 @@ function PublishContent({
         </p>
       )}
 
-      <PublishedPreview
-        key={previewUrl}
-        src={renderCard ? svgDataUri(renderCard(previewUrl)) : previewUrl}
-        alt={altText(params.request)}
-        page={transparent ? GITHUB_SURFACES[params.config.mode][0] : undefined}
-      />
-
-      <div className="space-y-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <button type="button" onClick={copyMarkdown} className={primaryClass}>
-            <Copy aria-hidden="true" className="size-5" />
-            Copy README Markdown
-          </button>
-          {(["svg", "png"] as const).map((kind) => (
-            <button
-              key={kind}
-              type="button"
-              onClick={() => download(kind)}
-              aria-busy={busy === kind}
-              className={buttonClass}
-            >
-              {busy === kind ? (
-                <Loader2 aria-hidden="true" className="size-4 motion-safe:animate-spin" />
-              ) : (
-                <Download aria-hidden="true" className="size-4" />
-              )}
-              Download {kind.toUpperCase()}
-            </button>
-          ))}
-          {onEdit && (
-            <button type="button" onClick={onEdit} className={buttonClass}>
-              <Pencil aria-hidden="true" className="size-4" />
-              Edit design
-            </button>
-          )}
+      <div className={studioGrid}>
+        <div className={studioPreviewColumn}>
+          <PublishedPreview
+            key={previewUrl}
+            src={renderCard ? svgDataUri(renderCard(previewUrl)) : previewUrl}
+            alt={altText(params.request)}
+            mode={params.config.mode}
+          />
         </div>
-        <p role="status" className="min-h-5 text-sm font-medium text-zinc-800 dark:text-zinc-200">
-          {status}
-        </p>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Paste it into your GitHub profile README. The image refreshes itself about every 12 hours — nothing to
-          maintain.
-        </p>
-      </div>
 
-      <CopyField
-        id="publish-image-url"
-        label="Image URL"
-        buttonLabel="Copy image URL"
-        value={imageUrl}
-        announce={announce}
-      />
-
-      <details ref={details} className="group rounded-lg border border-zinc-200 dark:border-zinc-800">
-        <summary
-          className={`flex min-h-12 cursor-pointer items-center rounded-lg px-4 py-3 text-sm font-semibold ${focusRing}`}
-        >
-          Markdown and embed options
-        </summary>
-        <div className="space-y-5 border-t border-zinc-200 px-4 pt-4 pb-5 dark:border-zinc-800">
-          <fieldset aria-describedby={transparent ? "publish-theme-hint" : undefined}>
-            <legend className="text-sm font-semibold">README theme</legend>
-            {transparent && (
-              <p id="publish-theme-hint" className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-                Transparent backgrounds always match the reader&apos;s theme, so text stays readable on light and dark
-                GitHub.
-              </p>
-            )}
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              {(
-                [
-                  [
-                    "selected",
-                    `Always ${modeLabel.toLowerCase()}`,
-                    `Uses your selected ${modeLabel.toLowerCase()} mode.`,
-                  ],
-                  ["auto", "Match reader's theme", "Light or dark, following the reader's GitHub theme."],
-                ] as const
-              ).map(([value, label, description]) => (
-                <label
-                  key={value}
-                  className={`flex cursor-pointer flex-col rounded-lg border p-3 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-blue-600 ${
-                    theme === value
-                      ? "border-zinc-900 ring-1 ring-zinc-900 dark:border-zinc-100 dark:ring-zinc-100"
-                      : "border-zinc-200 dark:border-zinc-800"
-                  }`}
+        <div className={`${studioControlsColumn} space-y-6`}>
+          <div className="space-y-2">
+            <button type="button" onClick={copyMarkdown} className={`${primaryClass} w-full`}>
+              <Copy aria-hidden="true" className="size-5" />
+              Copy README Markdown
+            </button>
+            {/* Side by side when they fit; stacked on the narrowest phones. */}
+            <div className="flex flex-wrap gap-2 [&>button]:min-w-fit [&>button]:flex-1">
+              {(["svg", "png"] as const).map((kind) => (
+                <button
+                  key={kind}
+                  type="button"
+                  onClick={() => download(kind)}
+                  aria-busy={busy === kind}
+                  className={buttonClass}
                 >
-                  <input
-                    type="radio"
-                    name="readme-theme"
-                    value={value}
-                    checked={theme === value}
-                    disabled={transparent && value === "selected"}
-                    onChange={() => onOptionsChange({ ...options, theme: value })}
-                    className="sr-only"
-                  />
-                  <span className="text-sm font-medium">{label}</span>
-                  <span className="text-xs text-zinc-600 dark:text-zinc-400">{description}</span>
-                </label>
+                  {busy === kind ? (
+                    <Loader2 aria-hidden="true" className="size-4 motion-safe:animate-spin" />
+                  ) : (
+                    <Download aria-hidden="true" className="size-4" />
+                  )}
+                  Download {kind.toUpperCase()}
+                </button>
               ))}
             </div>
-          </fieldset>
+            <p role="status" className="min-h-5 text-body font-medium text-fg">
+              {status}
+            </p>
+          </div>
 
           <CopyField
-            id={MARKDOWN_ID}
-            label="README Markdown"
-            buttonLabel="Copy Markdown"
-            hint="Ends with a “Get Yours” link to GitVis. The image itself isn’t a link."
-            value={snippet}
-            multiline
+            id="publish-image-url"
+            label="Image URL"
+            buttonLabel="Copy image URL"
+            value={imageUrl}
             announce={announce}
           />
-          <CopyField
-            id="publish-edit-url"
-            label="Edit link"
-            buttonLabel="Copy edit link"
-            hint="Reopens GitVis with these accounts and design."
-            value={edit}
-            announce={announce}
-          />
+
+          <details ref={details} className="group rounded-card border border-line bg-surface open:bg-surface-raised">
+            <summary className={`${disclosureSummary} group-open:rounded-b-none`}>
+              <span className="text-label font-semibold text-fg">Markdown and embed options</span>
+              <ChevronDown aria-hidden="true" className={disclosureChevron} />
+            </summary>
+            <div className="space-y-6 border-t border-line px-4 pt-5 pb-5">
+              <fieldset aria-describedby={transparent ? "publish-theme-hint" : undefined}>
+                <legend className="text-label font-semibold">README theme</legend>
+                {transparent && (
+                  <p id="publish-theme-hint" className="mt-0.5 text-caption text-fg-muted">
+                    Transparent backgrounds always match the reader&apos;s theme, so text stays readable on light and
+                    dark GitHub.
+                  </p>
+                )}
+                <div className="mt-2 grid gap-2">
+                  {(
+                    [
+                      [
+                        "selected",
+                        `Always ${modeLabel.toLowerCase()}`,
+                        `Uses your selected ${modeLabel.toLowerCase()} mode.`,
+                      ],
+                      ["auto", "Match reader's theme", "Light or dark, following the reader's GitHub theme."],
+                    ] as const
+                  ).map(([value, label, description]) => (
+                    <label
+                      key={value}
+                      className={`${selectableCard(theme === value, transparent && value === "selected")} flex-col p-3`}
+                    >
+                      <input
+                        type="radio"
+                        name="readme-theme"
+                        value={value}
+                        checked={theme === value}
+                        disabled={transparent && value === "selected"}
+                        onChange={() => onOptionsChange({ ...options, theme: value })}
+                        className="sr-only"
+                      />
+                      <span className={`text-label ${theme === value ? "font-semibold text-fg" : "font-medium"}`}>
+                        {label}
+                      </span>
+                      <span className="mt-0.5 text-caption text-fg-muted">{description}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
+              <CopyField
+                id={MARKDOWN_ID}
+                label="README Markdown"
+                buttonLabel="Copy Markdown"
+                hint="Ends with a “Get Yours” link to GitVis. The image itself isn’t a link."
+                value={snippet}
+                multiline
+                announce={announce}
+              />
+              <CopyField
+                id="publish-edit-url"
+                label="Edit link"
+                buttonLabel="Copy edit link"
+                hint="Reopens GitVis with these accounts and design."
+                value={edit}
+                announce={announce}
+              />
+            </div>
+          </details>
+
+          {onEdit && (
+            <div className="border-t border-line pt-6">
+              <button type="button" onClick={onEdit} className={button("ghost", "lg")}>
+                <ArrowLeft aria-hidden="true" className="size-4" />
+                Edit design
+              </button>
+            </div>
+          )}
         </div>
-      </details>
+      </div>
     </div>
   );
 }
 
-function PublishedPreview({ src, alt, page }: { src: string; alt: string; page?: string }) {
+function PublishedPreview({ src, alt, mode }: { src: string; alt: string; mode: VisualizationConfig["mode"] }) {
   const [state, setState] = useState<"loading" | "loaded" | "error">("loading");
+  const [chosen, setChosen] = useState<Backdrop | null>(null);
+  const backdrop = chosen ?? defaultBackdrop(mode);
   const syncSettledState = (img: HTMLImageElement | null) => {
     if (img?.complete) setState(img.naturalWidth > 0 ? "loaded" : "error");
   };
 
   return (
     <figure className="min-w-0">
-      <div
-        style={page ? { background: page } : undefined}
-        className="relative rounded-lg border border-zinc-200 bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-[length:16px_16px] p-2 dark:border-zinc-800 dark:bg-[repeating-conic-gradient(#18181b_0_25%,#09090b_0_50%)]"
-      >
+      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <BackdropPicker value={backdrop} onChange={setChosen} />
+      </div>
+      <PreviewStage backdrop={backdrop}>
         {/* eslint-disable-next-line @next/next/no-img-element -- must load the exact external-style URL GitHub embeds, unoptimized */}
         <img
           ref={syncSettledState}
@@ -304,20 +319,19 @@ function PublishedPreview({ src, alt, page }: { src: string; alt: string; page?:
           alt={alt}
           onLoad={() => setState("loaded")}
           onError={() => setState("error")}
-          className="h-auto w-full"
+          className="mx-auto h-auto w-full max-w-[830px]"
         />
-      </div>
-      <figcaption className="mt-2 flex items-start gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
+      </PreviewStage>
+      <figcaption className="mt-2 flex items-start gap-1.5 text-caption text-fg-muted">
         {state === "loading" && (
           <Loader2 aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 motion-safe:animate-spin" />
         )}
-        {state === "error" && <AlertCircle aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-red-600" />}
+        {state === "error" && <AlertCircle aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-danger" />}
         {state === "loaded" && <ImageIcon aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />}
         <span>
           {state === "loading" && "Loading the published image…"}
           {state === "error" && "The published image couldn't be loaded. Check your connection and try again."}
-          {state === "loaded" &&
-            "Published image — exactly what GitHub will display. Data refreshes about every 12 hours."}
+          {state === "loaded" && "Published image — exactly what GitHub will display."}
         </span>
       </figcaption>
     </figure>
@@ -358,16 +372,16 @@ function CopyField({
   return (
     <div className="min-w-0">
       <div className="flex items-end justify-between gap-3">
-        <label htmlFor={id} className="text-sm font-semibold">
+        <label htmlFor={id} className="text-label font-semibold">
           {label}
         </label>
-        <button type="button" onClick={copy} className={`${buttonClass} min-h-9 px-3`}>
+        <button type="button" onClick={copy} className={button("secondary", "sm")}>
           <Copy aria-hidden="true" className="size-4" />
           {buttonLabel}
         </button>
       </div>
       {hint && (
-        <p id={hintId} className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+        <p id={hintId} className="mt-0.5 text-caption text-fg-muted">
           {hint}
         </p>
       )}

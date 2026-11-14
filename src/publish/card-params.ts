@@ -5,6 +5,7 @@ import {
   type DateRangeDays,
   type Density,
   finalText,
+  type HeatmapColors,
   type IdentityStyle,
   NAME_MAX_LENGTH,
   sanitizeText,
@@ -94,6 +95,7 @@ const YEARS_CODES: Record<`${HistoryYears}`, string> = { "1": "1", "2": "2", "3"
 const RANGE_CODES: Record<`${DateRangeDays}`, string> = { "30": "30", "90": "90", "365": "365" };
 const PLATFORM_CODES: Record<PlatformId, string> = { github: "github", gitlab: "gitlab" };
 const AVATAR_SIDE_CODES: Record<AvatarSide, string> = { left: "left", right: "right" };
+const HEATMAP_CODES: Record<Exclude<HeatmapColors, "auto">, string> = { platform: "platform", combined: "combined" };
 const LEGACY = {
   identity: "none" as IdentityStyle,
   handles: [...PLATFORM_IDS] as PlatformId[],
@@ -105,6 +107,7 @@ const LEGACY = {
   years: 1 as HistoryYears,
   leftPlatform: "github" as PlatformId,
   avatarSide: "left" as AvatarSide,
+  heatmapColors: "auto" as HeatmapColors,
 };
 
 const V1_DEFAULTS = {
@@ -143,6 +146,7 @@ const YEARS_BY_CODE = invert(YEARS_CODES);
 const RANGE_BY_CODE = invert(RANGE_CODES);
 const PLATFORM_BY_CODE = invert(PLATFORM_CODES);
 const AVATAR_SIDE_BY_CODE = invert(AVATAR_SIDE_CODES);
+const HEATMAP_BY_CODE = invert(HEATMAP_CODES);
 const STAT_CODES = Object.fromEntries(STAT_FEATURE_IDS.map((id) => [id, FEATURE_CODES[id]])) as Record<
   StatFeatureId,
   string
@@ -211,6 +215,7 @@ export function encodeCardParams({ request, config: design, size }: CardParams):
   if (config.density !== LEGACY.density) params.set("den", DENSITY_CODES[config.density]);
   if (config.panel !== LEGACY.panel) params.set("pnl", PANEL_CODES[config.panel]);
   if (config.years !== LEGACY.years) params.set("yrs", YEARS_CODES[`${config.years}`]);
+  if (config.heatmapColors !== "auto") params.set("hm", HEATMAP_CODES[config.heatmapColors]);
   return params;
 }
 
@@ -301,6 +306,7 @@ export function decodeCardParams(search: URLSearchParams): DecodedCardParams {
   const density = pick("den", DENSITY_BY_CODE, LEGACY.density);
   const panel = pick("pnl", PANEL_BY_CODE, LEGACY.panel);
   const years = Number(pick("yrs", YEARS_BY_CODE, `${LEGACY.years}`)) as HistoryYears;
+  const heatmapColors: HeatmapColors = pick("hm", HEATMAP_BY_CODE, LEGACY.heatmapColors);
   if (years > 1 && range !== 365) {
     issues.push({ param: "yrs", message: "Multi-year history can't be combined with a 30- or 90-day range." });
   }
@@ -332,6 +338,7 @@ export function decodeCardParams(search: URLSearchParams): DecodedCardParams {
     density,
     panel,
     years,
+    heatmapColors,
   };
   if (years > 1) config.range = 365;
   const decoded = withAttribution(config);

@@ -7,7 +7,8 @@ import { Studio } from "@/components/studio/Studio";
 import { StudioSkeleton } from "@/components/studio/StudioSkeleton";
 import { createSampleDataset } from "@/fixtures/sample-dataset";
 import { decodeCardParams } from "@/publish/card-params";
-import { SAMPLE_PARAM, STUDIO_PATH } from "@/publish/studio-url";
+import { hasDesignParams, SAMPLE_PARAM, STUDIO_PATH } from "@/publish/studio-url";
+import { createDefaultConfig } from "@/config/config";
 import { serverLoaders } from "@/server/cached";
 import { MAX_HISTORY_YEARS } from "@/domain/history";
 import { loadContributions } from "@/server/contributions";
@@ -48,7 +49,9 @@ async function resolveOrigin() {
 
 async function StudioLoader({ searchParams }: Pick<PageProps<"/studio">, "searchParams">) {
   const search = toSearchParams(await searchParams);
-  const { request, config } = decodeCardParams(search);
+  const decoded = decodeCardParams(search);
+  const { request } = decoded;
+  const config = hasDesignParams(search) ? decoded.config : createDefaultConfig();
   const sample = !request && search.has(SAMPLE_PARAM);
   const { origin, environment } = await resolveOrigin();
   if (request) await connection();

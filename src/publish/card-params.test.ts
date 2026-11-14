@@ -47,7 +47,7 @@ describe("card params: round trip", () => {
       config: { ...createDefaultConfig(), layout: "dataRich", palette: "desertSunset", mode: "light" },
     }).toString();
     expect(query).toBe(
-      "v=1&github=jenkruk&gitlab=contactkruk&layout=data-rich&palette=desert-sunset&mode=light&f=heatmap%2Ctotal%2Cactive%2Cstreak%2Cbreakdown%2Ctrends%2Clabels",
+      "v=1&github=jenkruk&gitlab=contactkruk&layout=data-rich&palette=desert-sunset&mode=light&f=heatmap%2Ctotal%2Cactive%2Cstreak%2Cbreakdown%2Ctrends%2Clabels&hm=platform",
     );
   });
 });
@@ -69,6 +69,7 @@ const LEGACY_EXTRAS = {
   density: "spacious",
   panel: "filled",
   years: 1,
+  heatmapColors: "auto",
 } as const satisfies Omit<VisualizationConfig, "layout" | "palette" | "mode" | "features">;
 const legacy = (c: Pick<VisualizationConfig, "layout" | "palette" | "mode" | "features">): VisualizationConfig =>
   ({
@@ -211,7 +212,7 @@ describe("card params: source attribution", () => {
       },
     }).toString();
     expect(query).toBe(
-      "v=1&github=jenkruk&layout=dashboard&palette=aurora&mode=dark&f=heatmap%2Ctotal%2Cactive%2Cstreak%2Cbreakdown%2Ctrends%2Clabels",
+      "v=1&github=jenkruk&layout=dashboard&palette=aurora&mode=dark&f=heatmap%2Ctotal%2Cactive%2Cstreak%2Cbreakdown%2Ctrends%2Clabels&hm=platform",
     );
   });
 

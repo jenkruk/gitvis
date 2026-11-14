@@ -46,10 +46,28 @@ describe("Phase 4 URL params", () => {
   });
 
   it("leave legacy-equivalent designs with the same params (no new params written; same URL as before)", () => {
-    const query = encodeCardParams({ request: { github: "jenkruk" }, config: createDefaultConfig() }).toString();
+    const legacyEquivalent: VisualizationConfig = { ...createDefaultConfig(), heatmapColors: "auto" };
+    const query = encodeCardParams({ request: { github: "jenkruk" }, config: legacyEquivalent }).toString();
     expect(query).toBe(
       "v=1&github=jenkruk&layout=dashboard&palette=aurora&mode=dark&f=heatmap%2Ctotal%2Cactive%2Cstreak%2Cbreakdown%2Ctrends%2Clabels",
     );
+  });
+
+  it("decode a missing hm as the original heatmap coloring, and round-trip platform and combined", () => {
+    expect(decode("v=1&github=jenkruk").config.heatmapColors).toBe("auto");
+    expect(decode("v=1&github=jenkruk&hm=platform").config.heatmapColors).toBe("platform");
+    expect(decode("v=1&github=jenkruk&hm=combined").config.heatmapColors).toBe("combined");
+    expect(decode("v=1&github=jenkruk&hm=rainbow").issues).toEqual([{ param: "hm", message: "Unknown hm “rainbow”." }]);
+    for (const heatmapColors of ["platform", "combined"] as const) {
+      const config = { ...createDefaultConfig(), heatmapColors };
+      expect(decodeCardParams(encodeCardParams({ request: { github: "jenkruk" }, config })).config).toEqual(config);
+    }
+  });
+
+  it("start new designs with the heatmap colored by platform (written as hm=platform)", () => {
+    expect(createDefaultConfig().heatmapColors).toBe("platform");
+    const query = encodeCardParams({ request: { github: "jenkruk" }, config: createDefaultConfig() });
+    expect(query.get("hm")).toBe("platform");
   });
 
   it("fit within the query limit even with maximal multi-byte name and title", () => {

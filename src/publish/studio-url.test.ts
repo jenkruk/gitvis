@@ -3,7 +3,7 @@ import { createDefaultConfig, type VisualizationConfig } from "@/config/config";
 import { FEATURE_IDS } from "@/config/features";
 import { STAT_FEATURE_IDS } from "@/config/features";
 import { encodeCardParams } from "./card-params";
-import { legacyStudioRedirects, SAMPLE_PARAM, STUDIO_PATH, STUDIO_QUERY_KEYS } from "./studio-url";
+import { hasDesignParams, legacyStudioRedirects, SAMPLE_PARAM, STUDIO_PATH, STUDIO_QUERY_KEYS } from "./studio-url";
 
 const nonDefaultDesign: VisualizationConfig = {
   ...createDefaultConfig(),
@@ -50,5 +50,13 @@ describe("studio URLs", () => {
       expect(r.destination).not.toContain("?");
     }
     expect(redirects.map((r) => r.has[0]!.key)).toContain(SAMPLE_PARAM);
+  });
+
+  it("treats a studio URL with only accounts or the sample flag as a new design", () => {
+    const has = (q: string) => hasDesignParams(new URLSearchParams(q));
+    expect(has("")).toBe(false);
+    expect(has("github=a&gitlab=b&sample=1")).toBe(false);
+    expect(has("v=1&github=a")).toBe(true);
+    expect(has("palette=lagoon")).toBe(true);
   });
 });

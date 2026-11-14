@@ -18,6 +18,7 @@ export type BackgroundStyle = "solid" | "gradient" | "transparent";
 export type DateRangeDays = 30 | 90 | 365;
 export type Density = "compact" | "spacious";
 export type AvatarSide = "left" | "right";
+export type HeatmapColors = "auto" | "platform" | "combined";
 
 export const IDENTITY_STYLES: readonly IdentityStyle[] = ["none", "compact", "full", "centered"];
 export const BACKGROUND_STYLES: readonly BackgroundStyle[] = ["solid", "gradient", "transparent"];
@@ -54,6 +55,7 @@ export interface VisualizationConfig {
   range: DateRangeDays;
   density: Density;
   panel: PanelStyle;
+  heatmapColors: HeatmapColors;
   years: HistoryYears;
 }
 
@@ -113,7 +115,21 @@ export function createDefaultConfig(): VisualizationConfig {
     density: "spacious",
     panel: "filled",
     years: 1,
+    heatmapColors: "platform",
   };
+}
+
+export function hasCustomPlatformColors(config: Pick<VisualizationConfig, "platformColors">): boolean {
+  return PLATFORM_IDS.some((p) => !!config.platformColors[p]);
+}
+
+export function heatmapByPlatform(
+  config: Pick<VisualizationConfig, "heatmapColors" | "platformColors">,
+  platformCount: number,
+): boolean {
+  if (config.heatmapColors === "combined") return false;
+  if (config.heatmapColors === "platform" && platformCount > 1) return true;
+  return hasCustomPlatformColors(config);
 }
 
 export function sanitizeText(value: string, max: number, { finalize = true } = {}): string {
@@ -146,6 +162,7 @@ export type ConfigAction =
   | { type: "setRange"; range: DateRangeDays }
   | { type: "setDensity"; density: Density }
   | { type: "setPanel"; panel: PanelStyle }
+  | { type: "setHeatmapByPlatform"; enabled: boolean }
   | { type: "setYears"; years: HistoryYears }
   | {
       type: "applyPreset";
@@ -213,6 +230,10 @@ export function configReducer(state: VisualizationConfig, action: ConfigAction):
       return state.density === action.density ? state : { ...state, density: action.density };
     case "setPanel":
       return state.panel === action.panel ? state : { ...state, panel: action.panel };
+    case "setHeatmapByPlatform": {
+      const heatmapColors = action.enabled ? "platform" : "combined";
+      return state.heatmapColors === heatmapColors ? state : { ...state, heatmapColors };
+    }
     case "applyPreset":
       if (presetOf(state) === action.preset) return state;
       if (action.preset === "graphic") return identity({ style: "none" });

@@ -43,7 +43,7 @@ The defaults produce a good graphic with no customization. The design lives in t
 - **Statistics:** total contributions (always shown), active days, longest streak, best day, current streak, the GitHub/GitLab breakdown and activity trends, in an order the user chooses.
 - **History:** the last 12 months, or up to three years. Earlier years come from GitHub only, because GitLab publishes just the last 12 months; the graphic says so.
 - **Identity (optional):** a header with avatars, a display name and a professional title, in compact, full or centered styles.
-- **Color:** 24 palettes, each with light and dark variants, six of them featured. Panels can be filled, outlined or borderless; backgrounds solid, gradient or transparent; and each platform can have its own color. Colors are checked and, if needed, adjusted for contrast, and platforms are always labelled, so color never carries meaning alone.
+- **Color:** 24 palettes, each with light and dark variants, six of them featured. Panels can be filled, outlined or borderless; backgrounds solid, gradient or transparent; and each platform can have its own color. With both accounts, the heatmap shows which platform each day's activity came from (or, if preferred, the combined total). Colors are checked and, if needed, adjusted for contrast, and platforms are always labelled, so color never carries meaning alone.
 - **Density:** spacious or compact spacing.
 
 [DESIGN_SYSTEM](DESIGN_SYSTEM.md) has the visual specification for each option.

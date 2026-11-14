@@ -1,4 +1,4 @@
-import { finalText, hasTitle, isFeatureVisible, type VisualizationConfig } from "@/config/config";
+import { finalText, hasTitle, heatmapByPlatform, isFeatureVisible, type VisualizationConfig } from "@/config/config";
 import { formatDate, toISODate } from "@/domain/dates";
 import { type ContributionDataset, PLATFORMS } from "@/domain/types";
 import { computeMetrics, type ContributionMetrics } from "@/metrics/metrics";
@@ -91,7 +91,7 @@ export function Visualization({
     custom.github || custom.gitlab ? { series: [custom.github, custom.gitlab] } : {},
   );
   const panelled = applyPanelStyle(base, config.panel, panelBackdrops(base, config.background, config.mode));
-  const theme = custom.github || custom.gitlab ? withPlatformHeatmap(panelled) : panelled;
+  const theme = heatmapByPlatform(config, dataset.sources.length) ? withPlatformHeatmap(panelled) : panelled;
   const spacing = SPACING[config.density];
   const canvasWidth = CANVAS_WIDTHS[size];
   const compactCanvas = size === "compact";

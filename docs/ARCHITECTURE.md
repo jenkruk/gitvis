@@ -243,28 +243,29 @@ Next.js forbids `react-dom/server` in App Router route handlers, so `src/publish
 /api/card?v=1&github=jenkruk&gitlab=contactkruk&layout=dashboard&palette=aurora&mode=dark&f=heatmap,total,active,streak,breakdown,trends,labels
 ```
 
-| Param              | Values                                                                                                                 | Missing                   |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| `v`                | `1`                                                                                                                    | treated as `1`            |
-| `github`, `gitlab` | validated usernames; at least one required                                                                             | platform not included     |
-| `layout`           | `minimal` · `dashboard` · `data-rich`                                                                                  | `dashboard`               |
-| `palette`          | one of 24 codes (`PALETTE_CODES` in `src/publish/card-params.ts`), e.g. `aurora`, `github-classic`                     | `aurora`                  |
-| `mode`             | `light` · `dark`                                                                                                       | `dark`                    |
-| `f`                | comma list of **enabled** features: `heatmap` `total` `active` `streak` `best` `breakdown` `trends` `labels` `current` | the frozen v1 default set |
-| `size`             | `full` · `compact`                                                                                                     | `full`                    |
-| `hdr`              | `none` · `compact` · `full` · `centered`                                                                               | `none`                    |
-| `av`               | avatars shown: comma list of `github`, `gitlab`                                                                        | none                      |
-| `name`, `title`    | display name (≤ 40) and title (≤ 60), after sanitizing                                                                 | none                      |
-| `left`             | centered header: the platform on the left, `github` · `gitlab`                                                         | `github`                  |
-| `avs`              | compact/full header: the avatars' side, `left` · `right`                                                               | `left`                    |
-| `bg`               | `solid` · `gradient` · `transparent`                                                                                   | `solid`                   |
-| `pc`               | platform colors, `github:ff7a59,gitlab:123456`                                                                         | palette series            |
-| `ord`              | stat order: `total` `active` `streak` `best` `current`; a partial list is completed in default order                   | default order             |
-| `range`            | `30` · `90` · `365`                                                                                                    | `365`                     |
-| `den`              | `spacious` · `compact`                                                                                                 | `spacious`                |
-| `pnl`              | `filled` · `outlined` · `borderless`                                                                                   | `filled`                  |
-| `yrs`              | `1` · `2` · `3` 12-month periods; `2`/`3` require the full range                                                       | `1`                       |
-| `hl`               | legacy handle list; still validated, but has no effect: every connected account is always shown                        | —                         |
+| Param              | Values                                                                                                                 | Missing                         |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `v`                | `1`                                                                                                                    | treated as `1`                  |
+| `github`, `gitlab` | validated usernames; at least one required                                                                             | platform not included           |
+| `layout`           | `minimal` · `dashboard` · `data-rich`                                                                                  | `dashboard`                     |
+| `palette`          | one of 24 codes (`PALETTE_CODES` in `src/publish/card-params.ts`), e.g. `aurora`, `github-classic`                     | `aurora`                        |
+| `mode`             | `light` · `dark`                                                                                                       | `dark`                          |
+| `f`                | comma list of **enabled** features: `heatmap` `total` `active` `streak` `best` `breakdown` `trends` `labels` `current` | the frozen v1 default set       |
+| `size`             | `full` · `compact`                                                                                                     | `full`                          |
+| `hdr`              | `none` · `compact` · `full` · `centered`                                                                               | `none`                          |
+| `av`               | avatars shown: comma list of `github`, `gitlab`                                                                        | none                            |
+| `name`, `title`    | display name (≤ 40) and title (≤ 60), after sanitizing                                                                 | none                            |
+| `left`             | centered header: the platform on the left, `github` · `gitlab`                                                         | `github`                        |
+| `avs`              | compact/full header: the avatars' side, `left` · `right`                                                               | `left`                          |
+| `bg`               | `solid` · `gradient` · `transparent`                                                                                   | `solid`                         |
+| `pc`               | platform colors, `github:ff7a59,gitlab:123456`                                                                         | palette series                  |
+| `hm`               | heatmap colors: `platform` (by platform when both accounts are shown) · `combined` (one ramp)                          | by platform only if `pc` is set |
+| `ord`              | stat order: `total` `active` `streak` `best` `current`; a partial list is completed in default order                   | default order                   |
+| `range`            | `30` · `90` · `365`                                                                                                    | `365`                           |
+| `den`              | `spacious` · `compact`                                                                                                 | `spacious`                      |
+| `pnl`              | `filled` · `outlined` · `borderless`                                                                                   | `filled`                        |
+| `yrs`              | `1` · `2` · `3` 12-month periods; `2`/`3` require the full range                                                       | `1`                             |
+| `hl`               | legacy handle list; still validated, but has no effect: every connected account is always shown                        | —                               |
 
 **Compatibility rules** (`src/publish/card-params.ts`):
 

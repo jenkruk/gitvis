@@ -1,5 +1,5 @@
 import type { Dispatch } from "react";
-import { type ConfigAction, isFeatureVisible, type VisualizationConfig } from "@/config/config";
+import { type ConfigAction, heatmapByPlatform, isFeatureVisible, type VisualizationConfig } from "@/config/config";
 import { FEATURES } from "@/config/features";
 import { type ContributionDataset, PLATFORMS } from "@/domain/types";
 import { Disclosure } from "./controls";
@@ -7,6 +7,7 @@ import { overline } from "@/components/ui/recipes";
 import {
   BackgroundPicker,
   DataPicker,
+  HeatmapColorsSwitch,
   historyAvailability,
   IdentityPicker,
   PanelPicker,
@@ -48,7 +49,12 @@ export function sectionSummaries(config: VisualizationConfig, dataset: Contribut
     identity: [IDENTITY_SUMMARY[config.identity.style], arrangement(config), config.identity.name.trim()]
       .filter(Boolean)
       .join(" · "),
-    colors: [BACKGROUND_SUMMARY[config.background], PANEL_SUMMARY[config.panel], custom ? "Custom colors" : ""]
+    colors: [
+      BACKGROUND_SUMMARY[config.background],
+      PANEL_SUMMARY[config.panel],
+      custom ? "Custom colors" : "",
+      dataset.sources.length > 1 && !heatmapByPlatform(config, dataset.sources.length) ? "Combined heatmap" : "",
+    ]
       .filter(Boolean)
       .join(" · "),
     metrics: `${shown} of ${FEATURES.length} shown`,
@@ -76,6 +82,7 @@ export function DesignControls({ config, dispatch, dataset }: DesignControlsProp
           <BackgroundPicker config={config} dispatch={dispatch} />
           <PanelPicker config={config} dispatch={dispatch} />
           <PlatformColorPicker config={config} dispatch={dispatch} />
+          <HeatmapColorsSwitch config={config} dispatch={dispatch} dataset={dataset} />
         </Disclosure>
         <Disclosure name={ACCORDION} title="Metrics & Charts" summary={summaries.metrics}>
           <FeatureToggles config={config} dispatch={dispatch} dataset={dataset} />

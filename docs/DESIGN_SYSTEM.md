@@ -164,7 +164,15 @@ Independent of the background: any panel style works with Solid, Gradient or Tra
 
 `resolveTheme(palette, mode, { series })` runs each custom color through `ensureContrast(color, surface, 3)`, mixing it toward black or white in 5% steps until it reaches 3:1. The studio shows "Adjusted to … for contrast." when that happens.
 
-**Custom colors also color the heatmap by platform** (`withPlatformHeatmap`, applied after panel-style adjustment): each series color gets a 5-step ramp from `heatmapEmpty` to the series color (level 4 = the series color, ≥ 3:1). A day takes the ramp of the platform with the most contributions (a 50/50 blend on ties); its level still comes from the day's total. The legend labels each hue ("Less GitHub ■■■■ GitLab ■■■■ More"), and studio tooltips always name the platform. Without custom colors, the palette's single ramp is used (unchanged).
+### Heatmap colors
+
+**By platform** (`withPlatformHeatmap`, applied after panel-style adjustment): each series color, the palette's own or a custom one, gets a 5-step ramp from `heatmapEmpty` to the series color (level 4 = the series color, ≥ 3:1). A day takes the ramp of the platform with the most contributions (a 50/50 blend on ties); its level still comes from the day's total. The legend labels each hue ("Less GitHub ■■■■ GitLab ■■■■ More"), and studio tooltips always name the platform. **Combined** uses the palette's single ramp for the day's total.
+
+`heatmapColors` (URL `hm`, Colors & Background → "Color the heatmap by platform") decides which applies (`heatmapByPlatform` in `src/config/config.ts`):
+
+- `platform`, the default for new designs: by platform when both accounts are shown, or when custom platform colors are set.
+- `combined`: always the single ramp.
+- `auto`, for URLs without `hm`: the original behavior, by platform only when custom platform colors are set, so older embeds render unchanged.
 
 ## Profile headers (`src/renderers/IdentityHeader.tsx`, `CenteredHeader.tsx`)
 

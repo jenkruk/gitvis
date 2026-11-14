@@ -27,6 +27,7 @@ export const STUDIO_QUERY_KEYS = [
   "den",
   "pnl",
   "yrs",
+  "hm",
   SAMPLE_PARAM,
 ] as const;
 
@@ -37,4 +38,10 @@ export function legacyStudioRedirects() {
     destination: STUDIO_PATH,
     permanent: false,
   }));
+}
+
+const ACCOUNT_KEYS: readonly string[] = ["github", "gitlab", SAMPLE_PARAM];
+
+export function hasDesignParams(search: URLSearchParams): boolean {
+  return STUDIO_QUERY_KEYS.some((key) => !ACCOUNT_KEYS.includes(key) && search.has(key));
 }

@@ -379,7 +379,7 @@ describe("panel styles (Phase 4.2)", () => {
   });
 });
 
-describe("heatmap colored by platform (custom platform colors)", () => {
+describe("heatmap colored by platform", () => {
   const custom = with_({ type: "setPlatformColor", platform: "gitlab", color: "#a7562a" });
   const cells = (svg: string) =>
     [...svg.matchAll(/<rect [^>]*rx="2" fill="(#[0-9a-f]{6})"><title>([^<]*)<\/title>/g)].map((m) => ({
@@ -387,11 +387,30 @@ describe("heatmap colored by platform (custom platform colors)", () => {
       title: m[2]!,
     }));
 
-  it("leaves the default (no custom colors) on the palette's single ramp", () => {
-    const svg = render(createDefaultConfig());
+  it("keeps the original single ramp for URLs without hm and no custom colors", () => {
+    const svg = render({ ...createDefaultConfig(), heatmapColors: "auto" });
     const theme = resolveTheme("aurora", "dark");
     for (const { fill } of cells(svg)) expect(theme.heatmap).toContain(fill);
     expect(svg).not.toMatch(/>GitLab<\/text><rect/);
+  });
+
+  it("colors new designs with both accounts by platform, using the palette's own series colors", () => {
+    const svg = render(createDefaultConfig());
+    const [githubRamp, gitlabRamp] = withPlatformHeatmap(resolveTheme("aurora", "dark")).platformHeatmap!;
+    expect(gitlabRamp.slice(1)).toContain(cells(svg).find((c) => /\(GitLab \d+\)$/.test(c.title))!.fill);
+    expect(githubRamp.slice(1)).toContain(cells(svg).find((c) => /\(GitHub \d+\)$/.test(c.title))!.fill);
+    expect(svg).toMatch(/>Less<\/text>.*>GitHub<\/text>.*>GitLab<\/text>.*>More<\/text>/s);
+  });
+
+  it("uses the single ramp when switched off, even with custom colors, and for one account", () => {
+    const theme = resolveTheme("aurora", "dark");
+    const off = render(with_({ type: "setHeatmapByPlatform", enabled: false }));
+    for (const { fill } of cells(off)) expect(theme.heatmap).toContain(fill);
+    const offCustom = render({ ...custom, heatmapColors: "combined" });
+    expect(offCustom).not.toMatch(/>GitLab<\/text><rect/);
+    const single = combineSources([dataset.sources[0]!], trailingYear(end), "live");
+    const oneAccount = renderToStaticMarkup(<Visualization dataset={single} config={createDefaultConfig()} />);
+    expect(oneAccount).not.toMatch(/>GitHub<\/text><rect/);
   });
 
   it("colors each day by the platform that contributed most, and labels both ramps", () => {

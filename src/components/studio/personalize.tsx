@@ -6,6 +6,7 @@ import {
   type BackgroundStyle,
   type ConfigAction,
   type Density,
+  hasCustomPlatformColors,
   hasTitle,
   type IdentityStyle,
   NAME_MAX_LENGTH,
@@ -16,7 +17,7 @@ import {
 import type { HistoryYears } from "@/domain/history";
 import { type ContributionDataset, PLATFORM_IDS, PLATFORMS, type PlatformId } from "@/domain/types";
 import { resolveTheme } from "@/theme/palettes";
-import { ControlGroup, RadioCard, SegmentLabel } from "./controls";
+import { ControlGroup, RadioCard, SegmentLabel, Switch } from "./controls";
 import { button, field, focusRing, focusWithin, hint as hintClass } from "@/components/ui/recipes";
 
 interface Props {
@@ -279,6 +280,25 @@ export function PanelPicker({ config, dispatch }: Props) {
         ))}
       </div>
     </ControlGroup>
+  );
+}
+
+export function HeatmapColorsSwitch({ config, dispatch, dataset }: Props & { dataset: ContributionDataset }) {
+  const checked =
+    config.heatmapColors === "platform" || (config.heatmapColors === "auto" && hasCustomPlatformColors(config));
+  const combinedAccounts = dataset.sources.length > 1;
+  return (
+    <Switch
+      id="heatmap-by-platform"
+      label="Color the heatmap by platform"
+      description={
+        combinedAccounts || hasCustomPlatformColors(config)
+          ? "Each day takes the color of the platform with more contributions that day."
+          : "Applies when both accounts are connected."
+      }
+      checked={checked}
+      onChange={(enabled) => dispatch({ type: "setHeatmapByPlatform", enabled })}
+    />
   );
 }
 

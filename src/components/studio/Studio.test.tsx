@@ -281,6 +281,23 @@ describe("design step", () => {
     expect(screen.getByRole("radio", { name: /gradient/i, hidden: true })).toBeChecked();
   });
 
+  it("colors the heatmap by platform by default, with a switch to combine it", async () => {
+    const { user, preview } = design();
+    const section = screen.getByText("Colors & Background", { selector: "summary span" }).closest("details")!;
+    await user.click(within(section).getByText("Colors & Background"));
+    const toggle = screen.getByRole("switch", { name: "Color the heatmap by platform" });
+    expect(toggle).toBeChecked();
+    expect(toggle).toHaveAccessibleDescription(/platform with more contributions/i);
+    const platformLegend = />Less<\/text>.*>GitHub<\/text>.*>GitLab<\/text>.*>More<\/text>/s;
+    expect(preview().innerHTML).toMatch(platformLegend);
+
+    await user.click(toggle);
+    expect(toggle).not.toBeChecked();
+    expect(section.querySelector("summary")).toHaveTextContent("Combined heatmap");
+    expect(new URLSearchParams(window.location.search).get("hm")).toBe("combined");
+    expect(preview().innerHTML).not.toMatch(platformLegend);
+  });
+
   it("marks selected cards with a check as well as color, and keeps the radio semantics", () => {
     design();
     const layout = screen.getByRole("group", { name: "Layout" });

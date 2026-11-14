@@ -25,7 +25,7 @@ test("the full Connect → Design → Publish flow works with the keyboard alone
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   const user = uniqueUser("kbd");
   await upstream(request, user, { count: 12 });
-  await page.goto("/");
+  await page.goto("/studio");
 
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Skip to content" })).toBeFocused();
@@ -85,7 +85,7 @@ test("the full Connect → Design → Publish flow works with the keyboard alone
 });
 
 test("focus moves to the first invalid field and errors are reachable", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/studio");
   const submit = page.getByRole("button", { name: "See my contributions" });
   await tabTo(page, submit);
   await page.keyboard.press("Enter");
@@ -109,7 +109,7 @@ test("browser Back and reload keep the current step and design", async ({ page, 
 });
 
 test("Detailed contribution data opens, and its monthly table is reachable, with the keyboard", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/studio");
   await page.getByRole("button", { name: /try it with sample data/i }).click();
   const panel = page.locator("summary", { hasText: "Detailed contribution data" });
   await tabTo(page, panel);

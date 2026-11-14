@@ -125,7 +125,13 @@
   /*
    * Type scale. One size per role; hierarchy comes from size first, then weight.
    * title 26/32 · heading 20/28 · section 15/22 · body 14/22 · label 14/20 · caption 13/18 · overline 12/16 · code 13/20
+   * Landing page only: display 36→56 (fluid, line height 1.05) · lede 17/26
    */
+  --text-display: clamp(2.25rem, 1.55rem + 2.4vw, 3.5rem);
+  --text-display--line-height: 1.05;
+  --text-display--letter-spacing: -0.032em;
+  --text-lede: 1.0625rem;
+  --text-lede--line-height: 1.625rem;
   --text-title: 1.625rem;
   --text-title--line-height: 2rem;
   --text-title--letter-spacing: -0.022em;

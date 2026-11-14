@@ -1,11 +1,18 @@
 import type { Metadata, Viewport } from "next";
+import { SITE_DESCRIPTION } from "@/config/site";
+import { siteOrigin } from "@/server/origin";
 import { fontVariables } from "./fonts";
 import "./globals.css";
 
+// Absolute URLs in metadata (canonical, Open Graph) always use the production origin, never the
+// request host or a preview deployment (src/server/origin.ts).
 export const metadata: Metadata = {
-  title: "GitVis — Every contribution counts",
-  description:
-    "Combine GitHub and GitLab contribution calendars into one customizable graphic for your GitHub profile README.",
+  metadataBase: siteOrigin(),
+  title: { default: "GitVis — Every contribution counts", template: "%s · GitVis" },
+  description: SITE_DESCRIPTION,
+  applicationName: "GitVis",
+  openGraph: { type: "website", siteName: "GitVis", locale: "en_US" },
+  twitter: { card: "summary_large_image" },
 };
 
 export const viewport: Viewport = {

@@ -152,6 +152,14 @@ Deployment verification moved to Phase 3.2.
 - [x] Totals match each profile: the newest period is each platform's own published year (GitHub from the Sunday a year back, GitLab from the same date), so the combined total equals the two profile totals; verified live (GitHub 650 + GitLab 177 = 827)
 - [x] Centered profile header (`hdr=centered`): name and dates centered, GitHub on the left, GitLab on the right
 
+## Landing page ✅
+
+- [x] `/` landing page (static): headline, one sentence, two calls to action, the real renderer on labelled sample data with three showcase controls, a combined steps/benefits row and the open-source/data facts
+- [x] Studio moved to `/studio`; old `/?…` Edit links redirect (307, query and `#step` kept); `/#step` forwarded on the client; new Edit links use `/studio`
+- [x] `sample=1` opens the studio's Design on sample data (from "Explore with sample data")
+- [x] Metadata on the production origin (canonical, Open Graph, Twitter) and a rendered social preview image
+- [x] Shared header: home, source link, "Open studio" on the landing page
+
 ## Phase 4.3: Design-system depth
 
 **Tasks**

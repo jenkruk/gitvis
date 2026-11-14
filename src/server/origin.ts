@@ -45,3 +45,11 @@ export function resolvePublicOrigin(env: Env, request: { host?: string | null; p
   const proto = request.proto ?? (/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host) ? "http" : "https");
   return { origin: `${proto}://${host}`, environment, source: "request" };
 }
+
+/**
+ * The production origin for page metadata (canonical URLs, Open Graph). Request-independent so
+ * pages stay static: SITE_URL, then Vercel's production URL, else localhost in local builds.
+ */
+export function siteOrigin(env: Env = process.env): URL {
+  return new URL(resolvePublicOrigin(env, { host: null, proto: null }).origin);
+}

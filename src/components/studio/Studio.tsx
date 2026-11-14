@@ -13,6 +13,7 @@ import { MAX_HISTORY_YEARS } from "@/domain/history";
 import { type ContributionDataset, PLATFORMS } from "@/domain/types";
 import { computeMetrics } from "@/metrics/metrics";
 import { type SnippetOptions, studioSearch } from "@/publish/snippets";
+import { SAMPLE_PARAM } from "@/publish/studio-url";
 import { prepareView } from "@/renderers/view";
 import { getPalette } from "@/theme/palettes";
 import { DataView } from "./DataView";
@@ -36,6 +37,8 @@ export interface StudioProps {
   initialRequest?: ConnectRequest | null;
   initialResponse?: ContributionsResponse | null;
   initialConfig?: VisualizationConfig;
+  /** Open Design on the sample data (no accounts), as "Explore with sample data" does. */
+  initialSample?: boolean;
   origin: string;
   isPreviewDeployment?: boolean;
   initialStep?: StepId;
@@ -51,6 +54,7 @@ export function Studio({
   initialRequest = null,
   initialResponse = null,
   initialConfig,
+  initialSample = false,
   origin,
   isPreviewDeployment = false,
   initialStep,
@@ -61,9 +65,10 @@ export function Studio({
   );
   const connection = useContributions({ request: initialRequest, response: initialResponse });
   const [publishOptions, setPublishOptions] = useState<SnippetOptions>({ theme: "selected" });
-  const [exploringSample, setExploringSample] = useState(false);
+  const startOnSample = initialSample && !initialRequest;
+  const [exploringSample, setExploringSample] = useState(startOnSample);
   const [step, setStep] = useState<StepId>(
-    () => initialStep ?? (initialRequest && initialResponse ? "design" : "connect"),
+    () => initialStep ?? ((initialRequest && initialResponse) || startOnSample ? "design" : "connect"),
   );
 
   const dataset = connection.response?.dataset ?? sampleDataset;
@@ -127,12 +132,14 @@ export function Studio({
   }, []);
 
   useEffect(() => {
-    const search = studioSearch(connection.request, config);
+    // Sample exploration stays in the URL (a reload keeps it) until accounts are connected.
+    const sampleFlag = exploringSample && !connection.request ? `${SAMPLE_PARAM}=1` : "";
+    const search = [studioSearch(connection.request, config), sampleFlag].filter(Boolean).join("&");
     const next = `${window.location.pathname}${search ? `?${search}` : ""}#${step}`;
     if (next !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
       window.history.replaceState(null, "", next);
     }
-  }, [connection.request, config, step]);
+  }, [connection.request, config, step, exploringSample]);
 
   const yearsToLoad = config.years > 1 ? MAX_HISTORY_YEARS : 1;
 

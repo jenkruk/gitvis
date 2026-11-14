@@ -21,7 +21,7 @@ for (const viewport of VIEWPORTS) {
     test.use({ viewport: { width: viewport.width, height: viewport.height } });
 
     test("Connect and sample-data Design pass axe (WCAG 2.2 AA) without horizontal scrolling", async ({ page }) => {
-      await page.goto("/");
+      await page.goto("/studio");
       await expect(page.getByRole("heading", { name: "Create your contribution graphic" })).toBeVisible();
       await expandAll(page);
       await expectAccessible(page, `connect ${viewport.name}`);
@@ -58,7 +58,7 @@ for (const viewport of VIEWPORTS) {
 
 test.describe("states", () => {
   test("validation errors are announced, linked to the field and pass axe", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/studio");
     const gitlab = page.getByRole("textbox", { name: /gitlab username/i });
     await gitlab.fill("bad..name");
     await page.getByRole("button", { name: "See my contributions" }).click();
@@ -73,7 +73,7 @@ test.describe("states", () => {
     const down = uniqueUser("partial-down");
     await upstream(request, ok, { count: 4 });
     await upstream(request, down, { mode: "fail" });
-    await page.goto("/");
+    await page.goto("/studio");
     await page.getByRole("textbox", { name: /github username/i }).fill(ok);
     await page.getByRole("textbox", { name: /gitlab username/i }).fill(down);
     await page.getByRole("button", { name: "See my contributions" }).click();
@@ -93,7 +93,7 @@ test.describe("states", () => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     const user = uniqueUser("motion");
     await upstream(request, user, { count: 1 });
-    await page.goto("/");
+    await page.goto("/studio");
     await page.getByRole("textbox", { name: /gitlab username/i }).fill(user);
     await page.getByRole("button", { name: "See my contributions" }).click();
     const running = () => page.evaluate(() => document.getAnimations().filter((a) => a.playState === "running").length);

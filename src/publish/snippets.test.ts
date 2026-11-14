@@ -25,7 +25,7 @@ describe("publish snippets", () => {
     const card = new URL(cardUrl(origin, params));
     const edit = new URL(editUrl(origin, params));
     expect(card.pathname).toBe("/api/card");
-    expect(edit.pathname).toBe("/");
+    expect(edit.pathname).toBe("/studio");
     for (const url of [card, edit]) {
       expect(decodeCardParams(url.searchParams)).toEqual({ ...params, issues: [] });
     }

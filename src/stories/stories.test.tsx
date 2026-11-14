@@ -8,6 +8,7 @@ import * as DataViewStories from "@/components/studio/DataView.stories";
 import * as PreviewFrameStories from "@/components/studio/PreviewFrame.stories";
 import * as StudioStories from "@/components/studio/Studio.stories";
 import * as FoundationsStories from "@/components/ui/Foundations.stories";
+import * as LandingStories from "@/components/landing/Landing.stories";
 import * as HeatmapStories from "@/renderers/Heatmap.stories";
 import * as StatCardsStories from "@/renderers/StatCards.stories";
 import * as VisualizationStories from "@/renderers/Visualization.stories";
@@ -33,6 +34,7 @@ const studioModules = {
   DesignControls: DesignControlsStories,
   StepNav: StepNavStories,
   Foundations: FoundationsStories,
+  Landing: LandingStories,
 };
 
 describe.each(Object.entries(studioModules))("%s stories", (_name, mod) => {

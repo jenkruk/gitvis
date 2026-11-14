@@ -21,15 +21,19 @@ The differentiator is **the customization experience**. GitVis is a small design
 | Developer with mostly private work         | A way to show _that_ they are active, as counts only and never content |
 | Hiring managers and readers                | A clear, readable, accurate summary with obvious platform attribution  |
 
+## Landing page
+
+`/` introduces GitVis in one screen: the headline (_Your work deserves to be seen._), one sentence, **Create your graphic** (the studio at Connect) and **Explore with sample data** (the studio at Design, sample data, never publishable), beside a real GitVis graphic drawn from labelled sample data. Three small controls (Graphic / Profile card, three palettes, light / dark) show the range without becoming a second studio, and both calls to action carry the choice into the studio. Below: one row pairing the three steps with their benefits, and the open-source and data facts. No sign-in, analytics or tracking.
+
 ## Core flow
 
-A guided, three-step studio. A step indicator shows where you are; completed steps can be revisited, and going back never loses a setting.
+A guided, three-step studio at `/studio`. A step indicator shows where you are; completed steps can be revisited, and going back never loses a setting.
 
 1. **Connect.** Two username fields (GitHub, GitLab; either can be blank, and they can differ) and one action: _See my contributions_. When every account loads, the studio moves on to Design. A partial failure stays on Connect with Retry and _Continue with available data_. Visitors can also _try it with sample data_ (never publishable).
 2. **Design.** Start from a preset — **Contribution graphic** or **Developer profile card** — then pick a layout (Minimal, Dashboard, Data-rich), light or dark mode, and one of six featured palettes (_View all 15_). Everything else is optional and collapsed: Identity, Colors & Background, Metrics & Charts, Display. The live preview sits beside the controls on desktop and above them, expandable, on phones.
 3. **Publish.** The real published image, _Copy README Markdown_ as the main action, SVG/PNG downloads, the image URL and _Edit design_. Markdown details and embed options are tucked into one collapsed section, so README syntax only appears here.
 
-Defaults produce a good graphic with no customization. The design and accounts live in the URL (the Edit link), and the current step in its hash, so reloads and shared links restore everything.
+Defaults produce a good graphic with no customization. The design and accounts live in the URL (the Edit link), and the current step in its hash, so reloads and shared links restore everything. Edit links made before the studio moved to `/studio` still work (redirected).
 
 ## Features
 

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { resolvePublicOrigin } from "./origin";
+import { resolvePublicOrigin, siteOrigin } from "./origin";
 
 const previewEnv = {
   VERCEL_ENV: "preview",
@@ -61,5 +61,13 @@ describe("resolvePublicOrigin", () => {
     resolvePublicOrigin({ VERCEL_ENV: "production" }, { host: "evil.example" });
     expect(log).toHaveBeenCalled();
     log.mockRestore();
+  });
+});
+
+describe("siteOrigin", () => {
+  it("is the production origin for metadata, never a preview host", () => {
+    expect(siteOrigin({ VERCEL_ENV: "production", SITE_URL: "https://gitvis.app/" }).href).toBe("https://gitvis.app/");
+    expect(siteOrigin(previewEnv).href).toBe("https://gitvis.app/");
+    expect(siteOrigin({}).href).toBe("http://localhost:3000/");
   });
 });

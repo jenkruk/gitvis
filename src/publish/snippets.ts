@@ -4,6 +4,7 @@ import { GITVIS_REPO_URL } from "@/config/site";
 import { type ColorMode, resolveTheme } from "@/theme/palettes";
 import { PLATFORM_IDS, PLATFORMS } from "@/domain/types";
 import { type CardParams, encodeCardParams } from "./card-params";
+import { STUDIO_PATH } from "./studio-url";
 import { escapeMarkup } from "./svg-markup";
 
 export type ReadmeTheme = "selected" | "auto";
@@ -12,8 +13,9 @@ export function cardUrl(origin: string, params: CardParams): string {
   return `${origin}/api/card?${encodeCardParams(params)}`;
 }
 
+/** Reopens the studio with this design. Edit links from before Nov 2026 use `/?…` and are redirected. */
 export function editUrl(origin: string, params: CardParams): string {
-  return `${origin}/?${encodeCardParams(params)}`;
+  return `${origin}${STUDIO_PATH}?${encodeCardParams(params)}`;
 }
 
 export function altText(request: ConnectRequest): string {

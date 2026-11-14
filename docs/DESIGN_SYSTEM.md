@@ -87,6 +87,16 @@ Nothing in the studio is smaller than 12px, and only the overline and step numbe
 - **Disclosures:** one header style (`disclosureSummary` + a right-hand chevron that turns when open) for every `<details>`. The four Design "More options" sections share `name="more-options"`: a native single-open accordion (opening one closes the other; each can be closed; content stays mounted so no setting is lost; collapsed headers keep their summary). A small toggle handler keeps the clicked header in place where browsers lack scroll anchoring.
 - **Callouts:** `callout("warning" | "danger" | "success" | "neutral")`, always with an icon or words that carry the meaning.
 
+## Landing page (`src/components/landing`)
+
+The studio is a workspace; the landing page is an introduction. Same tokens, fonts and recipes, with two landing-only type sizes (`text-display`, fluid 36→56px; `text-lede`, 17/26).
+
+- **Hero:** copy and actions on the left (5/12), the graphic on the right (7/12) at `lg`; stacked, copy first, below it. At 1280×800 the headline, the sentence, both actions and most of the graphic are above the fold; on phones the headline and primary action are.
+- **The graphic is the product:** the production `Visualization` on the labelled sample dataset, inside a quiet GitHub README frame (`README.md` tab, GitHub's page and border colors) via `PreviewStage`. No illustrations or mock screenshots.
+- **Showcase controls:** three native radio groups in the `BackdropPicker` segmented style: Graphic / Profile card, three palettes (Lagoon, GitHub Classic, Terracotta), Light / Dark. Their accessible names contain the visible text.
+- **Below the hero:** one "How it works" row where each step carries its benefit (Connect → one view, Design → make it yours, Publish → set and forget), then the open-source and data facts as a short checklist. No feature cards, testimonials or pricing.
+- **Copy rules:** "contributions", never "commits"; no refresh promises beyond "refreshes on its own"; private activity described as counts the profile already shows.
+
 ## Palettes (`src/theme/palettes.ts`)
 
 Each palette defines **light and dark** variants with these tokens:
@@ -192,6 +202,7 @@ Every published graphic names the accounts behind its data: "● GitHub @jenkruk
 - **Graphic/Visualization:** every layout, the 24 × 2 palette gallery, year cards in every panel style, long-username attribution, backgrounds over GitHub light/dark, ranges, densities, profile headers (avatar and monogram), custom colors, the compact phone image.
 - **Graphic/Heatmap** and **Graphic/Metric cards:** the section components with palette, mode, width, density and count controls.
 - **Studio/Guided studio:** each step (Connect, Design with data or sample data, Publish) at desktop and phone viewports. Publish stories render the real published URL offline via `renderSampleCard` (production decoder + renderer), so they show a meaningful image instead of a failed request.
+- **Landing/Page:** the landing page (desktop and phone), the hero alone and the details below it.
 - **Studio/Foundations:** tokens, type scale, buttons, controls, callouts and the app shell (desktop and phone).
 - **Studio/Design controls** (the Design column on the real reducer, including the profile-card preset and a non-curated palette), **Studio/Step navigation** and **Studio/Preview modes**.
 

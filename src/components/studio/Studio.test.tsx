@@ -55,6 +55,25 @@ describe("guided steps", () => {
     expect(screen.queryByRole("textbox", { name: "README Markdown" })).not.toBeInTheDocument();
   });
 
+  it("opens Design on labelled sample data when asked (the landing page's sample link), and keeps that in the URL", () => {
+    const { heading, stepButton } = setup({ initialSample: true });
+    expect(heading()).toHaveTextContent("Design your graphic");
+    expect(screen.getByText(/previewing/i)).toHaveTextContent(/sample data/i);
+    expect(stepButton("Publish")).toBeDisabled();
+    expect(new URLSearchParams(window.location.search).get("sample")).toBe("1");
+    expect(window.location.hash).toBe("#design");
+  });
+
+  it("ignores the sample request when accounts are in the URL", () => {
+    const { heading } = setup({
+      initialSample: true,
+      initialRequest: { gitlab: "contactkruk" },
+      initialResponse: live,
+    });
+    expect(heading()).toHaveTextContent("Design your graphic");
+    expect(new URLSearchParams(window.location.search).has("sample")).toBe(false);
+  });
+
   it("opens shared links (data in the URL) on Design", () => {
     const { heading, stepButton } = setup({ initialRequest: { gitlab: "contactkruk" }, initialResponse: live });
     expect(heading()).toHaveTextContent("Design your graphic");

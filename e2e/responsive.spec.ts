@@ -22,7 +22,7 @@ test.describe("mobile editing (375px)", () => {
   test.use({ viewport: { width: 375, height: 812 }, hasTouch: true });
 
   test("controls stay usable, readable and in sync with the preview", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/studio");
     expect(await undersizedTargets(page)).toEqual([]);
 
     await page.getByRole("button", { name: /try it with sample data/i }).tap();
@@ -47,7 +47,7 @@ test.describe("mobile editing (375px)", () => {
   });
 
   test("the preview starts compact and expands on demand", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/studio");
     await page.getByRole("button", { name: /try it with sample data/i }).tap();
     const region = page.locator("#preview-region");
     const collapsed = (await region.boundingBox())!.height;
@@ -62,7 +62,7 @@ test.describe("mobile editing (375px)", () => {
   test("the preview shows the full README image, scaled to fit the phone, with no device switcher", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/studio");
     await page.getByRole("button", { name: /try it with sample data/i }).tap();
     await expect(page.getByRole("radio", { name: "Mobile" })).toHaveCount(0);
     const graphic = page.getByRole("img", { name: "Contribution activity" });

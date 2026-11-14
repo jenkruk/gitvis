@@ -12,8 +12,10 @@ describe("AppShell footer", () => {
     );
     const footer = screen.getByRole("contentinfo");
     expect(footer).toHaveTextContent("Open source (MIT)");
-    const link = screen.getByRole("link", { name: "View the source on GitHub" });
+    const link = screen.getByRole("link", { name: "View the source on GitHub (opens in a new tab)" });
     expect(link).toHaveAttribute("href", GITVIS_REPO_URL);
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
     expect(footer).toContainElement(link);
   });
 });

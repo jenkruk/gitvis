@@ -4,13 +4,13 @@ Status: **not deployed.** This document is the plan, the checklist, and the evid
 
 ## 1. Environment variables
 
-| Variable                                                                                                   | Production                                  | Preview                            | Notes                                                                                                                                                                               |
-| ---------------------------------------------------------------------------------------------------------- | ------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GITHUB_TOKEN`                                                                                             | **Required**                                | Recommended (a separate token)     | Fine-grained PAT, **Public repositories (read-only)**, no account or repository permissions. Prefer a dedicated bot account (its own 5,000 points/h budget). Mark it **Sensitive**. |
-| `SITE_URL`                                                                                                 | **Required**: `https://<production domain>` | Set to the **same production URL** | The canonical origin for every published URL. Setting it in Preview too protects previews even if system env vars are ever disabled.                                                |
-| System environment variables                                                                               | Enabled (default)                           | Enabled (default)                  | `VERCEL_ENV` and `VERCEL_PROJECT_PRODUCTION_URL` drive the production-only origin and the test-override guard.                                                                      |
-| `GITVIS_DATA_TTL_SECONDS`, `GITVIS_MAX_STALE_SECONDS`, `GITVIS_GITHUB_GRAPHQL_URL`, `GITVIS_GITLAB_ORIGIN` | **Never set**                               | **Never set**                      | E2E-only. Ignored when `VERCEL_ENV=production`, but don't rely on that.                                                                                                             |
-| `GITLAB_TOKEN`                                                                                             | Not used                                    | Not used                           | GitLab GraphQL is deferred; `calendar.json` needs no token.                                                                                                                         |
+| Variable                                                                                                   | Production                                  | Preview                            | Notes                                                                                                                                                                                                                 |
+| ---------------------------------------------------------------------------------------------------------- | ------------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GITHUB_TOKEN`                                                                                             | **Required**                                | Recommended (a separate token)     | Fine-grained PAT, **Public repositories (read-only)**, no account or repository permissions. Prefer a dedicated bot account (its own 5,000 points/h budget). Mark it **Sensitive**.                                   |
+| `SITE_URL`                                                                                                 | **Required**: `https://<production domain>` | Set to the **same production URL** | The canonical origin for every published URL, and (read at build time) for page metadata: canonical links and Open Graph URLs. Setting it in Preview too protects previews even if system env vars are ever disabled. |
+| System environment variables                                                                               | Enabled (default)                           | Enabled (default)                  | `VERCEL_ENV` and `VERCEL_PROJECT_PRODUCTION_URL` drive the production-only origin and the test-override guard.                                                                                                        |
+| `GITVIS_DATA_TTL_SECONDS`, `GITVIS_MAX_STALE_SECONDS`, `GITVIS_GITHUB_GRAPHQL_URL`, `GITVIS_GITLAB_ORIGIN` | **Never set**                               | **Never set**                      | E2E-only. Ignored when `VERCEL_ENV=production`, but don't rely on that.                                                                                                                                               |
+| `GITLAB_TOKEN`                                                                                             | Not used                                    | Not used                           | GitLab GraphQL is deferred; `calendar.json` needs no token.                                                                                                                                                           |
 
 ## 2. Vercel project settings
 
@@ -88,6 +88,13 @@ Assumptions:
 ## 7. Post-deployment verification
 
 Replace `$SITE` with the production origin and `$Q` with `v=1&github=jenkruk&gitlab=contactkruk&layout=dashboard`.
+
+**Landing page and redirects**
+
+```bash
+curl -s "$SITE/" | grep -oE '<link rel="canonical"[^>]*>|<meta property="og:(url|image)"[^>]*>'   # expect $SITE, never a *.vercel.app host
+curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' "$SITE/?$Q"                              # expect 307 → $SITE/studio?$Q
+```
 
 **A. Headers and edge cache**
 

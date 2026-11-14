@@ -125,7 +125,7 @@ Each palette defines **light and dark** variants with these tokens:
 | Ember           | Coral → amber                            |
 | Monochrome      | Neutral grays                            |
 | GitHub Classic  | Familiar greens                          |
-| GitLab Inspired | Orange → purple                          |
+| GitLab Inspired | Rust → amber on grey (GitLab's calendar) |
 | Nordic Frost    | Frost blue → teal                        |
 | Solarized       | Solarized-style tones                    |
 | Midnight Neon   | Magenta → cyan glow                      |

@@ -38,7 +38,7 @@ npm run dev                  # http://localhost:3000
 
 ## Contributing
 
-Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) for setup, checks and project rules; the technical docs below go deeper. Please follow the [Code of Conduct](CODE_OF_CONDUCT.md). To report a security issue, see [SECURITY.md](SECURITY.md); please don't open a public issue.
+Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) for setup and project guidelines. See the technical documentation below for more detail. Please follow the [Code of Conduct](CODE_OF_CONDUCT.md), and report security issues privately using the instructions in [SECURITY.md](SECURITY.md).
 
 ## Docs
 

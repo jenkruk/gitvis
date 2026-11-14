@@ -1,5 +1,4 @@
 export const LOGO_VIEWBOX = 24;
-/** Mineral teal: the brand mark (header, favicon, app icons). */
 export const LOGO_COLOR = "#4baeaa";
 
 export const LOGO_CELLS = [0.35, 0.6, 1, 0.6, 1, 0.35, 1, 0.35, 0.6].map((opacity, i) => ({

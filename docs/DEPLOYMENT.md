@@ -72,8 +72,8 @@ Assumptions:
   - raise the edge TTL on `ok` cards (fewer invocations, at the cost of freshness);
   - add an in-process read-through memo (cheap, per instance).
 - **GitHub API:** each user costs at most 2 GraphQL calls/day, plus failure retries, against 5,000 points/h.
-- **History (Phase 4.2, opt-in `yrs=2|3`):** one GraphQL request per user per **week** at most (all missing years in one aliased query), plus 2–4 Runtime Cache reads per multi-year card invocation (one per calendar year; ~10–25 KB each). Multi-year SVGs are larger (~100–150 KB for 3 years: one titled cell per day), so 200 responses cost more transfer; 304s are unaffected.
-- **Avatars (Phase 4, opt-in):** one Runtime Cache read per avatar per card invocation (entries are ≤ ~90 KB base64, so up to ~1–2 units each) and at most one upstream image fetch per avatar per 24h. Cards with avatars are also larger (≤ ~180 KB with two avatars), so 200 responses cost more transfer; 304s are unaffected. At the beta's scale this adds well under 10% to Runtime Cache reads.
+- **History (opt-in `yrs=2|3`):** one GraphQL request per user per **week** at most (all missing years in one aliased query), plus 2–4 Runtime Cache reads per multi-year card invocation (one per calendar year; ~10–25 KB each). Multi-year SVGs are larger (~100–150 KB for 3 years: one titled cell per day), so 200 responses cost more transfer; 304s are unaffected.
+- **Avatars (opt-in):** one Runtime Cache read per avatar per card invocation (entries are ≤ ~90 KB base64, so up to ~1–2 units each) and at most one upstream image fetch per avatar per 24h. Cards with avatars are also larger (≤ ~180 KB with two avatars), so 200 responses cost more transfer; 304s are unaffected. At the beta's scale this adds well under 10% to Runtime Cache reads.
 
 ## 6. Deployment checklist (do in order; needs approval)
 
@@ -83,7 +83,7 @@ Assumptions:
 4. [ ] Leave preview Deployment Protection on. Leave bot protection Off. Publish the WAF rules from section 3, with rule 1 in Log mode.
 5. [ ] Deploy a **preview** first and run section 7, steps A–C, against it, using its protection bypass.
 6. [ ] Promote to production. Attach the custom domain, which must match `SITE_URL`.
-7. [ ] Run section 7 against production. Record the results in `docs/ROADMAP.md` (Phase 3.2).
+7. [ ] Run section 7 against production. Record the results in `docs/ROADMAP.md`.
 
 ## 7. Post-deployment verification
 

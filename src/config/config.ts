@@ -17,7 +17,6 @@ export type IdentityStyle = "none" | "compact" | "full" | "centered";
 export type BackgroundStyle = "solid" | "gradient" | "transparent";
 export type DateRangeDays = 30 | 90 | 365;
 export type Density = "compact" | "spacious";
-/** Where the avatars sit in the Compact and Full profile headers. */
 export type AvatarSide = "left" | "right";
 
 export const IDENTITY_STYLES: readonly IdentityStyle[] = ["none", "compact", "full", "centered"];
@@ -39,9 +38,7 @@ export interface IdentityConfig {
   avatars: PlatformId[];
   name: string;
   title: string;
-  /** Centered profile: the platform shown on the left (the other takes the right). */
   leftPlatform: PlatformId;
-  /** Compact and Full profiles: the side the avatars sit on. */
   avatarSide: AvatarSide;
 }
 

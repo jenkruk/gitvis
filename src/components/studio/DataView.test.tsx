@@ -139,7 +139,6 @@ describe("Detailed contribution data", () => {
     expect(github).toMatch(/^[\d,]+$/);
     expect(gitlab).toMatch(/^[\d,]+ from Oct 31$/);
     expect(total).toMatch(/^[\d,]+ incomplete$/);
-    // Fully covered months read as plain numbers; the note explains the marks once.
     const rows = within(table).getAllByRole("row").slice(2);
     for (const row of rows) expect(cells(row).join(" ")).not.toMatch(/incomplete|from|Not available/);
     expect(screen.getByText(/that month's total is marked incomplete/)).toBeVisible();

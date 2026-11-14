@@ -1,4 +1,4 @@
-![GitVis: a combined GitHub and GitLab contribution card with a heatmap, platform breakdown and activity charts, shown with sample data](docs/images/gitvis-preview.png)
+![The GitVis landing page: "Your work deserves to be seen." beside a live GitVis graphic of combined GitHub and GitLab contributions, drawn from sample data](docs/images/gitvis-preview.png)
 
 **Every contribution counts.** GitVis combines your GitHub and GitLab contribution calendars into one customizable graphic for your GitHub profile README.
 

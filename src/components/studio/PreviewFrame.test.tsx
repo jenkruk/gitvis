@@ -3,7 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { createSampleDataset } from "@/fixtures/sample-dataset";
 import { computeMetrics } from "@/metrics/metrics";
-import { PreviewFrame, README_COLUMN_WIDTH } from "./PreviewFrame";
+import { GITHUB_README_WIDTH } from "@/theme/palettes";
+import { PreviewFrame } from "./PreviewFrame";
 import { createDefaultConfig, type VisualizationConfig } from "@/config/config";
 import { Studio } from "./Studio";
 
@@ -12,7 +13,7 @@ describe("preview", () => {
     render(<Studio sampleDataset={createSampleDataset()} origin="https://gitvis.test" initialStep="design" />);
     expect(screen.queryByRole("group", { name: "Preview width" })).not.toBeInTheDocument();
     expect(screen.queryByRole("radio", { name: /mobile|tablet/i })).not.toBeInTheDocument();
-    expect(screen.getByTestId("preview-column")).toHaveStyle({ maxWidth: `${README_COLUMN_WIDTH}px` });
+    expect(screen.getByTestId("preview-column")).toHaveStyle({ maxWidth: `${GITHUB_README_WIDTH}px` });
     expect(screen.getByRole("img", { name: "Contribution activity" })).toHaveAttribute("width", "840");
   });
 });
@@ -50,7 +51,6 @@ describe("preview backdrops", () => {
     const { container } = render(<PreviewFrame dataset={dataset} config={config} metrics={metrics} busy={false} />);
     const stage = () => container.querySelector("[data-backdrop]") as HTMLElement;
     const backdrops = screen.getByRole("group", { name: "Backdrop" });
-    // Only GitHub's two README pages: the graphic never appears anywhere else.
     expect(
       within(backdrops)
         .getAllByRole("radio")
@@ -63,7 +63,6 @@ describe("preview backdrops", () => {
     expect(stage().style.background).toBe(hexToRgb("#ffffff"));
     await user.click(within(backdrops).getByRole("radio", { name: "GitHub dark" }));
     expect(stage().style.background).toBe(hexToRgb("#0d1117"));
-    // The graphic itself is untouched: same palette background, same size.
     expect(screen.getByRole("img", { name: "Contribution activity" })).toHaveAttribute("width", "840");
   });
 
@@ -75,7 +74,6 @@ describe("preview backdrops", () => {
     expect(screen.queryByRole("button", { name: "View full size" })).not.toBeInTheDocument();
     rerender(<PreviewFrame dataset={dataset} config={createDefaultConfig()} metrics={metrics} busy={false} fit />);
     await user.click(screen.getByRole("button", { name: "View full size" }));
-    // The copy in the dialog has its own ids, so aria references never collide with the preview.
     expect(document.getElementById("preview-full-title")).not.toBeNull();
     expect(document.getElementById("preview-title")).not.toBeNull();
   });

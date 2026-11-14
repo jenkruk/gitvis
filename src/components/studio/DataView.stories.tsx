@@ -8,8 +8,8 @@ import { createSampleDataset } from "@/fixtures/sample-dataset";
 import { DataView } from "./DataView";
 
 /**
- * "Detailed contribution data": the text-and-table alternative under the preview. Shown expanded
- * here; in the studio it starts collapsed. Toggle the toolbar theme to review light and dark.
+ * "Detailed contribution data": the graphic's data as text and tables. Expanded here; collapsed in
+ * the studio.
  */
 function Panel({ dataset, config }: { dataset: ContributionDataset; config: VisualizationConfig }) {
   const prepared = prepareView(dataset, config);

@@ -271,14 +271,12 @@ describe("design step", () => {
     const { user } = design();
     const section = (title: string) => screen.getByText(title, { selector: "summary span" }).closest("details")!;
     const titles = ["Identity", "Colors & Background", "Metrics & Charts", "Display"];
-    // Native exclusive accordion: every section shares one name, so opening one closes the others.
     expect(new Set(titles.map((t) => section(t).getAttribute("name")))).toEqual(new Set(["more-options"]));
 
     await user.click(within(section("Colors & Background")).getByText("Colors & Background"));
     await user.click(screen.getByRole("radio", { name: /gradient/i }));
     await user.click(within(section("Colors & Background")).getByText("Colors & Background"));
     expect(section("Colors & Background")).not.toHaveAttribute("open");
-    // Closed, the setting survives and its header still summarizes it.
     expect(section("Colors & Background").querySelector("summary")).toHaveTextContent("Gradient");
     expect(screen.getByRole("radio", { name: /gradient/i, hidden: true })).toBeChecked();
   });

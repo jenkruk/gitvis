@@ -18,21 +18,11 @@ import {
   summaryStats,
 } from "./data-view-model";
 
-/** Section headings inside the panel: one step below the disclosure title. */
 const sectionTitle = "text-label font-semibold text-fg";
 const scope = "text-caption text-fg-muted";
 const numeric = "text-right tabular-nums";
 const headerCell = "py-2 font-medium text-fg-muted";
 
-/**
- * "Detailed contribution data": the graphic's data as text and tables, for screen readers,
- * keyboard users and anyone who wants the numbers. Collapsed by default and visually secondary.
- *
- * A short summary leads; then Contribution history (one row per 12-month period), Summary
- * statistics, and Monthly contributions in a nested disclosure. Every table is a real <table>
- * with a caption, column headers and row headers; unavailable data reads "Not available", never 0.
- * The SVG keeps its own <title>/<desc>, because a README embed has none of this.
- */
 export function DataView({
   prepared,
   metrics,
@@ -42,7 +32,6 @@ export function DataView({
   prepared: PreparedView;
   metrics: ContributionMetrics;
   config: Pick<VisualizationConfig, "features" | "layout" | "metricOrder" | "range">;
-  /** Stories only: start expanded. The studio always starts collapsed. */
   defaultOpen?: boolean;
 }) {
   const ids = useId();
@@ -68,7 +57,7 @@ export function DataView({
 
         <TableScroll labelledBy={`${ids}-history`}>
           <table className="w-full border-collapse text-left">
-            {/* The caption is the section's heading and its scope (a heading inside a caption is valid). */}
+            {/* A heading inside a <caption> is valid HTML. */}
             <caption id={`${ids}-history`} className="mb-1 text-left">
               <h4 className={sectionTitle}>Contribution history</h4>{" "}
               <span className={`block ${scope}`}>
@@ -128,7 +117,6 @@ export function DataView({
           </div>
         )}
 
-        {/* Mirrors the graphic's stat cards: only the enabled statistics, in the chosen order. */}
         {(stats.length > 0 || split) && (
           <section aria-labelledby={`${ids}-stats`}>
             <h4 id={`${ids}-stats`} className={sectionTitle}>
@@ -242,11 +230,6 @@ export function DataView({
   );
 }
 
-/**
- * Joins parts so a column breaks only between them ("Oct 26, 2025 –" / "Oct 31, 2026"), never
- * inside a date or a "GitLab 43%" entry. On phones the parts may wrap too, so the tables fit a
- * 320px screen. The text (and accessible name) is unchanged.
- */
 function Unbroken({ parts, separator }: { parts: string[]; separator: string }) {
   const joint = separator.trimEnd();
   return parts.map((part, i) => (
@@ -260,12 +243,6 @@ function Unbroken({ parts, separator }: { parts: string[]; separator: string }) 
   ));
 }
 
-/**
- * Data tables may scroll sideways rather than reflow (WCAG 1.4.10 exempts them). They fit from
- * 320px up, so this is a safety net (large text, 400% zoom): only while the table actually
- * overflows does the wrapper become a labelled, focusable region that keyboard users can scroll.
- * Otherwise it adds no tab stop.
- */
 function TableScroll({ labelledBy, children }: { labelledBy: string; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [overflowing, setOverflowing] = useState(false);

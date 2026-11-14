@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import {
-  expandAll,
+  expandStandaloneDisclosures,
   expectNoHorizontalScroll,
   forEachSection,
   openSection,
@@ -95,11 +95,11 @@ for (const width of [320, 375, 768, 1280]) {
     await forEachSection(page, () => expectNoHorizontalScroll(page));
 
     await page.getByRole("button", { name: "Change accounts" }).click();
-    await expandAll(page);
+    await expandStandaloneDisclosures(page);
     await expectNoHorizontalScroll(page);
 
     await page.getByRole("button", { name: /step 3: publish/i }).click();
-    await expandAll(page);
+    await expandStandaloneDisclosures(page);
     await expect(page.getByRole("textbox", { name: "README Markdown" })).toBeVisible();
     await expectNoHorizontalScroll(page);
   });

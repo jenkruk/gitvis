@@ -8,8 +8,7 @@ const VIEWPORTS = [
   { width: 1280, height: 800 },
 ];
 
-/** The radios are visually hidden native inputs; users click their labels. */
-const pick = (page: import("@playwright/test").Page, name: string) =>
+const clickRadioLabel = (page: import("@playwright/test").Page, name: string) =>
   page.locator("label", { has: page.getByRole("radio", { name, exact: true }) }).click();
 
 const showcase = (page: import("@playwright/test").Page) =>
@@ -34,7 +33,6 @@ for (const viewport of VIEWPORTS) {
       const cta = page.getByRole("link", { name: "Create your graphic" });
       await expect(cta).toBeInViewport({ ratio: 1 });
       await expect(page.getByRole("heading", { level: 1 })).toBeInViewport({ ratio: 1 });
-      // Desktop: a meaningful part of the real graphic is above the fold too.
       if (viewport.width >= 1024) await expect(showcase(page)).toBeInViewport({ ratio: 0.6 });
     });
   });
@@ -58,14 +56,13 @@ test("the showcase controls are keyboard operable and drive the real graphic", a
   await page.getByRole("radio", { name: "Contribution graphic" }).focus();
   await page.keyboard.press("ArrowRight");
   await expect(page.getByRole("radio", { name: "Developer profile card" })).toBeChecked();
-  // The profile card adds the identity header, so the real graphic grows taller.
+  // The profile header makes the graphic taller, so its viewBox changes.
   await expect.poll(viewBox).not.toBe(before);
 
-  await pick(page, "Light theme");
+  await clickRadioLabel(page, "Light theme");
   await expect(page.locator("figure [data-mode]")).toHaveAttribute("data-mode", "light");
-  await pick(page, "Terracotta");
+  await clickRadioLabel(page, "Terracotta");
 
-  // Both calls to action carry the chosen design into the studio.
   const href = await page.getByRole("link", { name: "Create your graphic" }).getAttribute("href");
   expect(href).toMatch(/^\/studio\?/);
   expect(href).toContain("palette=terracotta");
@@ -82,7 +79,7 @@ test("Create your graphic opens the studio at Connect", async ({ page }) => {
 
 test("Explore with sample data opens Design on labelled sample data that can't be published", async ({ page }) => {
   await page.goto("/");
-  await pick(page, "GitHub Classic");
+  await clickRadioLabel(page, "GitHub Classic");
   await page.getByRole("link", { name: "Explore with sample data" }).click();
   await expect(page).toHaveURL(/\/studio\?.*palette=github-classic.*sample=1#design$/);
   await expect(stepHeading(page)).toHaveText(/design your graphic/i);

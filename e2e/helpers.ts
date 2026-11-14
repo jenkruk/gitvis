@@ -73,12 +73,7 @@ export async function expectNoHorizontalScroll(page: Page) {
   expect(overflow, "page must not scroll horizontally").toBeLessThanOrEqual(0);
 }
 
-/**
- * Opens every free-standing disclosure (data view, embed options, …). The Design step's
- * "More options" sections are a single-open accordion (<details name>), so only one of them can
- * be open: use `openSection` for one, or `forEachSection` to check each in turn.
- */
-export async function expandAll(page: Page) {
+export async function expandStandaloneDisclosures(page: Page) {
   await expect(page.getByRole("heading", { level: 2 })).toBeVisible();
   const closed = page.locator("details:not([open]):not([name]) > summary:visible");
   for (let guard = 0; guard < 20 && (await closed.count()) > 0; guard++) await closed.first().click();
@@ -90,9 +85,8 @@ export type SectionTitle = (typeof SECTIONS)[number];
 const section = (page: Page, title: SectionTitle) =>
   page.locator("details[name]", { has: page.locator("summary", { hasText: title }) });
 
-/** Opens one "More options" section (closing whichever was open), plus the free-standing disclosures. */
 export async function openSection(page: Page, title: SectionTitle) {
-  await expandAll(page);
+  await expandStandaloneDisclosures(page);
   const details = section(page, title);
   if (!(await details.evaluate((el) => (el as HTMLDetailsElement).open))) {
     await details.locator("summary").click();
@@ -100,7 +94,6 @@ export async function openSection(page: Page, title: SectionTitle) {
   await expect(details).toHaveAttribute("open", "");
 }
 
-/** Runs `check` with each "More options" section open in turn (the others closed). */
 export async function forEachSection(page: Page, check: (title: SectionTitle) => Promise<void>) {
   for (const title of SECTIONS) {
     await openSection(page, title);

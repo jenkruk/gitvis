@@ -124,7 +124,7 @@ Consequences: GitLab counts tend to run higher for the same amount of work. Labe
 
 `VisualizationConfig` (`src/config/config.ts`) holds layout, feature flags, palette, mode, identity (`style`, `handles`, `avatars`, `name`, `title`), background, platform colors, metric order, range and density. It is plain, serializable data, independent of the dataset. It is updated by a pure `configReducer` (unit-tested) through `useReducer` in the studio. No global state library is needed: the guided steps are one client component (`Studio`) holding the reducer above all three step panels, so navigating never loses state.
 
-- **Routes (Nov 2026):** `/` is the static landing page, `/studio` the studio, `/api/card` the published image (unchanged). The studio used to live at `/`, so `next.config.ts` redirects (307) any `/` request carrying a studio query key (`STUDIO_QUERY_KEYS` in `src/publish/studio-url.ts`, kept complete by a test against the encoder) to `/studio` with the query unchanged; browsers keep the `#step` fragment. A bare `/#design` is forwarded on the client. `/` without studio keys (e.g. the README "Get yours" link, `?utm_…`) shows the landing page.
+- **Routes:** `/` is the static landing page, `/studio` the studio, `/api/card` the published image (unchanged). The studio used to live at `/`, so `next.config.ts` redirects (307) any `/` request carrying a studio query key (`STUDIO_QUERY_KEYS` in `src/publish/studio-url.ts`, kept complete by a test against the encoder) to `/studio` with the query unchanged; browsers keep the `#step` fragment. A bare `/#design` is forwarded on the client. `/` without studio keys (e.g. the README "Get yours" link, `?utm_…`) shows the landing page.
 - **URL state:** the query string is the Edit link (unchanged v1 contract, now at `/studio?…`; old `/?…` links redirect); the hash holds the current step. Steps are pushed onto history, so Back/Forward work. `sample=1` (not a card param) opens Design on the sample data and stays in the URL until accounts are connected.
 - **Landing showcase:** `src/components/landing/showcase.ts` builds its config with `configReducer` from the default config (palette, mode and preset only) and renders it with the production `Visualization` on the sample dataset. Its links carry that design to the studio via `studioSearch`; they never carry accounts.
 - **Metadata:** `metadataBase` is `siteOrigin()` (`src/server/origin.ts`): `SITE_URL`, then the Vercel production URL, never a preview host. It is read at build time, so pages stay static. `src/app/opengraph-image.tsx` renders the social preview with the production renderer and the sample dataset (badge visible).
@@ -142,7 +142,7 @@ Feature visibility is computed, never stored: `getFeatureVisibility(featureId, l
 - Heatmap levels: 0 for no activity, then quartiles of non-zero days (`renderers/heatmap-scale.ts`).
 - Sample datasets render a visible "Sample data" badge. The badge can't be turned off.
 
-## Connect data flow (Phase 2)
+## Connect data flow
 
 ```
 ConnectForm (client) ──GET /api/contributions?github=&gitlab=──▶ route handler
@@ -160,10 +160,10 @@ ConnectForm (client) ──GET /api/contributions?github=&gitlab=──▶ route
 - **Caching:** see "Freshness policy". The studio and embeds share the same per-username snapshots.
 - **Fetches** have a 5s timeout (the first view in a new window waits on it) (`AbortSignal.timeout`) and a `User-Agent: GitVis`. GitLab is fetched with `redirect: "manual"` so its 302-to-sign-in is detected as "not found or private".
 - **Range: each platform's own year, so our numbers match its profile** (`platformYear`, `src/domain/history.ts`; verified November 2026). GitHub's "N contributions in the last year" counts from the **Sunday of the week one year back** (366–372 days; its calendar grid shows only 53 weeks, but the headline total covers the whole span). GitLab's "N contributions in the last 12 months" counts from the **same date one year back**. Each source's `coverage` is its own year; the dataset spans their union (GitHub's starts earliest), so GitLab's first few days are unknown, not zero, and tooltips say so. The combined total is the sum of the two profile totals, and `<desc>` states when the start dates differ. GitHub's calendar returns at most 365 days per collection, so the first days come from a second, aliased `contributionsCollection` (`lead`, `@include(if: $hasLead)`) in the same request. If a platform reports activity dated tomorrow-in-UTC (users east of UTC), the window extends by that one day so nothing is silently dropped. GitHub is queried for its year as of fetch time (inside the cached function), so cache keys don't roll over daily. Time zones: we bucket in UTC; GitHub's own default window uses a profile time zone, so counts can differ for activity near midnight.
-- **URL state:** the client mirrors usernames into `?github=&gitlab=` (`history.replaceState`) so a reload or shared link reconnects. Phase 3 adds the visualization config to the same URL.
+- **URL state:** the client mirrors usernames into `?github=&gitlab=` (`history.replaceState`) so a reload or shared link reconnects; the design config shares the same URL.
 - **Abuse:** see "Abuse protection" and "Production requirements".
 
-## Publish: export and embedding (Phase 3)
+## Publish: export and embedding
 
 ### URL contract (v1)
 
@@ -183,30 +183,30 @@ ConnectForm (client) ──GET /api/contributions?github=&gitlab=──▶ route
 | `f`                | comma list of **enabled** features: `heatmap` `total` `active` `streak` `best` `breakdown` `trends` `labels`                          | the frozen v1 default set |
 | `size`             | `full` · `compact` (400px reflowed mobile image; optional, added within v1)                                                           | `full`                    |
 
-**Phase 4 params** (optional, added within v1; absent = the original rendering):
+**Optional params** (added within v1; absent = the original rendering):
 
-| Param   | Values                                                                                                      | Missing        |
-| ------- | ----------------------------------------------------------------------------------------------------------- | -------------- |
-| `hdr`   | `none` · `compact` · `full` · `centered`                                                                    | `none`         |
-| `hl`    | handles shown: comma list of `github`, `gitlab` (may be empty)                                              | both           |
-| `av`    | avatars shown: comma list of `github`, `gitlab`                                                             | none           |
-| `name`  | display name, ≤ 40 characters after sanitizing                                                              | none           |
-| `title` | professional title, ≤ 60 characters after sanitizing                                                        | none           |
-| `bg`    | `solid` · `gradient` · `transparent`                                                                        | `solid`        |
-| `pc`    | platform colors, `github:ff7a59,gitlab:123456`                                                              | palette series |
-| `ord`   | stat order: `total` `active` `streak` `best` `current`; a partial list is completed in default order        | default order  |
-| `range` | `30` · `90` · `365`                                                                                         | `365`          |
-| `den`   | `spacious` · `compact`                                                                                      | `spacious`     |
-| `pnl`   | `filled` · `outlined` · `borderless` (Phase 4.2)                                                            | `filled`       |
-| `yrs`   | `1` · `2` · `3` 12-month periods (Phase 4.2); `2`/`3` require the full range (with `range=30/90` → invalid) | `1`            |
-| `left`  | centered header: the platform on the left, `github` · `gitlab` (Nov 2026)                                   | `github`       |
-| `avs`   | compact/full header: the side the avatars sit on, `left` · `right` (Nov 2026)                               | `left`         |
+| Param   | Values                                                                                               | Missing        |
+| ------- | ---------------------------------------------------------------------------------------------------- | -------------- |
+| `hdr`   | `none` · `compact` · `full` · `centered`                                                             | `none`         |
+| `hl`    | handles shown: comma list of `github`, `gitlab` (may be empty)                                       | both           |
+| `av`    | avatars shown: comma list of `github`, `gitlab`                                                      | none           |
+| `name`  | display name, ≤ 40 characters after sanitizing                                                       | none           |
+| `title` | professional title, ≤ 60 characters after sanitizing                                                 | none           |
+| `bg`    | `solid` · `gradient` · `transparent`                                                                 | `solid`        |
+| `pc`    | platform colors, `github:ff7a59,gitlab:123456`                                                       | palette series |
+| `ord`   | stat order: `total` `active` `streak` `best` `current`; a partial list is completed in default order | default order  |
+| `range` | `30` · `90` · `365`                                                                                  | `365`          |
+| `den`   | `spacious` · `compact`                                                                               | `spacious`     |
+| `pnl`   | `filled` · `outlined` · `borderless`                                                                 | `filled`       |
+| `yrs`   | `1` · `2` · `3` 12-month periods; `2`/`3` require the full range (with `range=30/90` → invalid)      | `1`            |
+| `left`  | centered header: the platform on the left, `github` · `gitlab`                                       | `github`       |
+| `avs`   | compact/full header: the side the avatars sit on, `left` · `right`                                   | `left`         |
 
 New palette codes: `github-classic` · `gitlab-inspired` · `nordic-frost` · `solarized` · `midnight-neon` · `paper-ink`. New feature code: `current` (current streak; off unless listed in `f`, so old URLs never gain it).
 
 - **URL codes are a frozen public contract** (`src/publish/card-params.ts`), mapped explicitly to internal ids, so renaming code never breaks old URLs. Golden-URL tests pin this down.
-- **Explicit enabled-list semantics:** a feature added later is _off_ for existing URLs, so old embeds never change appearance. Encoders always write the original params (`layout`, `palette`, `mode`, `f`), so changing defaults never alters published images. Phase 4 params are written only when they differ from the **frozen legacy defaults** above, so an unpersonalized config still produces exactly the URL it did before.
-- **Legacy snapshot guard:** `src/publish/legacy-render.test.tsx` renders seven pre-Phase-4 URLs (live and sample data) and compares them byte-for-byte with SVGs recorded before Phase 4 (`src/publish/__snapshots__/legacy/`). Never update those snapshots; a diff means an old embed changed.
+- **Explicit enabled-list semantics:** a feature added later is _off_ for existing URLs, so old embeds never change appearance. Encoders always write the original params (`layout`, `palette`, `mode`, `f`), so changing defaults never alters published images. Optional params are written only when they differ from the **frozen legacy defaults** above, so an unpersonalized config still produces exactly the URL it did before.
+- **Legacy snapshot guard:** `src/publish/legacy-render.test.tsx` renders seven original v1 URLs (live and sample data) and compares them byte-for-byte with SVGs recorded from the original renderer (`src/publish/__snapshots__/legacy/`). Never update those snapshots; a diff means an old embed changed.
 - **Evolution:** unknown params are ignored, so new optional params (such as future custom colors, reserved as `colors`) can be added within v1. A breaking change bumps `v`, and the decoder keeps a branch for each published version.
 - **Validation:** the card endpoint is strict and renders an explanatory error card for an unsupported `v`, invalid usernames, unknown codes, or a query over 2,048 characters (`MAX_QUERY_LENGTH`; the worst-case personalized URL, with a 60-character non-Latin title, is tested to fit).
 - **Text params** (`name`, `title`) are NFC-normalized and stripped of control, private-use, unassigned and bidi-override characters (ZWJ/ZWNJ are kept for emoji and scripts that need them). Whitespace is collapsed. React's attribute/text escaping (mirrored by `svg-markup.ts`) handles markup characters. The studio is lenient: an Edit link with a bad value falls back to defaults rather than failing.
@@ -216,9 +216,9 @@ New palette codes: `github-classic` · `gitlab-inspired` · `nordic-frost` · `s
 
 Next.js forbids `react-dom/server` in App Router code (verified: build error "You're importing a component that imports react-dom/server"). Our renderers are pure, hook-free SVG components, so `src/publish/svg-markup.ts` serializes the element tree directly: function components are called, attributes get React's SVG naming and escaping, and there's no dependency. **A parity test asserts byte-identical output to React's `renderToStaticMarkup`** for every layout × palette × mode, so the published image is guaranteed to match the studio preview.
 
-### Freshness policy (Phase 3.1; storage revised in 3.2)
+### Freshness policy
 
-**Why the Phase 3 design was replaced.** It relied on `cacheLife({ revalidate: 12h, expire: 7d })`. Next's docs define `revalidate` as "the next request will trigger a **background** refresh" (it serves stale data) and only `expire` as "the next one waits for fresh content". With little traffic, every view after an idle gap would show data as old as the gap, and only the following view would be fresh. Two more problems surfaced:
+**Why not `cacheLife`.** It relied on `cacheLife({ revalidate: 12h, expire: 7d })`. Next's docs define `revalidate` as "the next request will trigger a **background** refresh" (it serves stale data) and only `expire` as "the next one waits for fresh content". With little traffic, every view after an idle gap would show data as old as the gap, and only the following view would be fresh. Two more problems surfaced:
 
 - **The default handler drops entries at `revalidate`.** Without `cacheHandlers`, `"use cache: remote"` uses a per-process, in-memory LRU, so stale-on-failure didn't exist there at all.
 - **Production builds redact thrown errors.** Errors thrown from a `"use cache"` scope lose their message in production, which was verified in E2E. So "throw to avoid caching" turned specific errors into generic ones.
@@ -231,11 +231,11 @@ Next.js forbids `react-dom/server` in App Router code (verified: build error "Yo
 4. **Older than 7 days, or nothing to fall back on → honest error card.** `not_found` is never masked by old data, and it is re-checked after 1h.
 5. **Failures are never written.** Only successful snapshots and `not_found` answers are stored.
 
-### Snapshot storage (Phase 3.2: Vercel Runtime Cache via `getCache`)
+### Snapshot storage
 
 `src/server/cached.ts` stores snapshots with `getCache({ namespace: "gitvis" })` from `@vercel/functions`, under keys we control: `v1:<platform>:<username>:<window>`.
 
-**Why not `"use cache: remote"`** (the Phase 3.1 implementation): Next.js 16 puts the build ID (or `deploymentId`) in every `use cache: remote` key, so **each deployment starts with an empty cache**. The 7-day last-known-good fallback, and every user's current snapshot, would vanish on each deploy (Vercel docs, Runtime Cache, "How a new deployment affects cached data"). Entries written through `getCache` with our own keys **stay readable across deployments**.
+**Why not `"use cache: remote"`:** Next.js 16 puts the build ID (or `deploymentId`) in every `use cache: remote` key, so **each deployment starts with an empty cache**. The 7-day last-known-good fallback, and every user's current snapshot, would vanish on each deploy (Vercel docs, Runtime Cache, "How a new deployment affects cached data"). Entries written through `getCache` with our own keys **stay readable across deployments**.
 
 Properties and limits (Vercel docs, verified 2026-11):
 
@@ -304,7 +304,7 @@ A candidate equal to the preview's own hostname (`VERCEL_URL` or `VERCEL_BRANCH_
 
 Card errors return **HTTP 200 with a readable error SVG** (plus `X-GitVis-Status: <code>`), because GitHub shows a broken-image icon for non-2xx responses and README owners need to see what's wrong. Messages come only from the fixed, user-safe adapter and validation strings. Unexpected exceptions become a generic "Something went wrong" card; details are logged server-side and never rendered. If **any** requested platform fails, the card shows an error rather than a silently partial (misleadingly low) total.
 
-### Historical ranges (Phase 4.2)
+### Historical ranges
 
 **Sources (verified November 2026).** GitHub's `contributionsCollection(from, to)` returns a calendar for any period of at most one year, so history is fetched per year. GitLab publishes a calendar for the **last 12 months only** (profile calendar, `calendar.json`, and the experimental GraphQL `contributionCalendar`). Its Events API is not used: it needs a token, misses private contributions the calendar counts, and GitLab prunes events older than 3 years — older GitLab years would be silently undercounted.
 
@@ -331,13 +331,13 @@ Card errors return **HTTP 200 with a readable error SVG** (plus `X-GitVis-Status
 - `/api/contributions?…&years=1|2|3` (anything else → 400). The studio loads 3 years whenever a multi-year design is chosen, so switching 2 ↔ 3 never refetches.
 - **Failure policy:** if requested history can't load, the response carries `history: { status, message, retryable }`. Cards show an explanatory "temporarily unavailable" card (60s at the edge) rather than fewer years; the studio shows the last 12 months with a "Try again" notice.
 
-### Panel styles (Phase 4.2)
+### Panel styles
 
 `pnl` sets how stat cards, the heatmap container, the platform breakdown and chart panels are drawn: **filled** (`surface` + `border`, the original), **outlined** (border only) or **borderless** (an invisible frame: same padding and spacing, no fill or border). Every panel goes through the `Panel` primitive, so the style is applied consistently.
 
 Unfilled panels put their content directly on whatever is behind them, so `applyPanelStyle` re-checks text and muted text (4.5:1), and accent, series and the top heatmap level (3:1), against the **actual backdrops** from `panelBackdrops`: the canvas color (solid), both gradient stops (gradient), or GitHub's page colors for the matching mode (transparent). Filled panels return the theme untouched, so `pnl` absent = byte-identical legacy output. Contrast is tested for all 24 palettes × 2 modes × 3 backgrounds × 2 unfilled styles, including a worst-case custom series color.
 
-### Avatars (Phase 4)
+### Avatars
 
 `src/server/avatars.ts` fetches avatars **server-side** and embeds them in the SVG as `data:` URIs:
 
@@ -357,7 +357,7 @@ Unfilled panels put their content directly on whatever is behind them, so `apply
   - Stat cards in 2 columns, the last 20 weeks of heatmap (cells ≈ GitHub's 10px on a phone), stacked charts, and wrapped text.
   - `size` is an optional v1 parameter. It's absent from full-size URLs, so every previously published URL is unchanged.
 - The graphic contains **no links** (`<a>`): in READMEs it's an image, so they could never be clicked. The SVG sets `cursor="default"`, and the card route's CSP is a plain `sandbox` (no popups).
-- **Links under the image** (always): the card sits in a `<p align="center">`, then one centered line, left-aligned under the "Made with GitVis" credit: "Get Yours" (production origin) followed by "· open source on GitHub" (`GITVIS_REPO_URL`, `src/config/site.ts`). No profile links: the README is on GitHub, and the GitLab link was dropped (Nov 2026). GitHub keeps no widths, colors or padding, and the line has two links, so `GET /api/label?cta=1|repo=1&mode=dark|light&line=1&color=rrggbb&v=N` (`src/renderers/LinkLabel.tsx`) draws two images that together are exactly the card's width: "Get Yours" inset by the card's padding and just wide enough for its text (measured 69–75px across the system font stack), then the second link filling the rest. Colored with the design's GitLab color (`linkColor`), adjusted to 4.5:1 on GitHub's page. **Label images are cached for up to a year** (Vercel, browsers, GitHub's image proxy), so every change to a label's image must bump `LABEL_VERSION` (`v=`) in `src/publish/snippets.ts`; unchanged URLs keep showing the old image. Text is fixed or a validated username, never free text. README columns narrower than the card wrap the second link. The route still serves `gitlab=<user>`, `span` and `inset` labels for snippets copied earlier. The image is always an unlinked `<picture>`, since GitHub auto-links a plain Markdown image but not a `<picture>`.
+- **Links under the image** (always): the card sits in a `<p align="center">`, then one centered line, left-aligned under the "Made with GitVis" credit: "Get Yours" (production origin) followed by "· open source on GitHub" (`GITVIS_REPO_URL`, `src/config/site.ts`). No profile links: the README is on GitHub, and the GitLab link was dropped. GitHub keeps no widths, colors or padding, and the line has two links, so `GET /api/label?cta=1|repo=1&mode=dark|light&line=1&color=rrggbb&v=N` (`src/renderers/LinkLabel.tsx`) draws two images that together are exactly the card's width: "Get Yours" inset by the card's padding and just wide enough for its text (measured 69–75px across the system font stack), then the second link filling the rest. Colored with the design's GitLab color (`linkColor`), adjusted to 4.5:1 on GitHub's page. **Label images are cached for up to a year** (Vercel, browsers, GitHub's image proxy), so every change to a label's image must bump `LABEL_VERSION` (`v=`) in `src/publish/snippets.ts`; unchanged URLs keep showing the old image. Text is fixed or a validated username, never free text. README columns narrower than the card wrap the second link. The route still serves `gitlab=<user>`, `span` and `inset` labels for snippets copied earlier. The image is always an unlinked `<picture>`, since GitHub auto-links a plain Markdown image but not a `<picture>`.
 - **Transparent background** forces theme matching (`effectiveSnippetOptions`), so the light variant is never shown on a dark page.
 - SVG download fetches the published card. PNG rasterizes that same SVG on a `<canvas>` at 2× (no dependency).
 

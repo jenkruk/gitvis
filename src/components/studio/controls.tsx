@@ -25,7 +25,6 @@ export function ControlGroup({
   );
 }
 
-/** The small teal check in a selected card's corner: a second, non-color cue for selection. */
 export function SelectionMark({ checked, inline = false }: { checked: boolean; inline?: boolean }) {
   if (!checked) return null;
   return (
@@ -57,7 +56,6 @@ export function RadioCard({
   children: ReactNode;
   className?: string;
   disabled?: boolean;
-  /** Show the corner check when selected (cards with a title); segmented options use weight instead. */
   mark?: boolean;
 }) {
   return (
@@ -77,10 +75,6 @@ export function RadioCard({
   );
 }
 
-/**
- * A segmented option's label: semibold when selected, so the state never rests on color alone.
- * Its color comes from the card (muted when unselected, subtle when disabled).
- */
 export function SegmentLabel({ checked, children }: { checked: boolean; children: ReactNode }) {
   return <span className={`text-label ${checked ? "font-semibold" : "font-medium"}`}>{children}</span>;
 }
@@ -126,7 +120,6 @@ export function Switch({
         onChange={(e) => onChange(e.target.checked)}
         className="peer sr-only"
       />
-      {/* Off: a line-strong track (≥ 3:1) with a light thumb. On: a teal track, thumb moved right. */}
       <span
         aria-hidden="true"
         className="relative mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full bg-line-strong peer-checked:bg-accent motion-safe:transition-colors [&>span]:translate-x-0.5 [&>span]:bg-thumb peer-checked:[&>span]:translate-x-4.5 peer-checked:[&>span]:bg-thumb-on"
@@ -137,15 +130,6 @@ export function Switch({
   );
 }
 
-/**
- * A collapsible section (native <details>/<summary>), with a one-line summary of its current
- * state that stays visible when collapsed. Disclosures sharing a `name` form a native
- * single-open accordion: opening one closes the others, and any can be closed. Content stays
- * mounted, so closing never loses a setting.
- *
- * When a section above closes, the clicked header would jump up; browsers with scroll
- * anchoring keep it in place, and the toggle handler does the same where they don't.
- */
 export function Disclosure({
   title,
   summary,
@@ -162,6 +146,7 @@ export function Disclosure({
   const details = useRef<HTMLDetailsElement>(null);
   const anchor = useRef<number | null>(null);
 
+  // Keeps the clicked header in place when a section above closes, where the browser lacks scroll anchoring.
   function holdPosition() {
     const before = anchor.current;
     anchor.current = null;

@@ -173,7 +173,6 @@ describe("monthly coverage", () => {
     row.cells.find((c) => c.platform === platform)!;
 
   it("distinguishes uncovered months (null), partly covered months and genuine zeros", () => {
-    // GitLab's history only starts on Mar 10: earlier months are unknown, not zero.
     const dataset = combineSources(
       [source("github"), source("gitlab", { start: "2026-03-10", end: "2026-11-06" })],
       trailingYear(end),

@@ -179,7 +179,6 @@ function PaletteSwatch({ palette, mode }: { palette: PaletteId; mode: ColorMode 
 export function PalettePicker({ config, dispatch }: PickerProps) {
   const [showAll, setShowAll] = useState(false);
   const listId = useId();
-  // Collapsed: always six, in curated order. A selected palette outside them takes Monochrome's slot.
   const collapsedIds = CURATED_PALETTE_IDS.includes(config.palette)
     ? CURATED_PALETTE_IDS
     : CURATED_PALETTE_IDS.map((id) => (id === CURATED_SWAP_PALETTE_ID ? config.palette : id));

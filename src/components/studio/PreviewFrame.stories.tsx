@@ -10,9 +10,8 @@ const history = createSampleHistoryDataset();
 const historyMetrics = computeMetrics(prepareView(history, threeYears).metricsView);
 
 /**
- * The shared preview stage: one flat surface with a backdrop switch (studio stage, GitHub light,
- * GitHub dark). `fit` is the sticky Design preview: fitted to the viewport height at lg+, with a
- * full-size dialog for tall graphics.
+ * The preview on GitHub's light or dark README page. `fit` is the sticky Design preview: fitted to
+ * the viewport height at lg+, with a full-size dialog.
  */
 const meta = {
   title: "Studio/Preview",

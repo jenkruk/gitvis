@@ -49,7 +49,6 @@ async function resolveOrigin() {
 async function StudioLoader({ searchParams }: Pick<PageProps<"/studio">, "searchParams">) {
   const search = toSearchParams(await searchParams);
   const { request, config } = decodeCardParams(search);
-  // "Explore with sample data" (landing page): open Design on the sample. Ignored once accounts are given.
   const sample = !request && search.has(SAMPLE_PARAM);
   const { origin, environment } = await resolveOrigin();
   if (request) await connection();

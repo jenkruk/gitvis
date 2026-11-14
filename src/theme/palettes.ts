@@ -738,7 +738,6 @@ export type PaletteId = (typeof PALETTES)[number]["id"];
 
 export const PALETTE_IDS: readonly PaletteId[] = PALETTES.map((p) => p.id);
 
-/** The six palettes shown before "View all", in display order. */
 export const CURATED_PALETTE_IDS: readonly PaletteId[] = [
   "githubClassic",
   "gitlabInspired",
@@ -748,7 +747,6 @@ export const CURATED_PALETTE_IDS: readonly PaletteId[] = [
   "lagoon",
 ];
 
-/** The curated slot a selected non-curated palette takes while the list is collapsed. */
 export const CURATED_SWAP_PALETTE_ID: PaletteId = "monochrome";
 
 export function getPalette(id: PaletteId): PaletteDefinition {
@@ -781,6 +779,13 @@ export function gradientEnd(theme: Pick<PaletteVariant, "background" | "accent">
 export const GITHUB_SURFACES: Record<ColorMode, readonly string[]> = {
   light: ["#ffffff"],
   dark: ["#0d1117", "#212830"],
+};
+
+export const GITHUB_README_WIDTH = 830;
+
+export const GITHUB_FILE_HEADER: Record<ColorMode, { background: string; border: string; text: string }> = {
+  light: { background: "#f6f8fa", border: "#d1d9e0", text: "#59636e" },
+  dark: { background: "#151b23", border: "#3d444d", text: "#9198a1" },
 };
 
 export function panelBackdrops(theme: PaletteVariant, background: BackdropStyle, mode: ColorMode): readonly string[] {

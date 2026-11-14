@@ -8,7 +8,7 @@ import {
   sampleDataset,
   storyAvatar,
 } from "@/stories/fixtures";
-import { PALETTE_IDS, PALETTES } from "@/theme/palettes";
+import { GITHUB_SURFACES, PALETTE_IDS, PALETTES } from "@/theme/palettes";
 import { Visualization, type VisualizationProps } from "./Visualization";
 
 const meta = {
@@ -105,7 +105,7 @@ export const Backgrounds: Story = {
           <div
             key={`${background}-${mode}`}
             className="rounded-lg p-4"
-            style={{ background: mode === "light" ? "#ffffff" : "#0d1117" }}
+            style={{ background: GITHUB_SURFACES[mode][0] }}
           >
             <p className="mb-2 text-sm" style={{ color: mode === "light" ? "#1f2328" : "#f0f6fc" }}>
               {background} · GitHub {mode}

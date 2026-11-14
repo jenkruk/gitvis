@@ -8,10 +8,6 @@ import { renderSvgMarkup } from "@/publish/svg-markup";
 import { prepareView } from "@/renderers/view";
 import { Visualization } from "@/renderers/Visualization";
 
-/**
- * The social preview: the brand, the headline and the landing page's real graphic, rendered by
- * the production renderer from the sample dataset (its "Sample data" badge stays visible).
- */
 export const alt = `${SITE_NAME}: ${SITE_HEADLINE} A GitHub + GitLab contribution graphic drawn from sample data.`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";

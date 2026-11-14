@@ -13,7 +13,6 @@ export function cardUrl(origin: string, params: CardParams): string {
   return `${origin}/api/card?${encodeCardParams(params)}`;
 }
 
-/** Reopens the studio with this design. Edit links from before Nov 2026 use `/?…` and are redirected. */
 export function editUrl(origin: string, params: CardParams): string {
   return `${origin}${STUDIO_PATH}?${encodeCardParams(params)}`;
 }

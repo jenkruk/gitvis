@@ -5,8 +5,7 @@ import { STAT_FEATURE_IDS } from "@/config/features";
 import { encodeCardParams } from "./card-params";
 import { legacyStudioRedirects, SAMPLE_PARAM, STUDIO_PATH, STUDIO_QUERY_KEYS } from "./studio-url";
 
-/** A design that differs from every legacy default, so the encoder writes every key it knows. */
-const everything: VisualizationConfig = {
+const nonDefaultDesign: VisualizationConfig = {
   ...createDefaultConfig(),
   layout: "dataRich",
   palette: "lagoon",
@@ -33,7 +32,7 @@ const everything: VisualizationConfig = {
 describe("studio URLs", () => {
   it("lists every key the card encoder writes, so old `/?…` studio links are all redirected", () => {
     const written = new Set<string>();
-    for (const config of [everything, { ...everything, years: 1 as const, range: 90 as const }]) {
+    for (const config of [nonDefaultDesign, { ...nonDefaultDesign, years: 1 as const, range: 90 as const }]) {
       const params = encodeCardParams({ request: { github: "a", gitlab: "b" }, config, size: "compact" });
       for (const key of params.keys()) written.add(key);
     }

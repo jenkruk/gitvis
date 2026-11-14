@@ -57,6 +57,7 @@ The full rules are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/DES
 - **Accessibility is a requirement** (WCAG 2.2 AA), including keyboard and screen-reader behavior in component tests.
 - **Tokens stay on the server.** Never in client code, URLs or responses.
 - **Dependencies:** add one only with a clear purpose, and say why in the pull request.
+- **Comments:** only for non-obvious technical constraints. Explain product decisions in `docs/`, not in code.
 
 ## Review
 

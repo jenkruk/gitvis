@@ -1,4 +1,5 @@
 import { ensureContrast } from "@/theme/color";
+import { GITHUB_SURFACES } from "@/theme/palettes";
 import { CANVAS_WIDTH, FONT_STACK, PADDING } from "./primitives";
 
 export const LINK_LABEL_MODES = ["dark", "light"] as const;
@@ -22,11 +23,10 @@ export const LINE_WIDTHS = {
 } as const;
 const LINE_GAP = 5;
 
-export const README_BACKGROUNDS: Record<LinkLabelMode, string> = { dark: "#0d1117", light: "#ffffff" };
 const DEFAULT_COLORS: Record<LinkLabelMode, string> = { dark: "#4493f8", light: "#0969da" };
 
 export function linkLabelColor(mode: LinkLabelMode, color?: string): string {
-  return ensureContrast(color ?? DEFAULT_COLORS[mode], README_BACKGROUNDS[mode], 4.5);
+  return ensureContrast(color ?? DEFAULT_COLORS[mode], GITHUB_SURFACES[mode][0]!, 4.5);
 }
 
 const HEIGHT = 22;

@@ -6,9 +6,8 @@ import { ControlGroup, Disclosure, RadioCard, SelectionMark, Switch } from "@/co
 import { button, callout, field, hint, iconButton, linkButton, mono, overline, panel, selectableCard } from "./recipes";
 
 /**
- * Studio foundations: the semantic tokens (src/app/globals.css) and the recipes
- * (./recipes.ts) every studio component is built from. Toggle the OS color scheme to
- * review dark mode. Nothing here themes the generated graphic.
+ * The studio's semantic tokens (src/app/globals.css) and component recipes (./recipes.ts).
+ * Use the toolbar's Theme switch to review dark mode.
  */
 
 const SURFACES = [
@@ -239,8 +238,7 @@ function Shell() {
   );
 }
 
-/** Ring classes drawn statically, so the story shows keyboard focus without a keyboard. */
-const FOCUSED = "outline-2 outline-offset-2 outline-focus";
+const STATIC_FOCUS_RING = "outline-2 outline-offset-2 outline-focus";
 
 function States() {
   const card = (checked: boolean, extra = "", disabled = false) => (
@@ -261,8 +259,8 @@ function States() {
           ["Default", card(false)],
           ["Hover", card(false, "bg-surface-hover text-fg")],
           ["Selected", card(true)],
-          ["Keyboard focus", card(false, FOCUSED)],
-          ["Selected + focused", card(true, FOCUSED)],
+          ["Keyboard focus", card(false, STATIC_FOCUS_RING)],
+          ["Selected + focused", card(true, STATIC_FOCUS_RING)],
           ["Disabled", card(false, "", true)],
         ].map(([label, node]) => (
           <figure key={label as string} className="space-y-2">

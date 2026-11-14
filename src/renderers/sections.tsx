@@ -152,16 +152,10 @@ function Badge({
   );
 }
 
-/**
- * Panel titles ("Platform breakdown", chart titles) sit one step above stat labels: 12/600 in
- * the text color. Stat labels and axis text stay muted, so values and titles lead.
- */
 export const PANEL_TITLE = { fontSize: 12, fontWeight: 600 } as const;
 
-/** Approximate width of `text` at `fontSize` in the system stack (for laying out legend rows). */
 const textWidth = (text: string, fontSize: number) => text.length * fontSize * 0.58;
 
-/** One legend entry drawn as a real shape (circle or rounded square) followed by its label. */
 function LegendKey({ x, y, color, shape }: { x: number; y: number; color: string; shape: "dot" | "square" }) {
   return shape === "dot" ? (
     <circle cx={x + 4} cy={y - 3.5} r={4} fill={color} />
@@ -205,7 +199,6 @@ export function StatCards({
   detailed: boolean;
   columns?: number;
   cardHeight?: number;
-  /** Text inset from the card edge: the density's panel padding, like every other panel. */
   inset?: number;
 }) {
   const perRow = Math.min(columns, items.length);
@@ -501,7 +494,6 @@ function WeeklyTrend({ weeks, theme, x, y, width, height, period, inset }: Chart
   );
 }
 
-/** Right-aligned legend row (key 8px + 4px gap + label, 12px between entries) ending at `right`. */
 function legendRow(platforms: PlatformId[], right: number): { platform: PlatformId; x: number }[] {
   const widths = platforms.map((p) => 12 + textWidth(PLATFORMS[p].label, 10));
   let x = right - widths.reduce((sum, w) => sum + w, 0) - 12 * (platforms.length - 1);
@@ -590,7 +582,6 @@ export function Footnote({ theme, y, width }: { theme: ThemeTokens; y: number; w
   );
 }
 
-/** The credit is a quiet signature, not a heading: the smallest text on the graphic, in the muted color. */
 export const CREDIT_HEIGHT = 30;
 export const CREDIT_BOTTOM = 16;
 const CREDIT_SIZE = 10;

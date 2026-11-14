@@ -4,8 +4,7 @@ import { LandingDetails } from "./LandingDetails";
 import { LandingHero } from "./LandingHero";
 
 /**
- * The landing page (`/`): the hero with the real renderer drawing the labelled sample, three small
- * showcase controls, then one short "how it works" row and the open-source/data facts.
+ * The landing page (`/`) with the live sample showcase.
  */
 const meta = {
   title: "Landing/Page",
@@ -29,7 +28,6 @@ export const PagePhone: Story = {
   globals: { viewport: { value: "phone" } },
 };
 
-/** Just the hero: the promise, the way in, and the showcase. */
 export const Hero: Story = {
   render: () => <LandingHero />,
 };

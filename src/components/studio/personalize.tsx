@@ -37,7 +37,6 @@ const HEADER_PRESETS: { id: IdentityStyle; label: string; description: string }[
 
 const SIDE_LABELS: Record<AvatarSide, string> = { left: "Left", right: "Right" };
 
-/** A two-option segmented choice inside the Identity section (account sides, avatar position). */
 function SideChoice<T extends string>({
   legend,
   name,

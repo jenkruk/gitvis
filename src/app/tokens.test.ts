@@ -5,7 +5,6 @@ import { contrastRatio } from "@/theme/color";
 
 const css = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8");
 
-// Every studio color token is declared once as `--gv-name: light-dark(#light, #dark);`.
 const declarations = [...css.matchAll(/--gv-([a-z-]+):\s*light-dark\((#[0-9a-f]{6}),\s*(#[0-9a-f]{6})\);/gi)];
 const schemes = {
   light: Object.fromEntries(declarations.map((m) => [m[1]!, m[2]!])),

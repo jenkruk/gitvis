@@ -196,7 +196,6 @@ export function encodeCardParams({ request, config: design, size }: CardParams):
   if (identity.avatars.length) params.set("av", identity.avatars.map((p) => PLATFORM_CODES[p]).join(","));
   if (finalText(identity.name)) params.set("name", finalText(identity.name));
   if (finalText(identity.title)) params.set("title", finalText(identity.title));
-  // Header arrangement (Nov 2026): written only when it differs from the original arrangement.
   if (identity.leftPlatform !== LEGACY.leftPlatform) params.set("left", PLATFORM_CODES[identity.leftPlatform]);
   if (identity.avatarSide !== LEGACY.avatarSide) params.set("avs", AVATAR_SIDE_CODES[identity.avatarSide]);
   if (config.background !== LEGACY.background) params.set("bg", BACKGROUND_CODES[config.background]);

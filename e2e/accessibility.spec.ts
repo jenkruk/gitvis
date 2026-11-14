@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
-  expandAll,
+  expandStandaloneDisclosures,
   expectAccessible,
   forEachSection,
   expectNoHorizontalScroll,
@@ -23,7 +23,7 @@ for (const viewport of VIEWPORTS) {
     test("Connect and sample-data Design pass axe (WCAG 2.2 AA) without horizontal scrolling", async ({ page }) => {
       await page.goto("/studio");
       await expect(page.getByRole("heading", { name: "Create your contribution graphic" })).toBeVisible();
-      await expandAll(page);
+      await expandStandaloneDisclosures(page);
       await expectAccessible(page, `connect ${viewport.name}`);
       await expectNoHorizontalScroll(page);
 
@@ -48,7 +48,7 @@ for (const viewport of VIEWPORTS) {
 
       await page.getByRole("button", { name: "Continue to publish" }).click();
       await expect(stepHeading(page)).toHaveText(/publish to your readme/i);
-      await expandAll(page);
+      await expandStandaloneDisclosures(page);
       await expect(page.getByRole("textbox", { name: "README Markdown" })).toBeVisible();
       await expectAccessible(page, `publish ${viewport.name}`);
       await expectNoHorizontalScroll(page);

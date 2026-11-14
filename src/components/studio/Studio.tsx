@@ -37,7 +37,6 @@ export interface StudioProps {
   initialRequest?: ConnectRequest | null;
   initialResponse?: ContributionsResponse | null;
   initialConfig?: VisualizationConfig;
-  /** Open Design on the sample data (no accounts), as "Explore with sample data" does. */
   initialSample?: boolean;
   origin: string;
   isPreviewDeployment?: boolean;
@@ -45,6 +44,7 @@ export interface StudioProps {
   renderCard?: (cardUrl: string) => string;
 }
 
+const STICKY_UNLESS_DATA_VIEW_OPEN = "lg:sticky lg:top-6 lg:has-[[data-data-view][open]]:static";
 const primaryButton = button("primary", "lg");
 const secondaryButton = button("secondary");
 const ghostButton = button("ghost", "lg");
@@ -87,8 +87,7 @@ export function Studio({
   const designHeading = useRef<HTMLHeadingElement>(null);
   const publishHeading = useRef<HTMLHeadingElement>(null);
   const focusPending = useRef(false);
-  // Moving focus to the new step's heading is for screen readers and keyboard users. After a
-  // pointer click it shouldn't draw a focus ring around the heading (Safari otherwise does).
+  // After a pointer click, the focused step heading shouldn't show a focus ring (Safari otherwise does).
   const pointerInput = useRef(false);
   useEffect(() => {
     const onPointer = () => (pointerInput.current = true);
@@ -132,7 +131,6 @@ export function Studio({
   }, []);
 
   useEffect(() => {
-    // Sample exploration stays in the URL (a reload keeps it) until accounts are connected.
     const sampleFlag = exploringSample && !connection.request ? `${SAMPLE_PARAM}=1` : "";
     const search = [studioSearch(connection.request, config), sampleFlag].filter(Boolean).join("&");
     const next = `${window.location.pathname}${search ? `?${search}` : ""}#${step}`;
@@ -235,11 +233,9 @@ export function Studio({
           </p>
         )}
         <div className={studioGrid}>
-          {/* Sticky only beside the controls (lg+), fitted to the viewport so none of it is out of reach.
-              It lets go while the data view is open, so the table scrolls with the page. */}
           <section
             aria-labelledby="preview-heading"
-            className={`${studioPreviewColumn} lg:sticky lg:top-6 lg:has-[[data-data-view][open]]:static`}
+            className={`${studioPreviewColumn} ${STICKY_UNLESS_DATA_VIEW_OPEN}`}
           >
             <h3 id="preview-heading" className="sr-only">
               Live preview
@@ -380,7 +376,6 @@ function StepSection({
   );
 }
 
-/** Phones and tablets: the preview starts at a capped height and expands in place (never sticky). */
 function CollapsiblePreview({ children }: { children: ReactNode }) {
   const [expanded, setExpanded] = useState(false);
   const regionId = "preview-region";

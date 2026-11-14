@@ -2,11 +2,6 @@ import { Check } from "lucide-react";
 import { link, overline } from "@/components/ui/recipes";
 import { GITVIS_REPO_URL } from "@/config/site";
 
-/**
- * Everything below the hero, kept to two short bands. The three steps and the three benefits are
- * the same story (connect → one view, design → make it yours, publish → set and forget), so they
- * share one row instead of two sections.
- */
 const STEPS = [
   {
     step: "Connect",

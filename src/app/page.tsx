@@ -15,10 +15,6 @@ export const metadata: Metadata = {
   twitter: { title: SITE_HEADLINE, description: SITE_DESCRIPTION },
 };
 
-/**
- * The landing page: static, no data fetching. Old studio URLs (`/?github=…`) never reach it; they
- * are redirected to /studio in next.config.ts.
- */
 export default function Home() {
   return (
     <AppShell page="landing">

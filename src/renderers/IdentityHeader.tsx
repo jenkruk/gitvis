@@ -52,11 +52,6 @@ function handleSources(dataset: ContributionDataset, identity: IdentityConfig, s
 
 const AVATAR_TEXT_GAP = 12;
 
-/**
- * Where the avatar stack and the text column go. Avatars sit on the chosen side (left by
- * default); the text takes the rest of the row. With avatars on the right, the status badge
- * moves to the left of the stack so the two never collide.
- */
 function rowLayout(
   dataset: ContributionDataset,
   identity: IdentityConfig & { style: "compact" | "full" },
@@ -73,9 +68,7 @@ function rowLayout(
     overlap,
     avatarsX: right ? PADDING + width - avatarsWidth : PADDING,
     textX: right ? PADDING : PADDING + reserved,
-    /** Width of the text column (before any badge allowance). */
     textWidth: width - reserved,
-    /** Right edge of the status badge. */
     badgeRight: PADDING + width - (right ? reserved : 0),
   };
 }

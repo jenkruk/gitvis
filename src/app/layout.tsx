@@ -4,8 +4,6 @@ import { siteOrigin } from "@/server/origin";
 import { fontVariables } from "./fonts";
 import "./globals.css";
 
-// Absolute URLs in metadata (canonical, Open Graph) always use the production origin, never the
-// request host or a preview deployment (src/server/origin.ts).
 export const metadata: Metadata = {
   metadataBase: siteOrigin(),
   title: { default: "GitVis — Every contribution counts", template: "%s · GitVis" },

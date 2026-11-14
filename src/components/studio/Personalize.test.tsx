@@ -57,7 +57,6 @@ describe("profile header controls", () => {
     expect(screen.getByText("Identity", { selector: "summary span" }).closest("summary")).toHaveTextContent(
       "GitLab on the left",
     );
-    // Not offered for the other headers.
     await user.click(within(header()).getByRole("radio", { name: /full profile/i, hidden: true }));
     expect(screen.queryByRole("group", { name: "Account sides", hidden: true })).not.toBeInTheDocument();
   });

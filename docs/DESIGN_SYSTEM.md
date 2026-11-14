@@ -195,6 +195,10 @@ Every published graphic names the accounts behind its data: "● GitHub @jenkruk
 
 `SPACING` in `src/renderers/layouts.tsx`: Spacious (section gap 16, panel padding 16, stat card 70/84, breakdown 74, trends 170) and Compact (10, 10, 58/70, 60, 140). Font sizes don't change with density; only whitespace does.
 
+## README preview image (`docs/images/gitvis-preview.png`)
+
+A screenshot of the landing page hero (`/`) from a production build: 1280px viewport, dark color scheme, device scale factor 2, cropped to the hero. The graphic in it is the real renderer on the sample data, with its "Sample data" badge visible. Retake it whenever the hero or the studio identity changes; never show data other than the sample.
+
 ## Storybook
 
 `npm run storybook` (dev, port 6006) and `npm run build-storybook`. Stories import production components only (`src/**/*.stories.tsx`, shared data in `src/stories/fixtures.ts`):
@@ -214,7 +218,7 @@ The a11y addon runs axe with the WCAG 2.2 AA tags and `test: "error"`. `src/stor
 
 ### Studio app
 
-**Guided steps (Phase 4.1)**
+**Guided steps**
 
 - `StepNav` (`src/components/shell/StepNav.tsx`): an ordered list of real buttons inside `<nav aria-label="Progress">`. The current step has `aria-current="step"`; completed steps show a check and "(completed)" for screen readers; unreachable steps are `disabled` (Design until data or sample mode, Publish until live data).
 - One step panel is visible at a time (`hidden` on the others). Connect and Design stay mounted so typed values and open sections survive; Publish mounts on demand.
@@ -254,21 +258,16 @@ The a11y addon runs axe with the WCAG 2.2 AA tags and `test: "error"`. `src/stor
 ### Graphic and charts
 
 - `role="img"`, a `<title>` (accessible name), and a data-summarizing `<desc>` (accessible description).
-- Never rely on color alone. Platforms are labelled, and the heatmap has a legend and per-cell titles.
+- Never rely on color alone. Platforms are labelled, and the heatmap has a legend. The studio preview adds per-day titles; published cards omit them (a README image can't show them) and keep the `<desc>`.
 - Minimum text size is 10px at 840px width.
-- **Planned (Phase 4): alternative data views.** A "View data" disclosure next to the preview with:
-  - a written summary (totals, streaks, best and quietest months, platform shares);
-  - real `<table>`s for monthly totals by platform and for weekly totals, with `<caption>`, `scope`d headers, and sortable columns operated as native buttons.
-  - These come from the same `ContributionMetrics` as the graphic, so they can't drift from it.
+- The same data is available as text and tables in "Detailed contribution data" (below).
 
 ### Preview modes
 
-| Mode                          | Purpose                                                                                                                                                                                                                                                                                                                                       | Status                                        |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| README-width preview          | The full image in an ~830px README column that shrinks with the studio on small screens. No device switcher: published cards have no phone or tablet variants.                                                                                                                                                                                | Shipped (3.1; device modes removed Nov 2026)  |
-| Backdrop: GitHub light / dark | One flat stage (Design and Publish) showing GitHub's light (`#ffffff`) or dark (`#0d1117`) README page; it starts on the page for the graphic's mode. At lg the sticky Design preview is fitted to the viewport height and "View full size" opens a modal dialog, so tall three-year graphics stay fully inspectable without nested scrolling | Shipped (Nov 2026)                            |
-| Grayscale                     | Checks that meaning survives without hue (CSS `filter: grayscale(1)` on the preview only)                                                                                                                                                                                                                                                     | Phase 4                                       |
-| Accessible-data view          | Shows the data view instead of the graphic                                                                                                                                                                                                                                                                                                    | Phase 4 (the data view itself shipped in 3.1) |
+| Mode                          | Purpose                                                                                                                                                                                                                                                                                                                                       | Status                                       |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| README-width preview          | The full image in an ~830px README column that shrinks with the studio on small screens. No device switcher: published cards have no phone or tablet variants.                                                                                                                                                                                | Shipped (3.1; device modes removed Nov 2026) |
+| Backdrop: GitHub light / dark | One flat stage (Design and Publish) showing GitHub's light (`#ffffff`) or dark (`#0d1117`) README page; it starts on the page for the graphic's mode. At lg the sticky Design preview is fitted to the viewport height and "View full size" opens a modal dialog, so tall three-year graphics stay fully inspectable without nested scrolling | Shipped (Nov 2026)                           |
 
 Preview modes change only the **preview container**. They are never part of `VisualizationConfig` or the exported graphic.
 
@@ -298,8 +297,8 @@ Tables wrap rather than scroll, so they need no extra tab stops at 320px or 200%
 ### Verification
 
 - **Now:** Vitest + Testing Library assertions on roles, names, descriptions, and keyboard paths for every interactive component; contrast tests for every palette. **Playwright + axe-core** (`npm run test:e2e`): WCAG 2.2 AA scans of every major state at 320/375/768/1280 (any violation fails), a keyboard-only Connect → Design → Publish run, 24px target sizes, ≥ 11px UI text, no horizontal scroll, and reduced motion.
-- **Storybook** with the a11y addon (Phase 4), plus a Vitest smoke test over every story.
-- **Planned:** visual regression across themes × palettes × viewports (Phase 5); manual VoiceOver and NVDA passes before launch.
+- **Storybook** with the a11y addon, plus a Vitest smoke test over every story.
+- **Planned** (see [ROADMAP](ROADMAP.md)): visual regression across themes × palettes × viewports; manual VoiceOver and NVDA passes before launch.
 
 ## Original design
 

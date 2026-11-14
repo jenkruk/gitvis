@@ -28,6 +28,7 @@ import {
   studioGrid,
   studioPreviewColumn,
 } from "@/components/ui/recipes";
+import { GITHUB_README_WIDTH } from "@/theme/palettes";
 
 export interface PublishPanelProps {
   origin: string;
@@ -45,7 +46,6 @@ const svgDataUri = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeUR
 
 const buttonClass = button("secondary");
 const primaryClass = button("primary", "lg");
-// Read-only: the hover fill (not the input surface) says it can't be typed into; the boundary stays ≥ 3:1.
 const fieldClass = `block w-full min-w-0 rounded-control border border-line-strong bg-surface-hover px-3 py-2 font-mono text-code text-fg ${focusRing}`;
 
 const MARKDOWN_ID = "publish-markdown";
@@ -185,7 +185,6 @@ function PublishContent({
               <Copy aria-hidden="true" className="size-5" />
               Copy README Markdown
             </button>
-            {/* Side by side when they fit; stacked on the narrowest phones. */}
             <div className="flex flex-wrap gap-2 [&>button]:min-w-fit [&>button]:flex-1">
               {(["svg", "png"] as const).map((kind) => (
                 <button
@@ -319,7 +318,8 @@ function PublishedPreview({ src, alt, mode }: { src: string; alt: string; mode: 
           alt={alt}
           onLoad={() => setState("loaded")}
           onError={() => setState("error")}
-          className="mx-auto h-auto w-full max-w-[830px]"
+          style={{ maxWidth: GITHUB_README_WIDTH }}
+          className="mx-auto h-auto w-full"
         />
       </PreviewStage>
       <figcaption className="mt-2 flex items-start gap-1.5 text-caption text-fg-muted">

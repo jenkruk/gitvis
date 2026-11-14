@@ -1,9 +1,5 @@
 import { studioControlsColumn, studioGrid, studioPreviewColumn } from "@/components/ui/recipes";
 
-/**
- * The studio's loading state, drawn in the shapes of the Design step it becomes: the step
- * navigation, the step title and lede, then controls on the left and the preview on the right.
- */
 export function StudioSkeleton() {
   const block = "rounded-control bg-surface-hover motion-safe:animate-pulse";
   return (

@@ -32,7 +32,6 @@ const BACKGROUND_SUMMARY = { solid: "Solid", gradient: "Gradient", transparent: 
 const PANEL_SUMMARY = { filled: "", outlined: "Outlined panels", borderless: "Borderless panels" } as const;
 const YEARS_SUMMARY = { 1: "1 year", 2: "2 years", 3: "3 years" } as const;
 
-/** Mentions the header arrangement only when it differs from the default and applies. */
 function arrangement({ identity }: VisualizationConfig): string {
   if (identity.style === "centered" && identity.leftPlatform !== "github") {
     return `${PLATFORMS[identity.leftPlatform].label} on the left`;
@@ -68,7 +67,6 @@ export function DesignControls({ config, dispatch, dataset }: DesignControlsProp
       <ModePicker config={config} dispatch={dispatch} />
       <PalettePicker config={config} dispatch={dispatch} />
 
-      {/* A single-open accordion: opening one section closes the other (settings are kept). */}
       <div className="space-y-2 border-t border-line pt-6">
         <h3 className={`${overline} mb-3`}>More options</h3>
         <Disclosure name={ACCORDION} title="Identity" summary={summaries.identity}>

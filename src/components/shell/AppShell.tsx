@@ -31,7 +31,7 @@ function LogoMark() {
   );
 }
 
-/** GitHub's mark (Octicons, MIT), for the header's source link. */
+/** GitHub mark from Octicons (MIT license). */
 function GitHubMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 16 16" aria-hidden="true" className={className} fill="currentColor">
@@ -40,11 +40,6 @@ function GitHubMark({ className }: { className?: string }) {
   );
 }
 
-/**
- * The shared frame for the landing page and the studio: a compact header (brand, the source link,
- * and on the landing page a way into the studio), the main landmark and the footer.
- * `page="landing"` lets the page lay out its own full-width bands instead of the studio container.
- */
 export function AppShell({ children, page = "studio" }: { children: ReactNode; page?: "landing" | "studio" }) {
   const landing = page === "landing";
   return (
@@ -55,7 +50,6 @@ export function AppShell({ children, page = "studio" }: { children: ReactNode; p
       >
         Skip to content
       </a>
-      {/* Header and footer mirror each other: the same container, a hairline, caption-sized text. */}
       <header className="border-b border-line">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:px-6">
           <Link

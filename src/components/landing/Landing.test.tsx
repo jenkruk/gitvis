@@ -64,7 +64,6 @@ describe("landing page", () => {
     expect(href).toContain("mode=light");
     expect(href).toContain("hdr=full");
 
-    // Arrow keys move within a group (native radios).
     screen.getByRole("radio", { name: "Light theme" }).focus();
     await user.keyboard("{ArrowRight}");
     expect(screen.getByRole("radio", { name: "Dark theme" })).toBeChecked();

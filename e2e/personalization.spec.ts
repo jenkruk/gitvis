@@ -1,6 +1,6 @@
 import { expect, type Locator, test } from "@playwright/test";
 import {
-  expandAll,
+  expandStandaloneDisclosures,
   openSection,
   type SectionTitle,
   expectAccessible,
@@ -77,7 +77,7 @@ test.describe("studio", () => {
     await expect(page.getByRole("radio", { name: "Compact", exact: true })).toBeChecked();
 
     await page.getByRole("button", { name: "Continue to publish" }).click();
-    await expandAll(page);
+    await expandStandaloneDisclosures(page);
     const markdown = page.getByRole("textbox", { name: "README Markdown" });
     await expect(markdown).toHaveValue(/hdr=full/);
     await expect(markdown).toHaveValue(/name=Avery(%20|\+)Example/);

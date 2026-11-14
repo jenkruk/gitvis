@@ -50,7 +50,6 @@ function sides(
     return [
       {
         source,
-        // The chosen platform takes the left; the other the right (GitHub left by default).
         align: source.platform === identity.leftPlatform ? "left" : "right",
         avatar,
         handle,

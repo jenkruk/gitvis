@@ -3,11 +3,6 @@ import { type ReactNode, useEffect } from "react";
 import { fontVariables } from "../src/app/fonts";
 import "../src/app/globals.css";
 
-/**
- * Stories render like the app: the same Geist Sans / Geist Mono setup (src/app/fonts.ts) on
- * <html>, the canvas background and body text. The toolbar's "Theme" switches the studio between
- * the OS scheme, light and dark (data-theme on <html>; tokens are light-dark() pairs).
- */
 function StudioFrame({ theme, children }: { theme?: string; children: ReactNode }) {
   useEffect(() => {
     const html = document.documentElement;

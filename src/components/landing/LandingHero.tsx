@@ -1,11 +1,11 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, BookOpen } from "lucide-react";
 import Link from "next/link";
-import { type ReactNode, useId, useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { backdropColor, PreviewStage } from "@/components/studio/PreviewStage";
-import { README_COLUMN_WIDTH } from "@/components/studio/PreviewFrame";
-import { button, focusWithin } from "@/components/ui/recipes";
+import { button } from "@/components/ui/recipes";
+import { Segmented } from "@/components/ui/Segmented";
 import { STARTING_PRESETS, type StartingPresetId } from "@/config/config";
 import { SITE_DESCRIPTION, SITE_HEADLINE } from "@/config/site";
 import type { ContributionDataset } from "@/domain/types";
@@ -13,7 +13,7 @@ import { createSampleDataset } from "@/fixtures/sample-dataset";
 import { computeMetrics } from "@/metrics/metrics";
 import { prepareView } from "@/renderers/view";
 import { Visualization } from "@/renderers/Visualization";
-import { type ColorMode, getPalette, resolveTheme } from "@/theme/palettes";
+import { type ColorMode, getPalette, GITHUB_FILE_HEADER, GITHUB_README_WIDTH, resolveTheme } from "@/theme/palettes";
 import {
   DEFAULT_SHOWCASE,
   sampleHref,
@@ -29,15 +29,8 @@ const MODES: readonly { id: ColorMode; label: string }[] = [
   { id: "dark", label: "Dark" },
 ];
 
-/**
- * The landing hero: the promise and the way in on one side, the real graphic on the other.
- * The graphic is the production renderer drawing the labelled sample dataset; the three small
- * controls only pick from a curated slice of the studio's options, and both calls to action carry
- * that choice into the studio.
- */
 export function LandingHero({ sample: given }: { sample?: ContributionDataset }) {
-  // Built here rather than passed from the server: it is deterministic, and this keeps ~700 days of
-  // data out of the page payload.
+  // Created on the client: deterministic, and it keeps ~700 days of data out of the RSC payload.
   const sample = useMemo(() => given ?? createSampleDataset(), [given]);
   const [choice, setChoice] = useState<ShowcaseChoice>(DEFAULT_SHOWCASE);
   const update = (next: Partial<ShowcaseChoice>) => setChoice((c) => ({ ...c, ...next }));
@@ -80,7 +73,7 @@ function Showcase({
   return (
     <figure aria-labelledby="showcase-caption" className="min-w-0">
       <ReadmeFrame mode={choice.mode}>
-        <div style={{ maxWidth: README_COLUMN_WIDTH }} className="mx-auto w-full [&>svg]:h-auto [&>svg]:w-full">
+        <div style={{ maxWidth: GITHUB_README_WIDTH }} className="mx-auto w-full [&>svg]:h-auto [&>svg]:w-full">
           <Visualization dataset={prepared.view} config={config} metrics={metrics} idPrefix="showcase" />
         </div>
       </ReadmeFrame>
@@ -115,28 +108,21 @@ function Showcase({
   );
 }
 
-/** A GitHub README surface (the only place a graphic lives): the page color, a hairline and a file tab. */
 function ReadmeFrame({ mode, children }: { mode: ColorMode; children: ReactNode }) {
-  const dark = mode === "dark";
+  const header = GITHUB_FILE_HEADER[mode];
   return (
     <div
       data-mode={mode}
       className="overflow-hidden rounded-stage border shadow-raised motion-safe:transition-colors"
-      // The page color behind the stage too, so the stage's own rounded corners don't show.
-      style={{ borderColor: dark ? "#3d444d" : "#d1d9e0", background: backdropColor(mode) }}
+      // Matches the stage so its rounded corners don't show.
+      style={{ borderColor: header.border, background: backdropColor(mode) }}
     >
       <div
         aria-hidden="true"
         className="flex items-center gap-2 border-b px-4 py-2.5 font-mono text-code motion-safe:transition-colors"
-        style={{
-          background: dark ? "#151b23" : "#f6f8fa",
-          borderColor: dark ? "#3d444d" : "#d1d9e0",
-          color: dark ? "#9198a1" : "#59636e",
-        }}
+        style={{ background: header.background, borderColor: header.border, color: header.text }}
       >
-        <svg viewBox="0 0 16 16" className="size-4" fill="currentColor">
-          <path d="M0 1.75A.75.75 0 0 1 .75 1h4.253c1.227 0 2.317.59 3 1.501A3.743 3.743 0 0 1 11.006 1h4.245a.75.75 0 0 1 .75.75v10.5a.75.75 0 0 1-.75.75h-4.507a2.25 2.25 0 0 0-1.591.659l-.622.621a.75.75 0 0 1-1.06 0l-.622-.621A2.25 2.25 0 0 0 5.258 13H.75a.75.75 0 0 1-.75-.75Zm7.251 10.324.004-5.073-.002-2.253A2.25 2.25 0 0 0 5.003 2.5H1.5v9h3.757a3.75 3.75 0 0 1 1.994.574ZM8.755 4.75l-.004 7.322a3.752 3.752 0 0 1 1.992-.572H14.5v-9h-3.495a2.25 2.25 0 0 0-2.25 2.25Z" />
-        </svg>
+        <BookOpen className="size-4" />
         README.md
       </div>
       <PreviewStage backdrop={mode}>{children}</PreviewStage>
@@ -152,52 +138,5 @@ function PaletteDots({ palette, mode }: { palette: (typeof SHOWCASE_PALETTES)[nu
         <span key={i} className="size-3.5 rounded-full ring-2 ring-surface" style={{ background: color }} />
       ))}
     </span>
-  );
-}
-
-/** A small native radio group shown as a segmented control (the BackdropPicker pattern). */
-function Segmented<T extends string>({
-  legend,
-  value,
-  options,
-  onChange,
-}: {
-  legend: string;
-  value: T;
-  options: readonly { id: T; label: ReactNode; name: string }[];
-  onChange: (value: T) => void;
-}) {
-  const name = useId();
-  return (
-    <fieldset className="flex min-w-0 items-center gap-2">
-      <legend className="float-left mr-1 text-caption text-fg-muted">{legend}</legend>
-      <div className="inline-flex rounded-control border border-line bg-surface p-0.5">
-        {options.map((option) => {
-          const checked = value === option.id;
-          return (
-            <label
-              key={option.id}
-              title={option.name}
-              className={`flex min-h-9 cursor-pointer items-center rounded-[0.25rem] border px-2.5 text-caption whitespace-nowrap motion-safe:transition-colors ${focusWithin} ${
-                checked
-                  ? "border-accent bg-selected font-semibold text-fg"
-                  : "border-transparent font-medium text-fg-muted hover:bg-surface-hover hover:text-fg"
-              }`}
-            >
-              <input
-                type="radio"
-                name={name}
-                value={option.id}
-                checked={checked}
-                onChange={() => onChange(option.id)}
-                aria-label={option.name}
-                className="sr-only"
-              />
-              {option.label}
-            </label>
-          );
-        })}
-      </div>
-    </fieldset>
   );
 }

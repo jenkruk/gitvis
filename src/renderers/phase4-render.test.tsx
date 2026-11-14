@@ -80,7 +80,6 @@ describe("profile identity", () => {
     );
     const badge = /<rect x="([\d.]+)" y="[\d.]+" width="84"/.exec(sample)!;
     expect(Number(badge[1]) + 84).toBeCloseTo(CANVAS_WIDTHS.full - 24 - 108.8 - 12, 5);
-    // Left (the default) is unchanged.
     expect(avatarX(render(full, { avatars: { github: AVATAR } }), "github")).toBe(24);
   });
 
@@ -154,7 +153,6 @@ describe("centered profile header", () => {
     expect(avatarX(svg, "github")).toBe(CANVAS_WIDTHS.full - 24 - 44);
     expect(svg).toMatch(/x="24"[^>]*text-anchor="start"[^>]*>.*@contactkruk/);
     expect(svg).toMatch(new RegExp(`x="${CANVAS_WIDTHS.full - 24}"[^>]*text-anchor="end"[^>]*>.*@jenkruk`));
-    // Only the arrangement changes: same height, same description.
     expect(svg.match(/height="(\d+)"/)![1]).toBe(render(centered).match(/height="(\d+)"/)![1]);
     expect(desc(svg)).toBe(desc(render(centered)));
   });

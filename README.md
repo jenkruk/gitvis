@@ -46,12 +46,11 @@ Technical docs for contributors:
 
 - [Architecture](docs/ARCHITECTURE.md): modules, data flow, platform API findings, security
 - [Design system](docs/DESIGN_SYSTEM.md): layouts, palettes, studio foundations, accessibility
-- [Deployment](docs/DEPLOYMENT.md): environment variables and Vercel setup
+- [Deployment](docs/DEPLOYMENT.md): operations and releases
 
-Planning and reference:
+Product reference:
 
 - [Product](docs/PRODUCT.md): vision, users, scope
-- [Roadmap](docs/ROADMAP.md): phases and acceptance criteria
 
 ## How contributions are counted
 

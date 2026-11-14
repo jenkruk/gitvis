@@ -4,7 +4,7 @@ This project follows the [Contributor Covenant, version 2.1](https://www.contrib
 
 ## Our pledge
 
-We pledge to make participation in this project a harassment-free experience for everyone, regardless of age, body size, visible or invisible disability, ethnicity, sex characteristics, gender identity and expression, level of experience, education, socio-economic status, nationality, personal appearance, race, caste, color, religion, or sexual identity and orientation.
+I pledge to make participation in this project a harassment-free experience for everyone, regardless of age, body size, visible or invisible disability, ethnicity, sex characteristics, gender identity and expression, level of experience, education, socio-economic status, nationality, personal appearance, race, caste, color, religion, or sexual identity and orientation.
 
 ## Expected behavior
 
@@ -27,9 +27,11 @@ This Code of Conduct applies in all project spaces (issues, pull requests, discu
 
 ## Reporting
 
-To report a problem, use GitHub's **Report content** option on the comment, issue or pull request (the `···` menu), or [report abuse to GitHub](https://support.github.com/contact/report-abuse). These reports go to GitHub's Trust & Safety team, who enforce GitHub's own Community Guidelines.
+If you experience or witness behavior that violates this Code of Conduct, please contact the maintainer privately. Reports will be handled as discreetly as possible.
 
-The maintainer also reviews project spaces regularly and will act on behavior that breaks this Code of Conduct.
+You can also use GitHub's **Report content** option (the `···` menu) where available, or [report abuse to GitHub](https://support.github.com/contact/report-abuse).
+
+I'll review concerns and take appropriate action when needed.
 
 ## Enforcement
 

@@ -21,82 +21,64 @@ The differentiator is **the customization experience**. GitVis is a small design
 | Developer with mostly private work         | A way to show _that_ they are active, as counts only and never content |
 | Hiring managers and readers                | A clear, readable, accurate summary with obvious platform attribution  |
 
-## Landing page
+## Experience
 
-`/` introduces GitVis in one screen: the headline (_Your work deserves to be seen._), one sentence, **Create your graphic** (the studio at Connect) and **Explore with sample data** (the studio at Design, sample data, never publishable), beside a real GitVis graphic drawn from labelled sample data. Three small controls (Graphic / Profile card, three palettes, light / dark) show the range without becoming a second studio, and both calls to action carry the choice into the studio. Below: one row pairing the three steps with their benefits, and the open-source and data facts. No sign-in, analytics or tracking.
+### Landing page
 
-## Core flow
+The home page shows what GitVis makes before asking for anything: a real GitVis graphic, drawn from clearly labelled sample data, beside a short headline and two ways in: **Create your graphic** and **Explore with sample data**. A few controls (graphic or profile card, three palettes, light or dark) give a feel for the range, and the chosen look carries into the studio. No sign-in is needed anywhere.
 
-A guided, three-step studio at `/studio`. A step indicator shows where you are; completed steps can be revisited, and going back never loses a setting.
+### The studio: Connect → Design → Publish
 
-1. **Connect.** Two username fields (GitHub, GitLab; either can be blank, and they can differ) and one action: _See my contributions_. When every account loads, the studio moves on to Design. A partial failure stays on Connect with Retry and _Continue with available data_. Visitors can also _try it with sample data_ (never publishable).
-2. **Design.** Start from a preset — **Contribution graphic** or **Developer profile card** — then pick a layout (Minimal, Dashboard, Data-rich), light or dark mode, and one of six featured palettes (_View all 24_). Everything else is optional and collapsed in a single-open accordion: Identity, Colors & Background, Metrics & Charts, Display. The live preview sits beside the controls on desktop and above them, expandable, on phones.
-3. **Publish.** The real published image, _Copy README Markdown_ as the main action, SVG/PNG downloads, the image URL and _Edit design_. Markdown details and embed options are tucked into one collapsed section, so README syntax only appears here.
+A guided, three-step studio. A step indicator shows where you are, completed steps can be revisited, and going back never loses a setting.
 
-Defaults produce a good graphic with no customization. The design and accounts live in the URL (the Edit link), and the current step in its hash, so reloads and shared links restore everything. Edit links made before the studio moved to `/studio` still work (redirected).
+1. **Connect.** Enter a GitHub username, a GitLab username, or both (they can differ). GitVis reads only public contribution calendars. If one account can't be loaded, you can retry or continue with the one that worked. Visitors can also explore with sample data, which can't be published.
+2. **Design.** Start from a **Contribution graphic** or a **Developer profile card**, then choose a layout, light or dark mode, and a palette. Everything else is optional and tucked away: identity, colors and background, which statistics to show, and display options. A live preview shows exactly what will be published.
+3. **Publish.** See the real published image, copy the README Markdown in one click, or download SVG or PNG. An Edit link reopens the studio with every choice restored.
 
-## Features
+The defaults produce a good graphic with no customization. The design lives in the URL, so reloading or sharing a studio link restores everything.
 
-### Layout families
+## Customization
 
-- **Minimal:** quiet typography, a heatmap, and an optional one-line stats summary.
-- **Dashboard:** stat cards, heatmap, platform breakdown.
-- **Data-rich:** detailed stat cards, heatmap, weekly trend, monthly platform comparison.
+- **Layouts:** Minimal (a heatmap and a one-line summary), Dashboard (stat cards, heatmap and platform breakdown) and Data-rich (adds weekly trends and a monthly platform comparison). Switching layouts never discards other choices.
+- **Statistics:** total contributions (always shown), active days, longest streak, best day, current streak, the GitHub/GitLab breakdown and activity trends, in an order the user chooses.
+- **History:** the last 12 months, or up to three years. Earlier years come from GitHub only, because GitLab publishes just the last 12 months; the graphic says so.
+- **Identity (optional):** a header with avatars, a display name and a professional title, in compact, full or centered styles.
+- **Color:** 24 palettes, each with light and dark variants, six of them featured. Panels can be filled, outlined or borderless; backgrounds solid, gradient or transparent; and each platform can have its own color. Colors are checked and, if needed, adjusted for contrast, and platforms are always labelled, so color never carries meaning alone.
+- **Density:** spacious or compact spacing.
 
-Switching layouts never discards the user's feature, palette, or mode choices. A layout that can't show an enabled feature says so in the UI and keeps the setting.
+[DESIGN_SYSTEM](DESIGN_SYSTEM.md) has the visual specification for each option.
 
-### Feature toggles
+## Publishing
 
-Combined contribution heatmap · Total contributions (always shown) · Active days · Longest streak · Best day (off by default) · Current streak (off by default) · GitHub/GitLab breakdown · Activity trends · Platform labels (always shown).
+The goal is to **paste one snippet into a GitHub README and never touch it again.**
 
-Metrics can be **reordered** (Move up / Move down buttons, keyboard-accessible and announced). The **date range** is 1 year (default), 2 years or 3 years: one calendar per 12-month period, newest first, each with its yearly total. Earlier years come from GitHub; GitLab publishes only the last 12 months, so for combined accounts earlier periods are clearly labelled "GitHub only", stats cover the newest 12 months (and say so), and GitLab-only accounts can't choose 2 or 3 years. Old links with 30- or 90-day ranges keep working unchanged. **Density** (Spacious or Compact) tightens cards and panels without changing the layout.
-
-Features live in a registry (`src/config/features.ts`). Adding one is a data change plus a renderer, not an edit to every layout's settings.
-
-### Profile identity (all optional)
-
-- **Header presets:** None (the original header), Compact identity (small avatars, name, handles) and Full profile (large avatars, name, professional title, handles).
-- Each part is independent: show one avatar, both or none; add a display name (≤ 40 characters) and a professional title (≤ 60).
-- **Source attribution is always on:** every published graphic names the platform and username of each account whose contributions it shows ("GitHub @jenkruk · GitLab @contactkruk"), in every layout and header style. This is attribution, not identity verification — no sign-in.
-- **Avatars are embedded in the image** as data, never linked, so the graphic never depends on an external image loading inside GitHub's proxy. If an avatar can't be fetched, a monogram in the platform color takes its place.
-- **No links in the graphic.** In a README it's an image, so nothing inside it can be clicked. The README snippet carries the only links, under the image.
-
-### Color studio
-
-Twenty-four curated palettes, each with light and dark variants: Aurora, Amethyst, Desert Sunset, Ocean Depths, Forest & Gold, Rose Quartz, Electric Cobalt, Ember, Monochrome, GitHub Classic, GitLab Inspired, Nordic Frost, Solarized, Midnight Neon, Paper & Ink, Obsidian & Gold, Velvet Plum, Lagoon, Citrus, Terracotta, Mocha, Porcelain, Sage & Linen, Volt. Six are featured (GitHub Classic, GitLab Inspired, Monochrome, Paper & Ink, Terracotta, Lagoon); "View all 24" shows the rest. A selected palette outside them takes Monochrome's place while the list is collapsed. Palettes coordinate background, surface, border, text, accent, chart series, and a 5-step heatmap ramp. Automated tests enforce contrast.
-
-- **Panels:** Filled, Outlined or Borderless cards and chart panels, independent of the background. Colors are re-checked for contrast against whatever is actually behind them.
-- **Background:** Solid, Gradient (a subtle diagonal tint) or Transparent (blends into the README). Transparent images always use theme matching, so text stays readable on GitHub light and dark.
-- **Custom platform colors:** pick any GitHub/GitLab series color. Colors too close to the panel are adjusted automatically to keep 3:1 contrast, and the UI says so. Platforms are always labelled too, so color never carries meaning alone. A custom color also colors the heatmap by platform: each day shows the color of the platform with the most contributions, and the legend labels both.
-
-### Publishing
-
-The user's goal is to **paste one Markdown snippet into a GitHub README** and never touch it again.
-
-- **Live image URL** (`/api/card?v=1&…`). The URL holds the whole design: usernames, layout, palette, mode, features, and every personalization setting. It renders current data, refreshed about every 12 hours, with no GitHub Actions, accounts, database, or manual updates.
-- **Copy Markdown** in one click. It can match the reader's GitHub light or dark theme using a `<picture>` element.
-- **Published-image preview**: the actual image GitHub will fetch, shown before copying.
-- **Edit configuration link**: reopens the studio with every choice restored. It's shown on the Publish screen; the README image never links there, because readers clicking a card want the accounts, not the editor.
-- **Links under the image**: the snippet shows the card as an unlinked `<picture>` (clicking it does nothing), then "Get Yours · open source on GitHub", left-aligned right under the card's "Made with GitVis" credit, in the graphic's GitLab color with no underline. GitHub strips widths, colors and layout from READMEs, so the links are images GitVis draws (`/api/label`) with their link text as alt text. GitHub strips `target`, so they open in the same tab; images can't react to hover. The GitVis site's footer also links the repo.
-- **Credit line**: every card ends with plain-text "Made with GitVis · created by Jen Kruk". The "Get Yours" link to the production site sits right under it in the README snippet.
-- **Downloads**: SVG and PNG, both generated from the published image.
-- **Stability promise**: a URL generated today renders the same design in future versions. Version bumps are only for breaking changes, and old versions keep working.
+- **A live image.** The snippet embeds an image whose URL holds the whole design. It shows current data, refreshed about every 12 hours, with no account, GitHub Actions, database or manual updates on the user's side. GitHub's image cache can delay when a refresh becomes visible.
+- **Theme matching (optional).** The snippet can switch between light and dark variants to follow the reader's GitHub theme; transparent backgrounds always do.
+- **Links under the image.** The image itself isn't a link. Below it, the snippet adds "Get Yours" (the GitVis site) and "open source on GitHub".
+- **Credit.** Every graphic ends with a small "Made with GitVis · created by Jen Kruk" line.
+- **Stability promise.** A published image URL keeps rendering the same design in future versions. Breaking changes require a new URL version, and old versions keep working. See [ARCHITECTURE "Published URL contract"](ARCHITECTURE.md#published-url-contract-v1).
 
 ## Honesty principles
 
-- GitHub and GitLab count **different activities** (see `ARCHITECTURE.md`, "Platform semantics"). GitVis calls them **contributions**, never "commits".
-- Combined totals are the sum of what each platform reports. They are not deduplicated (mirrored repos may count twice), and the UI says so.
-- Private activity appears only as counts, and only when the user has opted in on that platform.
-- Production views never show invented data. Sample data used in development and demos carries a visible "Sample data" label inside the graphic.
+- GitHub and GitLab count **different activities** (see [ARCHITECTURE "Platform semantics"](ARCHITECTURE.md#platform-semantics-why-combined--commits)). GitVis calls them **contributions**, never "commits".
+- Combined totals are the sum of what each platform reports. They aren't deduplicated (mirrored repositories may count twice), and the graphic says so.
+- Days a platform doesn't report are **unknown, not zero**. Missing history is labelled, and a combined total is never shown for a period one platform doesn't cover.
+- If an account can't be loaded, a published image shows an explanatory message rather than a silently lower total. Older data, when shown during an outage, is labelled with its date.
+- Every published graphic names the accounts its data comes from, and that attribution can't be removed.
+- Private activity appears only as counts, and only when the user has opted in on that platform. Repository contents are never read.
+- Sample data always carries a visible "Sample data" label and can't be published.
 
 ## V1 scope
 
-**In scope:** GitHub and GitLab.com public calendars, the three layouts, the feature registry, twenty-four palettes with light and dark variants, optional profile identity, backgrounds, custom platform colors, panel styles, 1–3 years of history (GitHub; GitLab's 12 months), density, metric ordering, live preview, SVG/PNG/Markdown export, a stable embed URL with caching, accessibility (WCAG 2.2 AA for the app UI; text alternatives inside SVGs), and responsive design.
+**In scope:** GitHub and GitLab.com public contribution calendars; the landing page and the three-step studio; three layouts, configurable statistics, up to three years of history, 24 palettes with light and dark variants, optional identity headers, backgrounds, panel styles, custom platform colors and density; SVG, PNG and Markdown export; a stable, cached embed URL; accessibility (WCAG 2.2 AA for the app, text alternatives in every graphic) and responsive design.
 
-**Out of scope for V1:** accounts and authentication, a database, payments, self-hosted GitLab instances, Bitbucket (the schema allows for it), private-repository access via OAuth, and animated SVGs.
+**Out of scope for V1:** user accounts and sign-in, payments, self-hosted GitLab instances, Bitbucket (the data model allows for it), private-repository access via OAuth, and animated graphics.
 
-## Success criteria
+Anonymous, aggregate usage analytics are under consideration. If they're added, they won't record usernames, generated URLs or anything else that identifies a person.
+
+## Success criteria (launch goals)
 
 - A user with only GitHub, only GitLab, or both can produce and embed a graphic in under two minutes.
-- The embedded image updates without user action and stays within platform rate limits through caching.
-- Every palette and mode passes the contrast checks.
+- An embedded image shows data no more than about 13 hours old (12-hour refresh plus edge caching) without any action from its owner, while staying within GitHub's API rate limits.
+- Every palette and mode passes the automated contrast checks.
+- The studio passes automated WCAG 2.2 AA checks at phone, tablet and desktop widths.

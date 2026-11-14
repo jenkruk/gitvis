@@ -4,22 +4,22 @@
 
 Please **don't open a public issue** for security problems.
 
-Report it privately through GitHub: go to the repository's **Security** tab and choose **Report a vulnerability**, or open [this form](https://github.com/jenkruk/gitvis/security/advisories/new) directly. Only the maintainer can see the report.
+Report vulnerabilities privately through the repository's **Security** tab using **Report a vulnerability**, or [submit a report directly](https://github.com/jenkruk/gitvis/security/advisories/new).
 
 Please include:
 
-- what the problem is and what an attacker could do with it,
-- steps to reproduce (a URL or request is ideal),
-- any suggested fix.
+- A description of the problem and its potential impact.
+- Steps to reproduce it (a URL or example request is helpful).
+- A suggested fix, if you have one.
 
-You can expect an acknowledgement within a week. Once the issue is fixed, you'll be credited in the advisory unless you'd rather stay anonymous.
+I'll aim to acknowledge reports within a week. If a report leads to a fix, I'm happy to credit you unless you'd prefer to remain anonymous.
 
 ## What's in scope
 
-- The hosted site and its API (`/api/card`, `/api/label`, `/api/contributions`, `/api/avatar`).
-- Anything that could expose the server's tokens, let someone make GitVis fetch arbitrary URLs, inject content or scripts into a published image, or show one user's data as another's.
+- The hosted GitVis site and its API (`/api/card`, `/api/label`, `/api/contributions`, `/api/avatar`).
+- Vulnerabilities that could expose server-side tokens, trigger requests to arbitrary URLs, inject content into published images, or expose another user's data.
 
-Out of scope: rate limiting by GitHub or GitLab themselves, reports that need a compromised device, and issues in dependencies without a way to exploit them in GitVis (Dependabot alerts track those).
+Out of scope: GitHub or GitLab's own rate limiting, issues requiring a compromised device, and dependency vulnerabilities without a demonstrated impact on GitVis.
 
 ## Supported versions
 

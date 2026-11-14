@@ -1,10 +1,10 @@
 ![The GitVis landing page: "Your work deserves to be seen." beside a live GitVis graphic of combined GitHub and GitLab contributions, drawn from sample data](docs/images/gitvis-preview.png)
 
-**Every contribution counts.** GitVis combines your GitHub and GitLab contribution calendars into one customizable graphic for your GitHub profile README.
+GitVis combines GitHub and GitLab contribution activity into a customizable graphic for your GitHub README.
 
-**[View example](https://github.com/jenkruk)**: a live GitVis card on the author's GitHub profile.
+[Try GitVis](https://gitvis.vercel.app) · [See a live example](https://github.com/jenkruk)
 
-## Use it
+## Getting Started
 
 1. Open **[gitvis.vercel.app](https://gitvis.vercel.app)**.
 2. **Connect:** enter your GitHub and/or GitLab username (public data only; no sign-in).
@@ -13,7 +13,7 @@
 
 ## How it works
 
-- GitHub data comes from GitHub's GraphQL API; GitLab data from each profile's public contribution calendar. Each platform's yearly total matches the number on that profile.
+- GitHub data comes from GitHub's GraphQL API; GitLab data from each profile's public contribution calendar.
 - The graphic is a self-contained SVG rendered on the server and cached, so READMEs stay fast and nothing runs in the reader's browser.
 - Nothing private is read: GitVis only uses public contribution counts, and tokens stay on the server.
 
@@ -38,17 +38,22 @@ npm run dev                  # http://localhost:3000
 
 ## Contributing
 
-Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first, and follow the [Code of Conduct](CODE_OF_CONDUCT.md). To report a security issue, see [SECURITY.md](SECURITY.md); please don't open a public issue.
+Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) for setup, checks and project rules; the technical docs below go deeper. Please follow the [Code of Conduct](CODE_OF_CONDUCT.md). To report a security issue, see [SECURITY.md](SECURITY.md); please don't open a public issue.
 
 ## Docs
 
-- [Product](docs/PRODUCT.md): vision, users, scope
+Technical docs for contributors:
+
 - [Architecture](docs/ARCHITECTURE.md): modules, data flow, platform API findings, security
-- [Roadmap](docs/ROADMAP.md): phases and acceptance criteria
-- [Design system](docs/DESIGN_SYSTEM.md): layouts, palettes, accessibility
+- [Design system](docs/DESIGN_SYSTEM.md): layouts, palettes, studio foundations, accessibility
 - [Deployment](docs/DEPLOYMENT.md): environment variables and Vercel setup
 
-## A note on counts
+Planning and reference:
+
+- [Product](docs/PRODUCT.md): vision, users, scope
+- [Roadmap](docs/ROADMAP.md): phases and acceptance criteria
+
+## How contributions are counted
 
 GitHub and GitLab count different activities (for example, GitLab counts comments and MR approvals). GitVis reports **contributions as each platform defines them**, not raw commits, and combined totals aren't deduplicated.
 

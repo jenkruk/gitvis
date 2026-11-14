@@ -1,13 +1,13 @@
 "use client";
 
-import { ArrowRight, BookOpen } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { type ReactNode, useMemo, useState } from "react";
 import { backdropColor, PreviewStage } from "@/components/studio/PreviewStage";
-import { button } from "@/components/ui/recipes";
+import { button, link } from "@/components/ui/recipes";
 import { Segmented } from "@/components/ui/Segmented";
 import { STARTING_PRESETS, type StartingPresetId } from "@/config/config";
-import { SITE_DESCRIPTION, SITE_HEADLINE } from "@/config/site";
+import { LIVE_EXAMPLE_URL, SITE_DESCRIPTION, SITE_HEADLINE } from "@/config/site";
 import type { ContributionDataset } from "@/domain/types";
 import { createSampleDataset } from "@/fixtures/sample-dataset";
 import { computeMetrics } from "@/metrics/metrics";
@@ -101,8 +101,14 @@ function Showcase({
           onChange={(mode) => onChange({ mode })}
         />
       </div>
-      <figcaption id="showcase-caption" className="mt-3 text-caption text-fg-muted">
-        A live GitVis graphic, drawn from <strong className="font-semibold text-fg">sample data</strong>.
+      <figcaption className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-caption text-fg-muted">
+        <span id="showcase-caption">
+          A live GitVis graphic, drawn from <strong className="font-semibold text-fg">sample data</strong>.
+        </span>
+        <a href={LIVE_EXAMPLE_URL} target="_blank" rel="noopener noreferrer" className={`${link} gap-1`}>
+          View a live example on GitHub
+          <ArrowUpRight aria-hidden="true" className="size-3.5" /> <span className="sr-only">(opens in a new tab)</span>
+        </a>
       </figcaption>
     </figure>
   );

@@ -1,4 +1,5 @@
 export const GITVIS_REPO_URL = "https://github.com/jenkruk/gitvis";
+export const LIVE_EXAMPLE_URL = "https://github.com/jenkruk";
 
 export const SITE_NAME = "GitVis";
 export const SITE_TAGLINE = "Every contribution counts.";

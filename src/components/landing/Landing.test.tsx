@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { AppShell } from "@/components/shell/AppShell";
-import { GITVIS_REPO_URL } from "@/config/site";
+import { GITVIS_REPO_URL, LIVE_EXAMPLE_URL } from "@/config/site";
 import { LandingDetails } from "./LandingDetails";
 import { LandingHero } from "./LandingHero";
 
@@ -47,6 +47,16 @@ describe("landing page", () => {
     const graphic = within(figure).getByRole("img", { name: "Contribution activity" });
     expect(graphic).toHaveAccessibleDescription(/sample data, not real activity/i);
     expect(graphic).toHaveTextContent("Sample data");
+  });
+
+  it("links to a live example beside the sample-data caption, without changing the figure's name", () => {
+    renderLanding();
+    const figure = screen.getByRole("figure");
+    expect(figure).toHaveAccessibleName("A live GitVis graphic, drawn from sample data.");
+    const example = within(figure).getByRole("link", { name: "View a live example on GitHub (opens in a new tab)" });
+    expect(example).toHaveAttribute("href", LIVE_EXAMPLE_URL);
+    expect(example).toHaveAttribute("target", "_blank");
+    expect(example).toHaveAttribute("rel", "noopener noreferrer");
   });
 
   it("has three small native radio groups that update the graphic and the links", async () => {

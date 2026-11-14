@@ -51,13 +51,17 @@ test("the showcase controls are keyboard operable and drive the real graphic", a
   await expect(graphic).toContainText("Sample data");
   await expect(page.getByRole("radio", { name: "Contribution graphic" })).toBeChecked();
 
-  const viewBox = () => page.locator("figure [data-mode] svg[role=img]").getAttribute("viewBox");
+  const viewBox = () => page.getByTestId("showcase-graphic").locator("svg").getAttribute("viewBox");
+  const frameHeight = async () => (await page.locator("figure [data-mode]").boundingBox())!.height;
   const before = await viewBox();
+  const heightBefore = await frameHeight();
   await page.getByRole("radio", { name: "Contribution graphic" }).focus();
   await page.keyboard.press("ArrowRight");
   await expect(page.getByRole("radio", { name: "Developer profile card" })).toBeChecked();
   // The profile header makes the graphic taller, so its viewBox changes.
   await expect.poll(viewBox).not.toBe(before);
+  // Switching styles never changes the frame's height.
+  expect(await frameHeight()).toBeCloseTo(heightBefore, 0);
 
   await clickRadioLabel(page, "Light theme");
   await expect(page.locator("figure [data-mode]")).toHaveAttribute("data-mode", "light");

@@ -67,14 +67,27 @@ function Showcase({
   onChange: (next: Partial<ShowcaseChoice>) => void;
 }) {
   const config = useMemo(() => showcaseConfig(choice), [choice]);
+  const otherConfig = useMemo(
+    () => showcaseConfig({ ...choice, preset: choice.preset === "graphic" ? "profile" : "graphic" }),
+    [choice],
+  );
   const prepared = useMemo(() => prepareView(sample, { years: config.years, range: config.range }), [sample, config]);
   const metrics = useMemo(() => computeMetrics(prepared.metricsView), [prepared]);
 
   return (
     <figure aria-labelledby="showcase-caption" className="min-w-0">
       <ReadmeFrame mode={choice.mode}>
-        <div style={{ maxWidth: GITHUB_README_WIDTH }} className="mx-auto w-full [&>svg]:h-auto [&>svg]:w-full">
-          <Visualization dataset={prepared.view} config={config} metrics={metrics} idPrefix="showcase" />
+        {/* The other style is laid out invisibly in the same cell, so switching styles never changes the height. */}
+        <div
+          style={{ maxWidth: GITHUB_README_WIDTH }}
+          className="mx-auto grid w-full items-center [&>*]:col-start-1 [&>*]:row-start-1 [&_svg]:h-auto [&_svg]:w-full"
+        >
+          <div data-testid="showcase-graphic">
+            <Visualization dataset={prepared.view} config={config} metrics={metrics} idPrefix="showcase" />
+          </div>
+          <div aria-hidden="true" className="invisible">
+            <Visualization dataset={prepared.view} config={otherConfig} metrics={metrics} idPrefix="showcase-alt" />
+          </div>
         </div>
       </ReadmeFrame>
       <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-3">

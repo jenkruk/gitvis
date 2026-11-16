@@ -110,13 +110,15 @@ test.describe("data freshness and cache layers", () => {
     expect(view.svg).toContain("Account not found");
   });
 
-  test("ETag revalidation (as GitHub's image proxy does) returns 304 until the data changes", async ({ request }) => {
+  test("fresh cards are cacheable downstream, and ETag revalidation returns 304 until the data changes", async ({
+    request,
+  }) => {
     const user = uniqueUser("etag");
     await upstream(request, user, { count: 2 });
     await freshWindow();
     const first = await getCard(request, `gitlab=${user}`);
     const etag = first.res.headers()["etag"]!;
-    expect(first.res.headers()["cache-control"]).toBe("no-cache, max-age=0");
+    expect(first.res.headers()["cache-control"]).toBe("public, max-age=1800");
 
     const revalidated = await getCard(request, `gitlab=${user}`, { "If-None-Match": etag });
     expect(revalidated.res.status()).toBe(304);

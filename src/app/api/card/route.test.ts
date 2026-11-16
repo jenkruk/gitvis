@@ -7,6 +7,7 @@ vi.mock("@/server/cached", () => ({ serverLoaders: loaders }));
 
 const { GET } = await import("./route");
 const { CARD_LIMIT_PER_MINUTE } = await import("@/server/rate-limit");
+const { downstreamCacheControl } = await import("@/server/card");
 
 let ip = 0;
 function get(query: string, headers: Record<string, string> = {}) {
@@ -36,7 +37,7 @@ describe("GET /api/card", () => {
     const res = await get("v=1&github=jenkruk&layout=minimal&palette=ember&mode=light&f=heatmap,total");
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("image/svg+xml; charset=utf-8");
-    expect(res.headers.get("Cache-Control")).toBe("no-cache, max-age=0");
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=1800");
     expect(res.headers.get("Vercel-CDN-Cache-Control")).toBe("public, s-maxage=3600, stale-while-revalidate=600");
     expect(res.headers.get("ETag")).toMatch(/^"[0-9a-f]{40}"$/);
     expect(res.headers.get("X-GitVis-Status")).toBe("ok");
@@ -52,6 +53,59 @@ describe("GET /api/card", () => {
     expect(second.status).toBe(304);
     expect(await second.text()).toBe("");
     expect(second.headers.get("ETag")).toBe(etag);
+    expect(second.headers.get("Cache-Control")).toBe("public, max-age=1800");
+  });
+
+  describe("caching by status: only fresh images may be cached downstream (GitHub's camo)", () => {
+    const failing = (kind: string) =>
+      loaders.github.mockResolvedValue({
+        ok: false,
+        error: { platform: "github", kind, message: "Upstream says no." },
+      });
+
+    it.each([
+      ["ok", () => {}, "github=jenkruk", "public, max-age=1800", 3600],
+      [
+        "stale",
+        () =>
+          loaders.github.mockResolvedValue({
+            ok: true,
+            data: {
+              platform: "github",
+              username: "jenkruk",
+              days: [{ date: toISODate("2026-11-01"), count: 3 }],
+              stale: true,
+              fetchedAt: "2026-11-03T00:00:00.000Z",
+            },
+          }),
+        "github=jenkruk",
+        "no-cache, max-age=0",
+        60,
+      ],
+      ["invalid_config", () => {}, "github=jenkruk&palette=neon", "no-cache, max-age=0", 3600],
+      ["not_found", () => failing("not_found"), "github=jenkruk", "no-cache, max-age=0", 3600],
+      ["unavailable", () => failing("upstream"), "github=jenkruk", "no-cache, max-age=0", 60],
+    ] as const)("%s", async (status, arrange, query, cacheControl, edgeSeconds) => {
+      arrange();
+      const res = await get(query);
+      expect(res.headers.get("X-GitVis-Status")).toBe(status);
+      expect(res.headers.get("Cache-Control")).toBe(cacheControl);
+      expect(res.headers.get("Vercel-CDN-Cache-Control")).toBe(
+        `public, s-maxage=${edgeSeconds}, stale-while-revalidate=600`,
+      );
+      expect(res.headers.get("ETag")).toMatch(/^"[0-9a-f]{40}"$/);
+    });
+
+    it("never lets an unexpected error or a rate-limit response be cached downstream", async () => {
+      expect(downstreamCacheControl("internal_error")).toBe("no-cache, max-age=0");
+      const pinned = { "x-forwarded-for": "198.51.100.99" };
+      let limited: Response | undefined;
+      for (let i = 0; i <= CARD_LIMIT_PER_MINUTE && !limited; i++) {
+        const res = await get("v=1", pinned);
+        if (res.status === 429) limited = res;
+      }
+      expect(limited?.headers.get("Cache-Control")).toBe("no-store");
+    });
   });
 
   it("renders invalid URLs as an explanatory 200 SVG with a short-lived edge cache", async () => {

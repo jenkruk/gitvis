@@ -79,6 +79,6 @@ Anonymous, aggregate usage analytics are under consideration. If they're added, 
 ## Success criteria (launch goals)
 
 - A user with only GitHub, only GitLab, or both can produce and embed a graphic in under two minutes.
-- An embedded image shows data no more than about 13 hours old (12-hour refresh plus edge caching) without any action from its owner, while staying within GitHub's API rate limits.
+- An embedded image shows data no more than about 14 hours old (12-hour refresh plus edge and GitHub image caching) without any action from its owner, while staying within GitHub's API rate limits.
 - Every palette and mode passes the automated contrast checks.
 - The studio passes automated WCAG 2.2 AA checks at phone, tablet and desktop widths.

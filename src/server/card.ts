@@ -24,6 +24,12 @@ export interface CardResult {
 const HOUR = 3_600;
 const MINUTE = 60;
 
+export const DOWNSTREAM_MAX_AGE = 30 * MINUTE;
+
+export function downstreamCacheControl(status: CardStatus): string {
+  return status === "ok" ? `public, max-age=${DOWNSTREAM_MAX_AGE}` : "no-cache, max-age=0";
+}
+
 function errorCard(
   look: Look,
   status: Exclude<CardStatus, "ok" | "stale">,

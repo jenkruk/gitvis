@@ -77,7 +77,7 @@ curl -sI "$SITE/api/card?$Q" | grep -iE '^(HTTP|cache-control|etag|vercel-cdn|x-
 
 | Header on `/api/card`      | Expected                                                                                                         |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `cache-control`            | `no-cache, max-age=0` (camo and browsers always revalidate)                                                      |
+| `cache-control`            | `public, max-age=1800` on `ok` cards (camo may cache them); `no-cache, max-age=0` for every other status         |
 | `etag`                     | a quoted SHA-1 of the SVG                                                                                        |
 | `vercel-cdn-cache-control` | **absent**: Vercel consumes it (edge: 1 hour; stale and unavailable cards 60s; invalid URL and not found 1 hour) |
 | `x-vercel-cache`           | `MISS`, then `HIT` on a repeat request                                                                           |
@@ -107,7 +107,18 @@ curl -s -o /dev/null -w '%{http_code}\n' -H 'If-None-Match: <etag>' "$SITE/api/c
 **A real README through camo.** In a test repository, add a snippet with **Match reader's theme** selected:
 
 - github.com shows the right variant in light and dark, signed in with a chosen theme and signed out, on desktop and on a phone (the full 840px image scaled to fit).
-- The image URL is `camo.githubusercontent.com/…`; record camo's `cache-control` and `etag` from `curl -sI <camo-url>`.
+- The image URL is `camo.githubusercontent.com/…`; check camo's behavior with the steps below.
+
+**Camo caching.** Camo's cache (Fastly) isn't documented, so confirm what it does with `max-age=1800` rather than assuming it matches Vercel. Take the card's camo URL from the README page (`src` of the `<img>`, or a `<source>` `srcset`):
+
+```bash
+for i in 1 2 3; do curl -s -o /dev/null -D - -w 'ttfb=%{time_starttransfer}\n' "<camo-url>" | grep -iE '^(cache-control|age|x-cache|x-served-by)|ttfb'; done
+```
+
+- The first request may be `x-cache: MISS`; repeats from the same region should be `HIT` with a lower TTFB (cached labels measured 70–150 ms, versus 250–670 ms when camo had to fetch).
+- `cache-control` is passed through as `public, max-age=1800`, and `age` grows between requests but stays below 1800.
+- **Not held too long:** once a direct `$SITE/api/card` request shows a newer `x-gitvis-data-as-of`, the image on GitHub should show that data within about 1 hour 40 minutes (the edge's 1 hour plus 10 minutes, then camo's 30 minutes); compare the camo response's `etag` or content with the direct one. If camo holds an image noticeably longer, purge it (see "Recovery") and lower `DOWNSTREAM_MAX_AGE` in `src/server/card.ts`.
+- **Problem cards aren't held:** a card that is `stale` or an error still returns `cache-control: no-cache, max-age=0` through camo, and the next view after recovery shows the fixed image.
 - The image isn't a link, and "Get Yours · open source on GitHub" sits under the card's credit line, with both links working.
 
 **Old host (after the move to `gitvis.app`).**
@@ -143,5 +154,6 @@ Record the date and outcome of each full verification.
 ## Known limits
 
 - **The Runtime Cache is best-effort.** LRU eviction (and, on Hobby, a cache shared with the account's other projects) makes last-known-good likely during an outage, not guaranteed.
+- **camo's cache is undocumented.** It may not honor `max-age` exactly (for example, how it treats the `age` of an image Vercel served from its edge cache). Verify with "Camo caching" after each change to cache headers.
 - **camo's timeout is undocumented.** The first view in a new 12-hour window waits for the upstream fetch (5s timeout); if camo gives up sooner, that one view shows a broken image.
 - **Unverified on Vercel:** whether the CDN answers `If-None-Match` with a 304 on a cache `HIT` (see "Full verification").

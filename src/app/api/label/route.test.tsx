@@ -84,6 +84,27 @@ describe("GET /api/label", () => {
     expect(attr(textOf(repo)[1]!, "text-anchor")).toBe("start");
   });
 
+  it("from v=4, draws a smaller line that, with its spacer, aligns 'Get Yours' with the card's text when centered", async () => {
+    const cta = await (await get("cta=1&mode=dark&line=1&v=4")).text();
+    const repo = await (await get("repo=1&mode=dark&line=1&v=4")).text();
+    const spacer = await (await get("spacer=1&v=4")).text();
+    const line = width(cta) + width(repo) + width(spacer);
+    expect(line).toBeLessThanOrEqual(830);
+    expect((840 - line) / 2 + Number(attr(textOf(cta)[1]!, "x"))).toBe(LINK_LABEL_INSET);
+    expect(width(cta) + width(repo)).toBeLessThanOrEqual(288);
+    expect(attr(textOf(cta)[1]!, "font-size")).toBe("14");
+    expect(attr(textOf(repo)[1]!, "font-size")).toBe("12");
+    expect(textOf(repo)[2]).toBe("· open source on GitHub");
+  });
+
+  it("serves the spacer as an empty, hidden image, only from v=4", async () => {
+    const spacer = await (await get("spacer=1&v=4")).text();
+    expect(spacer).toMatch(/^<svg [^>]*aria-hidden="true"[^>]*(\/>|><\/svg>)$/);
+    expect(spacer).not.toContain("<text");
+    expect((await get("spacer=1&v=3")).status).toBe(400);
+    expect((await get("spacer=1&cta=1&v=4")).status).toBe(400);
+  });
+
   it("is half the card's width by default, and the full width with span=full", async () => {
     expect(width(await (await get("gitlab=contactkruk&mode=dark")).text())).toBe(420);
     expect(width(await (await get("cta=1&mode=dark")).text())).toBe(420);

@@ -135,7 +135,9 @@ describe("colors and backgrounds", () => {
     await user.click(screen.getByRole("button", { name: "Continue to publish" }));
     expect(screen.queryByRole("checkbox", { name: /profile links/i })).not.toBeInTheDocument();
     const snippet = (screen.getByRole("textbox", { name: /markdown/i }) as HTMLTextAreaElement).value;
-    expect(snippet).toMatch(/<a href="https:\/\/gitvis\.test">\s*<picture>[\s\S]*alt="Get Yours"[\s\S]*<\/a>\s*<\/p>$/);
+    expect(snippet).toMatch(
+      /<a href="https:\/\/gitvis\.test">\s*<picture>[\s\S]*alt="Get Yours"[\s\S]*<\/a><img alt="" src="[^"]*spacer=1[^"]*">\s*<\/p>$/,
+    );
     expect(snippet).not.toContain("https://gitvis.test/?");
   });
 

@@ -9,22 +9,11 @@ export const LINK_LABEL_KINDS = {
   cta: { fontSize: 16, fontWeight: 600, align: "left" },
   gitlab: { fontSize: 13, fontWeight: 400, align: "right" },
   repo: { fontSize: 13, fontWeight: 400, align: "right" },
-  repoLine: { fontSize: 14, fontWeight: 400, align: "left" },
 } as const;
 export type LinkLabelKind = keyof typeof LINK_LABEL_KINDS;
 
 export const LINK_LABEL_SPANS = { half: CANVAS_WIDTH / 2, full: CANVAS_WIDTH } as const;
 export type LinkLabelSpan = keyof typeof LINK_LABEL_SPANS;
-
-const LINE_CTA_TEXT_WIDTH = 76;
-const LINE_GAP = 5;
-// Widest measured rendering of "· open source on GitHub" at 14px (San Francisco, 157px) plus slack.
-const LINE_REPO_TEXT_WIDTH = 165;
-export const LINE_WIDTHS = {
-  cta: PADDING + LINE_CTA_TEXT_WIDTH,
-  repoLine: CANVAS_WIDTH - PADDING - LINE_CTA_TEXT_WIDTH,
-  repoFitted: LINE_GAP + LINE_REPO_TEXT_WIDTH,
-} as const;
 
 const DEFAULT_COLORS: Record<LinkLabelMode, string> = { dark: "#4493f8", light: "#0969da" };
 
@@ -43,8 +32,6 @@ export function LinkLabel({
   color,
   span = "half",
   inset = false,
-  line = false,
-  fitted = false,
 }: {
   kind: LinkLabelKind;
   text: string;
@@ -52,31 +39,138 @@ export function LinkLabel({
   color?: string;
   span?: LinkLabelSpan;
   inset?: boolean;
-  line?: boolean;
-  fitted?: boolean;
 }) {
   const { fontSize, fontWeight, align } = LINK_LABEL_KINDS[kind];
-  const width = line
-    ? LINE_WIDTHS[kind === "cta" ? "cta" : fitted ? "repoFitted" : "repoLine"]
-    : LINK_LABEL_SPANS[span];
-  const edge = line ? (kind === "cta" ? LINK_LABEL_INSET : LINE_GAP) : inset ? LINK_LABEL_INSET : 0;
+  const width = LINK_LABEL_SPANS[span];
+  const edge = inset ? LINK_LABEL_INSET : 0;
+  return (
+    <TextImage
+      text={text}
+      width={width}
+      height={HEIGHT}
+      baseline={BASELINE}
+      x={align === "left" ? edge : width - edge}
+      anchor={align === "left" ? "start" : "end"}
+      fontSize={fontSize}
+      fontWeight={fontWeight}
+      fill={linkLabelColor(mode, color)}
+    />
+  );
+}
+
+export type LineStyle = "card" | "fitted" | "small";
+export type LinePart = "cta" | "repo";
+
+interface LinePartSpec {
+  width: number;
+  x: number;
+  fontSize: number;
+  fontWeight: number;
+}
+
+// Text widths are the widest measured renderings in the font stack (San Francisco), plus slack.
+export const LINE_STYLES: Record<
+  LineStyle,
+  { height: number; baseline: number; cta: LinePartSpec; repo: LinePartSpec; spacer: number }
+> = {
+  card: {
+    height: HEIGHT,
+    baseline: BASELINE,
+    cta: { width: PADDING + 76, x: PADDING, fontSize: 16, fontWeight: 600 },
+    repo: { width: CANVAS_WIDTH - PADDING - 76, x: 5, fontSize: 14, fontWeight: 400 },
+    spacer: 0,
+  },
+  fitted: {
+    height: HEIGHT,
+    baseline: BASELINE,
+    cta: { width: PADDING + 76, x: PADDING, fontSize: 16, fontWeight: 600 },
+    repo: { width: 5 + 165, x: 5, fontSize: 14, fontWeight: 400 },
+    spacer: 0,
+  },
+  small: {
+    height: 20,
+    baseline: 14,
+    cta: { width: 14 + 70, x: 14, fontSize: 14, fontWeight: 600 },
+    repo: { width: 5 + 142, x: 5, fontSize: 12, fontWeight: 400 },
+    spacer: 820 - (14 + 70) - (5 + 142),
+  },
+};
+
+export function LineLabel({
+  part,
+  style,
+  text,
+  mode,
+  color,
+}: {
+  part: LinePart;
+  style: LineStyle;
+  text: string;
+  mode: LinkLabelMode;
+  color?: string;
+}) {
+  const { height, baseline } = LINE_STYLES[style];
+  const spec = LINE_STYLES[style][part];
+  return (
+    <TextImage
+      text={text}
+      width={spec.width}
+      height={height}
+      baseline={baseline}
+      x={spec.x}
+      anchor="start"
+      fontSize={spec.fontSize}
+      fontWeight={spec.fontWeight}
+      fill={linkLabelColor(mode, color)}
+    />
+  );
+}
+
+export function LineSpacer() {
+  const width = LINE_STYLES.small.spacer;
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={width} height={1} viewBox={`0 0 ${width} 1`} aria-hidden="true" />
+  );
+}
+
+function TextImage({
+  text,
+  width,
+  height,
+  baseline,
+  x,
+  anchor,
+  fontSize,
+  fontWeight,
+  fill,
+}: {
+  text: string;
+  width: number;
+  height: number;
+  baseline: number;
+  x: number;
+  anchor: "start" | "end";
+  fontSize: number;
+  fontWeight: number;
+  fill: string;
+}) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       width={width}
-      height={HEIGHT}
-      viewBox={`0 0 ${width} ${HEIGHT}`}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
       role="img"
       aria-label={text}
     >
       <title>{text}</title>
       <text
-        x={align === "left" ? edge : width - edge}
-        y={BASELINE}
-        textAnchor={align === "left" ? "start" : "end"}
+        x={x}
+        y={baseline}
+        textAnchor={anchor}
         fontSize={fontSize}
         fontWeight={fontWeight}
-        fill={linkLabelColor(mode, color)}
+        fill={fill}
         fontFamily={FONT_STACK}
       >
         {text}

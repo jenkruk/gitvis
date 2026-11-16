@@ -132,16 +132,16 @@ describe("links under the image", () => {
     return new DOMParser().parseFromString(block!, "text/html").body;
   };
   const urls = (snippet: string) =>
-    [...links(snippet).querySelectorAll("img, source")].map(
+    [...links(snippet).querySelectorAll("a img, a source")].map(
       (el) => new URL((el.getAttribute("src") ?? el.getAttribute("srcset"))!).searchParams,
     );
 
-  it("has two links on one left-aligned line: 'Get Yours' then 'Open source on GitHub'", () => {
+  it("has two links on one centered line: 'Get Yours' then 'Open source on GitHub', then a spacer", () => {
     const snippet = readmeSnippet(origin, params, { theme: "selected" });
     const body = links(snippet);
     const line = body.firstElementChild!;
     expect(line.tagName).toBe("P");
-    expect(line.getAttribute("align")).toBe("left");
+    expect(line.getAttribute("align")).toBe("center");
     const anchors = [...line.querySelectorAll("a")].map((a) => ({
       href: a.getAttribute("href"),
       alt: a.querySelector("picture > img")!.getAttribute("alt"),
@@ -179,8 +179,18 @@ describe("links under the image", () => {
 
   it("is separated from the image by a blank line", () => {
     const snippet = readmeSnippet(origin, params, { theme: "auto" });
-    expect(snippet).toMatch(/<\/picture>\n<\/p>\n\n<p align="left">/);
+    expect(snippet).toMatch(/<\/picture>\n<\/p>\n\n<p align="center">/);
     expect(snippet.match(/<a /g)).toHaveLength(2);
+  });
+
+  it("ends the line with a decorative spacer, touching the links, so the line spans the card and the links align with its text", () => {
+    const snippet = readmeSnippet(origin, params, { theme: "auto" });
+    const line = links(snippet).firstElementChild!;
+    const spacer = line.lastElementChild!;
+    expect(spacer.tagName).toBe("IMG");
+    expect(spacer.getAttribute("alt")).toBe("");
+    expect(spacer.getAttribute("src")).toBe(`https://gitvis.example/api/label?spacer=1&v=${LABEL_VERSION}`);
+    expect(snippet).toMatch(/<\/picture><\/a><img alt="" src=/);
   });
 
   it("builds versioned label URLs for fixed text or a username only", () => {

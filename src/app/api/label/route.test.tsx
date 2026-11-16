@@ -74,6 +74,16 @@ describe("GET /api/label", () => {
     expect(Number(attr(repoAttrs!, "font-size"))).toBeLessThan(16);
   });
 
+  it("from v=3, sizes the line to its text so it fits a 320px phone without wrapping or shrinking", async () => {
+    const cta = await (await get("cta=1&mode=dark&line=1&v=3")).text();
+    const repo = await (await get("repo=1&mode=dark&line=1&v=3")).text();
+    expect(width(cta)).toBe(width(await (await get("cta=1&mode=dark&line=1&v=2")).text()));
+    expect(width(cta) + width(repo)).toBeLessThanOrEqual(288);
+    expect(width(repo)).toBeGreaterThanOrEqual(5 + 157);
+    expect(textOf(repo)[2]).toBe("· open source on GitHub");
+    expect(attr(textOf(repo)[1]!, "text-anchor")).toBe("start");
+  });
+
   it("is half the card's width by default, and the full width with span=full", async () => {
     expect(width(await (await get("gitlab=contactkruk&mode=dark")).text())).toBe(420);
     expect(width(await (await get("cta=1&mode=dark")).text())).toBe(420);

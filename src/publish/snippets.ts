@@ -41,7 +41,7 @@ export function readmeSnippet(origin: string, params: CardParams, options: Snipp
 
 export type LabelTarget = { cta: true } | { repo: true } | { gitlab: string };
 
-export const LABEL_VERSION = "2";
+export const LABEL_VERSION = "3";
 
 export function labelUrl(
   origin: string,
@@ -82,7 +82,7 @@ function linksSnippet(origin: string, params: CardParams): string {
     `</picture></a>`;
   const links =
     label(origin, { cta: true }, "Get Yours") + label(GITVIS_REPO_URL, { repo: true }, "Open source on GitHub");
-  return ['<p align="center">', `  ${links}`, "</p>"].join("\n");
+  return ['<p align="left">', `  ${links}`, "</p>"].join("\n");
 }
 
 function imageSnippet(origin: string, params: CardParams, { theme }: SnippetOptions): string {

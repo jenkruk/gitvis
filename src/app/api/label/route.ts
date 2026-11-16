@@ -63,6 +63,7 @@ export function GET(request: NextRequest) {
       color: color ? `#${color}` : undefined,
       inset: inset === "1",
       line: onLine,
+      fitted: onLine && Number(version) >= 3,
     }),
   );
   return new Response(svg, {

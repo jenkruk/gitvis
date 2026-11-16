@@ -17,11 +17,14 @@ export const LINK_LABEL_SPANS = { half: CANVAS_WIDTH / 2, full: CANVAS_WIDTH } a
 export type LinkLabelSpan = keyof typeof LINK_LABEL_SPANS;
 
 const LINE_CTA_TEXT_WIDTH = 76;
+const LINE_GAP = 5;
+// Widest measured rendering of "· open source on GitHub" at 14px (San Francisco, 157px) plus slack.
+const LINE_REPO_TEXT_WIDTH = 165;
 export const LINE_WIDTHS = {
   cta: PADDING + LINE_CTA_TEXT_WIDTH,
   repoLine: CANVAS_WIDTH - PADDING - LINE_CTA_TEXT_WIDTH,
+  repoFitted: LINE_GAP + LINE_REPO_TEXT_WIDTH,
 } as const;
-const LINE_GAP = 5;
 
 const DEFAULT_COLORS: Record<LinkLabelMode, string> = { dark: "#4493f8", light: "#0969da" };
 
@@ -41,6 +44,7 @@ export function LinkLabel({
   span = "half",
   inset = false,
   line = false,
+  fitted = false,
 }: {
   kind: LinkLabelKind;
   text: string;
@@ -49,9 +53,12 @@ export function LinkLabel({
   span?: LinkLabelSpan;
   inset?: boolean;
   line?: boolean;
+  fitted?: boolean;
 }) {
   const { fontSize, fontWeight, align } = LINK_LABEL_KINDS[kind];
-  const width = line ? LINE_WIDTHS[kind === "cta" ? "cta" : "repoLine"] : LINK_LABEL_SPANS[span];
+  const width = line
+    ? LINE_WIDTHS[kind === "cta" ? "cta" : fitted ? "repoFitted" : "repoLine"]
+    : LINK_LABEL_SPANS[span];
   const edge = line ? (kind === "cta" ? LINK_LABEL_INSET : LINE_GAP) : inset ? LINK_LABEL_INSET : 0;
   return (
     <svg

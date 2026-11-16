@@ -136,12 +136,12 @@ describe("links under the image", () => {
       (el) => new URL((el.getAttribute("src") ?? el.getAttribute("srcset"))!).searchParams,
     );
 
-  it("has two links on one centered line: 'Get Yours' (left) and 'Open source on GitHub' (right)", () => {
+  it("has two links on one left-aligned line: 'Get Yours' then 'Open source on GitHub'", () => {
     const snippet = readmeSnippet(origin, params, { theme: "selected" });
     const body = links(snippet);
     const line = body.firstElementChild!;
     expect(line.tagName).toBe("P");
-    expect(line.getAttribute("align")).toBe("center");
+    expect(line.getAttribute("align")).toBe("left");
     const anchors = [...line.querySelectorAll("a")].map((a) => ({
       href: a.getAttribute("href"),
       alt: a.querySelector("picture > img")!.getAttribute("alt"),
@@ -179,7 +179,7 @@ describe("links under the image", () => {
 
   it("is separated from the image by a blank line", () => {
     const snippet = readmeSnippet(origin, params, { theme: "auto" });
-    expect(snippet).toMatch(/<\/picture>\n<\/p>\n\n<p align="center">/);
+    expect(snippet).toMatch(/<\/picture>\n<\/p>\n\n<p align="left">/);
     expect(snippet.match(/<a /g)).toHaveLength(2);
   });
 

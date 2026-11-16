@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { LOGO_CELLS, LOGO_COLOR, LOGO_VIEWBOX } from "./logo-mark";
+import { LOGO_CELLS, LOGO_VIEWBOX } from "./logo-mark";
 import { button, focusRing, link } from "@/components/ui/recipes";
 import { GITVIS_REPO_URL, SITE_NAME, SITE_TAGLINE } from "@/config/site";
 import { STUDIO_PATH } from "@/publish/studio-url";
@@ -13,7 +13,6 @@ function LogoMark() {
       viewBox={`0 0 ${LOGO_VIEWBOX} ${LOGO_VIEWBOX}`}
       aria-hidden="true"
       className="shrink-0"
-      style={{ color: LOGO_COLOR }}
     >
       {LOGO_CELLS.map((cell, i) => (
         <rect
@@ -23,7 +22,7 @@ function LogoMark() {
           width={cell.size}
           height={cell.size}
           rx={cell.radius}
-          fill="currentColor"
+          fill={cell.color}
           opacity={cell.opacity}
         />
       ))}

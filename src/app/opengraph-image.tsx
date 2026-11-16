@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import { DEFAULT_SHOWCASE, showcaseConfig } from "@/components/landing/showcase";
-import { LOGO_CELLS, LOGO_COLOR } from "@/components/shell/logo-mark";
+import { LOGO_CELLS } from "@/components/shell/logo-mark";
 import { SITE_DESCRIPTION, SITE_HEADLINE, SITE_NAME } from "@/config/site";
 import { createSampleDataset } from "@/fixtures/sample-dataset";
 import { computeMetrics } from "@/metrics/metrics";
@@ -55,7 +55,7 @@ export default function OpengraphImage() {
               width={c.size}
               height={c.size}
               rx={c.radius}
-              fill={LOGO_COLOR}
+              fill={c.color}
               opacity={c.opacity}
             />
           ))}

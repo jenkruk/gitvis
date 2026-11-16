@@ -1,18 +1,22 @@
 export const LOGO_VIEWBOX = 24;
 export const LOGO_COLOR = "#4baeaa";
+export const LOGO_ACCENT = "#ff8a65";
+
+const ACCENT_CELL = 2;
 
 export const LOGO_CELLS = [0.35, 0.6, 1, 0.6, 1, 0.35, 1, 0.35, 0.6].map((opacity, i) => ({
   x: (i % 3) * 8 + 1,
   y: Math.floor(i / 3) * 8 + 1,
   size: 6,
   radius: 1.5,
+  color: i === ACCENT_CELL ? LOGO_ACCENT : LOGO_COLOR,
   opacity,
 }));
 
 export function logoSvg(): string {
   const rects = LOGO_CELLS.map(
     (c) =>
-      `<rect x="${c.x}" y="${c.y}" width="${c.size}" height="${c.size}" rx="${c.radius}" fill="${LOGO_COLOR}" opacity="${c.opacity}"/>`,
+      `<rect x="${c.x}" y="${c.y}" width="${c.size}" height="${c.size}" rx="${c.radius}" fill="${c.color}" opacity="${c.opacity}"/>`,
   ).join("");
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${LOGO_VIEWBOX} ${LOGO_VIEWBOX}">${rects}</svg>\n`;
 }

@@ -1,12 +1,17 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { LOGO_CELLS, logoSvg } from "./logo-mark";
+import { LOGO_ACCENT, LOGO_CELLS, logoSvg } from "./logo-mark";
 
 describe("logo mark", () => {
   it("app/icon.svg is exactly the header mark (regenerate both from logo-mark.ts if this fails)", () => {
     const icon = readFileSync(join(process.cwd(), "src/app/icon.svg"), "utf8");
     expect(icon).toBe(logoSvg());
+  });
+
+  it("has exactly one coral cell, at full opacity in the newest column", () => {
+    const accents = LOGO_CELLS.filter((cell) => cell.color === LOGO_ACCENT);
+    expect(accents).toEqual([expect.objectContaining({ x: 17, y: 1, opacity: 1 })]);
   });
 
   it("is a 3×3 grid of contribution cells inside the 24px viewBox", () => {

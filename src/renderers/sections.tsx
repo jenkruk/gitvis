@@ -596,7 +596,7 @@ export function Credit({ theme, y }: { theme: ThemeTokens; y: number }) {
       fill={theme.textMuted}
       fontFamily={FONT_STACK}
     >
-      Made with GitVis · created by Jen Kruk
+      Made with GitVis
     </text>
   );
 }

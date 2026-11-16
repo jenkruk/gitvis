@@ -93,10 +93,20 @@ describe("landing page", () => {
     expect(trust).toHaveTextContent(/private contributions appear only as counts/i);
     expect(trust).not.toHaveTextContent(/commits/i);
     expect(document.body).not.toHaveTextContent(/every 12 hours|guaranteed|instantly/i);
-    const source = within(trust).getByRole("link", { name: "View the source on GitHub (opens in a new tab)" });
-    expect(source).toHaveAttribute("href", GITVIS_REPO_URL);
-    expect(source).toHaveAttribute("target", "_blank");
-    expect(source).toHaveAttribute("rel", "noopener noreferrer");
+    expect(within(trust).queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("links to the repository once in the header and once in the footer, and to a live example under the hero", () => {
+    renderLanding();
+    const external = screen
+      .getAllByRole("link")
+      .filter((a) => a.getAttribute("href")?.startsWith("https://github.com/"))
+      .map((a) => [a.getAttribute("href"), a.closest("nav, footer, figure")?.tagName.toLowerCase()]);
+    expect(external).toEqual([
+      [GITVIS_REPO_URL, "nav"],
+      [LIVE_EXAMPLE_URL, "figure"],
+      [GITVIS_REPO_URL, "footer"],
+    ]);
   });
 
   it("has a compact header: home, source and the studio", () => {

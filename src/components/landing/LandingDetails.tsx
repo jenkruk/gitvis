@@ -1,6 +1,5 @@
 import { Check } from "lucide-react";
-import { link, overline } from "@/components/ui/recipes";
-import { GITVIS_REPO_URL } from "@/config/site";
+import { overline } from "@/components/ui/recipes";
 
 const STEPS = [
   {
@@ -59,9 +58,6 @@ export function LandingDetails() {
             <p className="mt-2 max-w-md text-body text-fg-muted">
               GitVis is MIT-licensed. Read the code, open an issue, or run your own copy.
             </p>
-            <a href={GITVIS_REPO_URL} target="_blank" rel="noopener noreferrer" className={`${link} mt-3`}>
-              View the source on GitHub <span className="sr-only">(opens in a new tab)</span>
-            </a>
           </div>
           <ul className="grid max-w-2xl gap-y-3">
             {FACTS.map((fact) => (

@@ -6,6 +6,8 @@
  * - Nov 2026, visual refinement: quieter 10px credit line, panel titles at 12/600 in the text
  *   color, stat/breakdown/chart text insets follow the density's panel padding, legend keys drawn
  *   as SVG shapes, "Peak N per week". URLs, data and layout geometry of every section unchanged.
+ * - Nov 2026, credit shortened to "Made with GitVis" (the "· created by Jen Kruk" suffix removed).
+ *   Only that text node changes; position, size, color and every other byte are unchanged.
  */
 import { describe, expect, it } from "vitest";
 import { combineSources } from "@/domain/combine";

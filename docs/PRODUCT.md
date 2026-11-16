@@ -55,7 +55,7 @@ The goal is to **paste one snippet into a GitHub README and never touch it again
 - **A live image.** The snippet embeds an image whose URL holds the whole design. It loads quickly even when nobody has viewed it for days, and refreshes its data at most every 12 hours as people view it, with no account, GitHub Actions, database or manual updates on the user's side. The first view after a quiet period may show the previous data, clearly labelled with its date, while a refresh runs; GitHub's image cache can delay when a refresh becomes visible.
 - **Theme matching (optional).** The snippet can switch between light and dark variants to follow the reader's GitHub theme; transparent backgrounds always do.
 - **Links under the image.** The image itself isn't a link. Below it, the snippet adds "Get Yours" (the GitVis site) and "open source on GitHub".
-- **Credit.** Every graphic ends with a small "Made with GitVis · created by Jen Kruk" line.
+- **Credit.** Every graphic ends with a small "Made with GitVis" line.
 - **Stability promise.** A published image URL keeps rendering the same design in future versions. Breaking changes require a new URL version, and old versions keep working. See [ARCHITECTURE "Published URL contract"](ARCHITECTURE.md#published-url-contract-v1).
 
 ## Honesty principles

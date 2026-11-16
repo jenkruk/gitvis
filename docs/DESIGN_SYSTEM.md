@@ -30,7 +30,7 @@ When the current layout can't show a feature, its switch reads as **off** (the s
 
 ## Typography (graphic)
 
-SVG text uses a system stack, `-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif`. Web fonts don't load inside `<img>` embeds. Hierarchy: title 16/600 → stat value 22/700 → panel titles ("Platform breakdown", chart titles) 12/600 in `text` → stat labels 11/500 and date range 11/400 in `textMuted` → axis, legends, footnote 10/400 → the credit ("Made with GitVis · created by Jen Kruk") 10/400 `textMuted`, the quietest line. Text inside a panel is inset by the density's panel padding (16 spacious, 10 compact). Legend keys are SVG shapes (circles in the breakdown, rounded squares in the monthly chart); only the header's inline platform dots stay text glyphs, because they follow text whose width isn't measured. Numbers use `en-US` grouping for deterministic output.
+SVG text uses a system stack, `-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif`. Web fonts don't load inside `<img>` embeds. Hierarchy: title 16/600 → stat value 22/700 → panel titles ("Platform breakdown", chart titles) 12/600 in `text` → stat labels 11/500 and date range 11/400 in `textMuted` → axis, legends, footnote 10/400 → the credit ("Made with GitVis") 10/400 `textMuted`, the quietest line. Text inside a panel is inset by the density's panel padding (16 spacious, 10 compact). Legend keys are SVG shapes (circles in the breakdown, rounded squares in the monthly chart); only the header's inline platform dots stay text glyphs, because they follow text whose width isn't measured. Numbers use `en-US` grouping for deterministic output.
 
 ## Studio foundations
 

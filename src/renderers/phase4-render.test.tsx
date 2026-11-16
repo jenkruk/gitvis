@@ -226,9 +226,7 @@ describe("credit line", () => {
     for (const layout of LAYOUT_IDS) {
       for (const size of ["full", "compact"] as const) {
         const svg = render({ ...createDefaultConfig(), layout }, { size });
-        expect(svg).toMatch(
-          /<text x="24" y="[\d.]+" font-size="10"[^>]*>Made with GitVis · created by Jen Kruk<\/text><\/svg>$/,
-        );
+        expect(svg).toMatch(/<text x="24" y="[\d.]+" font-size="10"[^>]*>Made with GitVis<\/text><\/svg>$/);
         expect(svg).not.toContain("Get Yours");
       }
     }

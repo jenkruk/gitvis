@@ -113,7 +113,26 @@ describe("renderCard", () => {
     const card = await render("github=jenkruk&gitlab=contactkruk", loaders({ github: staleGitHub }));
     expect(card).toMatchObject({ status: "stale", edgeMaxAge: 60, asOf: "2026-11-03T08:00:00.000Z" });
     expect(card.svg).toContain("Data from Nov 3, 2026");
-    expect(descOf(card.svg)).toContain("Showing data last updated Nov 3, 2026; a refresh is pending.");
+    expect(descOf(card.svg)).toContain("Showing GitHub data last updated Nov 3, 2026; a refresh is pending.");
+  });
+
+  it("states each platform's own data age when both are being refreshed, and the badge shows the oldest", async () => {
+    const staleAt =
+      (fetchedAt: string) =>
+      async (u: string): Promise<AdapterResult> => {
+        const platform = u === "jenkruk" ? "github" : "gitlab";
+        const result = ok(platform, u);
+        return result.ok ? { ok: true, data: { ...result.data, stale: true, fetchedAt } } : result;
+      };
+    const card = await render(
+      "github=jenkruk&gitlab=contactkruk",
+      loaders({ github: staleAt("2026-11-05T12:00:00.000Z"), gitlab: staleAt("2026-11-01T00:00:00.000Z") }),
+    );
+    expect(card).toMatchObject({ status: "stale", edgeMaxAge: 60, asOf: "2026-11-01T00:00:00.000Z" });
+    expect(card.svg).toContain("Data from Nov 1, 2026");
+    expect(descOf(card.svg)).toContain(
+      "Showing GitHub data last updated Nov 5, 2026 and GitLab data last updated Nov 1, 2026; a refresh is pending.",
+    );
   });
 
   it("does not label fresh data", async () => {

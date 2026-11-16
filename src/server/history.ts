@@ -3,7 +3,7 @@ import { type HistoryResult, MAX_HISTORY_YEARS_PER_REQUEST } from "@/adapters/gi
 import type { AdapterError } from "@/adapters/types";
 import { type DateRange, isWithinRange } from "@/domain/dates";
 import type { DailyCount } from "@/domain/types";
-import type { SnapshotStore } from "./cached";
+import type { Schedule, SnapshotStore } from "./cached";
 import { upstreamBudget } from "./rate-limit";
 
 export const HISTORY_SCHEMA = 1;
@@ -46,16 +46,17 @@ export interface HistoryLoaderDeps {
   store: SnapshotStore;
   fetchYears: HistoryFetcher;
   now?: () => number;
+  schedule?: Schedule;
 }
 
-export function createHistoryLoader({ store, fetchYears, now = Date.now }: HistoryLoaderDeps) {
+export function createHistoryLoader({ store, fetchYears, now = Date.now, schedule }: HistoryLoaderDeps) {
   const inFlight = new Map<string, Promise<HistoryOutcome>>();
+  const refreshing = new Set<string>();
 
-  async function load(username: string, range: DateRange): Promise<HistoryOutcome> {
-    const currentYear = new Date(now()).getUTCFullYear();
-    const policyFor = (year: number) => (year < currentYear ? HISTORY_POLICY.completeYear : HISTORY_POLICY.currentYear);
-    const years = yearsIn(range);
+  const policyFor = (year: number) =>
+    year < new Date(now()).getUTCFullYear() ? HISTORY_POLICY.completeYear : HISTORY_POLICY.currentYear;
 
+  async function storedYears(username: string, years: readonly number[]): Promise<Map<number, StoredYear>> {
     const cached = new Map<number, StoredYear>();
     await Promise.all(
       years.map(async (year) => {
@@ -67,11 +68,16 @@ export function createHistoryLoader({ store, fetchYears, now = Date.now }: Histo
         }
       }),
     );
-    const due = years.filter((year) => {
+    return cached;
+  }
+
+  const dueYears = (years: readonly number[], cached: Map<number, StoredYear>) =>
+    years.filter((year) => {
       const stored = cached.get(year);
       return !stored || now() - Date.parse(stored.fetchedAt) > policyFor(year).refreshAfterMs;
     });
 
+  async function refresh(username: string, due: readonly number[]) {
     const fresh = new Map<number, DailyCount[]>();
     let failure: AdapterError | null = null;
     for (let i = 0; i < due.length; i += MAX_HISTORY_YEARS_PER_REQUEST) {
@@ -95,6 +101,43 @@ export function createHistoryLoader({ store, fetchYears, now = Date.now }: Histo
         }
       }
     }
+    return { fresh, failure };
+  }
+
+  function refreshLater(username: string, years: readonly number[]): boolean {
+    if (!schedule) return false;
+    const key = `${username.toLowerCase()}:${years.join(",")}`;
+    if (refreshing.has(key)) return true;
+    refreshing.add(key);
+    try {
+      schedule(async () => {
+        try {
+          const due = dueYears(years, await storedYears(username, years));
+          const { failure } = await refresh(username, due);
+          if (failure) console.warn("[gitvis] background history refresh failed", failure.kind);
+        } catch (error) {
+          console.error("[gitvis] background history refresh failed", error);
+        } finally {
+          refreshing.delete(key);
+        }
+      });
+      return true;
+    } catch (error) {
+      refreshing.delete(key);
+      console.error("[gitvis] couldn't schedule a history refresh (fetching now)", error);
+      return false;
+    }
+  }
+
+  async function load(username: string, range: DateRange): Promise<HistoryOutcome> {
+    const years = yearsIn(range);
+    const cached = await storedYears(username, years);
+    const due = dueYears(years, cached);
+    const complete = years.every((year) => cached.has(year));
+    const { fresh, failure } =
+      due.length > 0 && !(complete && refreshLater(username, due))
+        ? await refresh(username, due)
+        : { fresh: new Map<number, DailyCount[]>(), failure: null };
 
     const days: DailyCount[] = [];
     for (const year of years) {

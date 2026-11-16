@@ -1,5 +1,6 @@
 import "server-only";
 import { getCache } from "@vercel/functions";
+import { after } from "next/server";
 import { GITLAB_ORIGIN } from "@/adapters/gitlab";
 import { type AdapterError, adapterError, type AdapterResult, isTransientError } from "@/adapters/types";
 import { todayInTimeZone } from "@/domain/dates";
@@ -50,15 +51,19 @@ function snapshotTtlSeconds(policy: FreshnessPolicy): number {
   return Math.ceil((policy.maxStaleMs + policy.ttlMs) / 1000);
 }
 
+export type Schedule = (task: () => Promise<void>) => void;
+
 export interface LoaderDeps {
   store: SnapshotStore;
   fetcher: Fetcher;
   policy: () => FreshnessPolicy;
   now?: () => number;
+  schedule?: Schedule;
 }
 
-export function createLoaders({ store, fetcher, policy, now = Date.now }: LoaderDeps): ContributionLoaders {
+export function createLoaders({ store, fetcher, policy, now = Date.now, schedule }: LoaderDeps): ContributionLoaders {
   const inFlight = new Map<string, Promise<SnapshotOutcome>>();
+  const refreshing = new Set<string>();
 
   async function fetchAndStore(platform: PlatformId, username: string, key: string): Promise<SnapshotOutcome> {
     if (!upstreamBudget.take()) {
@@ -80,17 +85,20 @@ export function createLoaders({ store, fetcher, policy, now = Date.now }: Loader
     return { kind: "snapshot", snapshot };
   }
 
-  async function read(platform: PlatformId, username: string, epoch: number): Promise<SnapshotOutcome> {
-    const key = snapshotKey(platform, username, epoch);
-    let stored: Snapshot | null = null;
+  async function stored(key: string): Promise<SnapshotOutcome> {
+    let snapshot: Snapshot | null = null;
     try {
-      stored = asSnapshot(await store.get(key));
+      snapshot = asSnapshot(await store.get(key));
     } catch (error) {
       console.error("[gitvis] snapshot read failed (treating as a miss)", error);
     }
-    if (stored) return { kind: "snapshot", snapshot: stored };
+    return snapshot ? { kind: "snapshot", snapshot } : { kind: "missing" };
+  }
 
-    if (epoch !== epochOf(now(), policy())) return { kind: "missing" };
+  async function fetch(platform: PlatformId, username: string, epoch: number): Promise<SnapshotOutcome> {
+    const key = snapshotKey(platform, username, epoch);
+    const hit = await stored(key);
+    if (hit.kind === "snapshot" || epoch !== epochOf(now(), policy())) return hit;
 
     const pending = inFlight.get(key) ?? fetchAndStore(platform, username, key);
     inFlight.set(key, pending);
@@ -101,9 +109,38 @@ export function createLoaders({ store, fetcher, policy, now = Date.now }: Loader
     }
   }
 
+  function refreshLater(platform: PlatformId, username: string, epoch: number): boolean {
+    if (!schedule) return false;
+    const key = snapshotKey(platform, username, epoch);
+    if (refreshing.has(key)) return true;
+    refreshing.add(key);
+    try {
+      schedule(async () => {
+        try {
+          const outcome = await fetch(platform, username, epoch);
+          if (outcome.kind === "failed")
+            console.warn(`[gitvis] background ${platform} refresh failed`, outcome.error.kind);
+        } catch (error) {
+          console.error(`[gitvis] background ${platform} refresh failed`, error);
+        } finally {
+          refreshing.delete(key);
+        }
+      });
+      return true;
+    } catch (error) {
+      refreshing.delete(key);
+      console.error("[gitvis] couldn't schedule a background refresh (fetching now)", error);
+      return false;
+    }
+  }
+
   const load = (platform: PlatformId, username: string) =>
     loadWithFreshness(
-      (epoch) => read(platform, username, epoch),
+      {
+        stored: (epoch) => stored(snapshotKey(platform, username, epoch)),
+        fetch: (epoch) => fetch(platform, username, epoch),
+        ...(schedule ? { refreshLater: (epoch: number) => refreshLater(platform, username, epoch) } : {}),
+      },
       (error) => recoverLoaderError(platform, error),
       policy(),
       platform,
@@ -161,15 +198,23 @@ const sharedStore: SnapshotStore = {
   set: (key, value, ttl) => vercelRuntimeStore().set(key, value, ttl),
 };
 
-export const serverLoaders: ContributionLoaders = {
-  ...createLoaders({
-    store: sharedStore,
-    fetcher: liveFetcher,
-    policy: () => (testOverridesAllowed() ? policyFromEnv() : policyFromEnv({})),
-  }),
-  githubHistory: createHistoryLoader({
-    store: sharedStore,
-    fetchYears: (username, years) =>
-      fetchGitHubYears(username, years, process.env.GITHUB_TOKEN, { url: upstreamUrls().github }),
-  }),
-};
+function liveLoaders(schedule?: Schedule): ContributionLoaders {
+  return {
+    ...createLoaders({
+      store: sharedStore,
+      fetcher: liveFetcher,
+      policy: () => (testOverridesAllowed() ? policyFromEnv() : policyFromEnv({})),
+      schedule,
+    }),
+    githubHistory: createHistoryLoader({
+      store: sharedStore,
+      fetchYears: (username, years) =>
+        fetchGitHubYears(username, years, process.env.GITHUB_TOKEN, { url: upstreamUrls().github }),
+      schedule,
+    }),
+  };
+}
+
+export const serverLoaders: ContributionLoaders = liveLoaders();
+
+export const cardLoaders: ContributionLoaders = liveLoaders(after);

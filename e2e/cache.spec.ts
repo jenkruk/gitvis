@@ -16,7 +16,17 @@ test.describe("data freshness and cache layers", () => {
     expect(await hits(request, user)).toEqual({ github: 0, gitlab: 1, history: 0 });
   });
 
-  test("after days without requests, the first view gets fresh data immediately (no stale-then-refresh)", async ({
+  test("a brand-new username waits for its first fetch and gets fresh, cacheable data", async ({ request }) => {
+    const user = uniqueUser("new");
+    await upstream(request, user, { count: 3 });
+    const view = await getCard(request, `gitlab=${user}`);
+    expect(view.status).toBe("ok");
+    expect(view.desc).toContain("3 contributions");
+    expect(view.svg).not.toContain("Data from");
+    expect((await hits(request, user)).gitlab).toBe(1);
+  });
+
+  test("after idle windows, the first view answers with the last snapshot, labelled and uncacheable, then refreshes", async ({
     request,
   }) => {
     const user = uniqueUser("idle");
@@ -27,10 +37,31 @@ test.describe("data freshness and cache layers", () => {
     await nextWindow(2);
 
     const view = await getCard(request, `gitlab=${user}`);
-    expect(view.status).toBe("ok");
-    expect(view.desc).toContain("9 contributions");
-    expect(Date.now() - Date.parse(view.res.headers()["x-gitvis-data-as-of"]!)).toBeLessThan(5_000);
-    expect(view.svg).not.toContain("Data from");
+    expect(view.status).toBe("stale");
+    expect(view.desc).toContain("3 contributions");
+    expect(view.desc).toMatch(/Showing GitLab data last updated .+; a refresh is pending\./);
+    expect(view.svg).toContain("Data from");
+    expect(view.res.headers()["cache-control"]).toBe("no-cache, max-age=0");
+    expect(view.res.headers()["vercel-cdn-cache-control"]).toBe("public, s-maxage=60, stale-while-revalidate=600");
+
+    await expect.poll(async () => (await hits(request, user)).gitlab).toBe(2);
+    await expect
+      .poll(async () => {
+        const next = await getCard(request, `gitlab=${user}`);
+        return next.status === "ok" && next.desc.includes("9 contributions") && !next.svg.includes("Data from");
+      })
+      .toBe(true);
+  });
+
+  test("simultaneous first views of a new window share one background refresh", async ({ request }) => {
+    const user = uniqueUser("burst");
+    await upstream(request, user, { count: 2 });
+    await getCard(request, `gitlab=${user}`);
+    await nextWindow();
+
+    const views = await Promise.all(Array.from({ length: 5 }, () => getCard(request, `gitlab=${user}`)));
+    expect(views.every((v) => v.desc.includes("2 contributions"))).toBe(true);
+    await expect.poll(async () => (await getCard(request, `gitlab=${user}`)).status).toBe("ok");
     expect((await hits(request, user)).gitlab).toBe(2);
   });
 
@@ -47,10 +78,11 @@ test.describe("data freshness and cache layers", () => {
 
     expect(view.status).toBe("stale");
     expect(view.desc).toContain("5 contributions");
-    expect(view.desc).toMatch(/Showing data last updated .+; a refresh is pending\./);
+    expect(view.desc).toMatch(/Showing GitHub data last updated .+; a refresh is pending\./);
     expect(view.svg).toContain("Data from");
     expect(view.res.headers()["vercel-cdn-cache-control"]).toBe("public, s-maxage=60, stale-while-revalidate=600");
-    expect((await hits(request, user)).github).toBe(2);
+    await expect.poll(async () => (await hits(request, user)).github).toBe(2);
+    expect((await getCard(request, `github=${user}`)).status).toBe("stale");
   });
 
   test("once last-known-good data exceeds the maximum age, an honest error card replaces it", async ({ request }) => {
@@ -79,10 +111,8 @@ test.describe("data freshness and cache layers", () => {
     expect((await getCard(request, `gitlab=${user}`)).status).toBe("stale");
 
     await upstream(request, user, { mode: "ok", count: 11 });
-    await nextWindow();
-    const view = await getCard(request, `gitlab=${user}`);
-    expect(view.status).toBe("ok");
-    expect(view.desc).toContain("11 contributions");
+    await expect.poll(async () => (await getCard(request, `gitlab=${user}`)).status).toBe("ok");
+    expect((await getCard(request, `gitlab=${user}`)).desc).toContain("11 contributions");
   });
 
   test("a combined card with one platform down labels the stale side instead of a silent partial total", async ({
@@ -105,9 +135,9 @@ test.describe("data freshness and cache layers", () => {
     await getCard(request, `gitlab=${user}`);
     await upstream(request, user, { mode: "notfound" });
     await nextWindow();
-    const view = await getCard(request, `gitlab=${user}`);
-    expect(view.status).toBe("not_found");
-    expect(view.svg).toContain("Account not found");
+    expect((await getCard(request, `gitlab=${user}`)).status).toBe("stale");
+    await expect.poll(async () => (await getCard(request, `gitlab=${user}`)).status).toBe("not_found");
+    expect((await getCard(request, `gitlab=${user}`)).svg).toContain("Account not found");
   });
 
   test("fresh cards are cacheable downstream, and ETag revalidation returns 304 until the data changes", async ({
@@ -127,7 +157,9 @@ test.describe("data freshness and cache layers", () => {
     await nextWindow();
     const changed = await getCard(request, `gitlab=${user}`, { "If-None-Match": etag });
     expect(changed.res.status()).toBe(200);
-    expect(changed.desc).toContain("6 contributions");
+    await expect
+      .poll(async () => (await getCard(request, `gitlab=${user}`, { "If-None-Match": etag })).desc)
+      .toContain("6 contributions");
   });
 
   test("the studio API and the embed share one cached snapshot", async ({ request }) => {

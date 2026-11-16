@@ -52,7 +52,7 @@ The defaults produce a good graphic with no customization. The design lives in t
 
 The goal is to **paste one snippet into a GitHub README and never touch it again.**
 
-- **A live image.** The snippet embeds an image whose URL holds the whole design. It shows current data, refreshed about every 12 hours, with no account, GitHub Actions, database or manual updates on the user's side. GitHub's image cache can delay when a refresh becomes visible.
+- **A live image.** The snippet embeds an image whose URL holds the whole design. It loads quickly even when nobody has viewed it for days, and refreshes its data at most every 12 hours as people view it, with no account, GitHub Actions, database or manual updates on the user's side. The first view after a quiet period may show the previous data, clearly labelled with its date, while a refresh runs; GitHub's image cache can delay when a refresh becomes visible.
 - **Theme matching (optional).** The snippet can switch between light and dark variants to follow the reader's GitHub theme; transparent backgrounds always do.
 - **Links under the image.** The image itself isn't a link. Below it, the snippet adds "Get Yours" (the GitVis site) and "open source on GitHub".
 - **Credit.** Every graphic ends with a small "Made with GitVis · created by Jen Kruk" line.
@@ -79,6 +79,7 @@ Anonymous, aggregate usage analytics are under consideration. If they're added, 
 ## Success criteria (launch goals)
 
 - A user with only GitHub, only GitLab, or both can produce and embed a graphic in under two minutes.
-- An embedded image shows data no more than about 14 hours old (12-hour refresh plus edge and GitHub image caching) without any action from its owner, while staying within GitHub's API rate limits.
+- An embedded image loads without waiting on GitHub or GitLab whenever data from the last 7 days is stored, including after days without views.
+- Without any action from its owner, an embedded image either shows data no more than about 14 hours old (12-hour refresh plus edge and GitHub image caching), or is labelled with the date of its data, which is never more than 7 days old. All of this stays within GitHub's API rate limits.
 - Every palette and mode passes the automated contrast checks.
 - The studio passes automated WCAG 2.2 AA checks at phone, tablet and desktop widths.

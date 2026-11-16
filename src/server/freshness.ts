@@ -31,7 +31,11 @@ export interface Snapshot {
 export type SnapshotOutcome =
   { kind: "snapshot"; snapshot: Snapshot } | { kind: "missing" } | { kind: "failed"; error: AdapterError };
 
-export type SnapshotReader = (epoch: number) => Promise<SnapshotOutcome>;
+export interface SnapshotSource {
+  stored: (epoch: number) => Promise<SnapshotOutcome>;
+  fetch: (epoch: number) => Promise<SnapshotOutcome>;
+  refreshLater?: (epoch: number) => boolean;
+}
 
 function allowsFallback(error: AdapterError): boolean {
   return isTransientError(error.kind) || error.kind === "not_configured";
@@ -43,26 +47,52 @@ function withFreshness(snapshot: Snapshot, stale: boolean): AdapterResult {
 }
 
 export async function loadWithFreshness(
-  read: SnapshotReader,
+  source: SnapshotSource,
   recover: (error: unknown) => AdapterResult,
   policy: FreshnessPolicy,
   platform: AdapterError["platform"],
   now: () => number = Date.now,
 ): Promise<AdapterResult> {
-  const safeRead = async (epoch: number): Promise<SnapshotOutcome> => {
+  const safely = async (attempt: () => Promise<SnapshotOutcome>): Promise<SnapshotOutcome> => {
     try {
-      return await read(epoch);
+      return await attempt();
     } catch (error) {
       const recovered = recover(error);
       return recovered.ok ? { kind: "missing" } : { kind: "failed", error: recovered.error };
     }
   };
 
+  const lastKnownGood = async (current: number): Promise<Snapshot | null> => {
+    const oldestAllowed = now() - policy.maxStaleMs;
+    const epochs: number[] = [];
+    for (let past = current - 1; past >= epochOf(oldestAllowed, policy); past--) epochs.push(past);
+    const outcomes = await Promise.all(epochs.map((epoch) => safely(() => source.stored(epoch))));
+    for (const outcome of outcomes) {
+      if (
+        outcome.kind === "snapshot" &&
+        outcome.snapshot.result.ok &&
+        Date.parse(outcome.snapshot.fetchedAt) >= oldestAllowed
+      ) {
+        return outcome.snapshot;
+      }
+    }
+    return null;
+  };
+
   let epoch = epochOf(now(), policy);
-  let outcome = await safeRead(epoch);
+  const stored = await safely(() => source.stored(epoch));
+  if (stored.kind === "snapshot") return withFreshness(stored.snapshot, false);
+
+  let previous: Snapshot | null | undefined;
+  if (source.refreshLater) {
+    previous = await lastKnownGood(epoch);
+    if (previous && source.refreshLater(epoch)) return withFreshness(previous, true);
+  }
+
+  let outcome = await safely(() => source.fetch(epoch));
   if (outcome.kind === "missing") {
     epoch = epochOf(now(), policy);
-    outcome = await safeRead(epoch);
+    outcome = await safely(() => source.fetch(epoch));
   }
   if (outcome.kind === "snapshot") return withFreshness(outcome.snapshot, false);
 
@@ -70,19 +100,7 @@ export async function loadWithFreshness(
     outcome.kind === "failed"
       ? outcome.error
       : { platform, kind: "upstream", message: "Couldn't load contributions right now. Please try again." };
-  const failure: AdapterResult = { ok: false, error };
-  if (!allowsFallback(error)) return failure;
-
-  const oldestAllowed = now() - policy.maxStaleMs;
-  for (let past = epoch - 1; past >= epochOf(oldestAllowed, policy); past--) {
-    const previous = await safeRead(past);
-    if (
-      previous.kind === "snapshot" &&
-      previous.snapshot.result.ok &&
-      Date.parse(previous.snapshot.fetchedAt) >= oldestAllowed
-    ) {
-      return withFreshness(previous.snapshot, true);
-    }
-  }
-  return failure;
+  if (!allowsFallback(error)) return { ok: false, error };
+  previous ??= await lastKnownGood(epoch);
+  return previous ? withFreshness(previous, true) : { ok: false, error };
 }

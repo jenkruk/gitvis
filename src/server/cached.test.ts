@@ -5,6 +5,7 @@ import { createLoaders, type Fetcher, recoverLoaderError, snapshotKey, testOverr
 import { DEFAULT_POLICY, epochOf, type Snapshot } from "./freshness";
 
 const HOUR = 3_600_000;
+const DAY = 24 * HOUR;
 
 function fakeStore() {
   const entries = new Map<string, { json: string; expires: number }>();
@@ -118,6 +119,126 @@ describe("createLoaders (Runtime Cache snapshots)", () => {
     const t = setup(async () => ok(6));
     await Promise.all([t.loaders.gitlab("u"), t.loaders.gitlab("u"), t.loaders.gitlab("u")]);
     expect(t.fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+function backgroundSetup(fetcher: Fetcher) {
+  const t = setup(fetcher);
+  const tasks: (() => Promise<void>)[] = [];
+  const schedule = vi.fn((task: () => Promise<void>) => void tasks.push(task));
+  let now = Date.parse("2026-11-06T01:00:00Z");
+  const instance = () =>
+    createLoaders({ store: t.store, fetcher: t.fetch, policy: () => DEFAULT_POLICY, now: () => now, schedule });
+  const loaders = instance();
+  return {
+    ...t,
+    loaders,
+    instance,
+    schedule,
+    tasks,
+    advance: (ms: number) => {
+      now += ms;
+      t.setClock(now);
+    },
+    runTasks: async () => {
+      for (const task of tasks.splice(0)) await task();
+    },
+  };
+}
+
+describe("createLoaders with background refresh (published cards)", () => {
+  it("answers the first request of a new window from the previous snapshot and refreshes once afterwards", async () => {
+    let count = 1;
+    const t = backgroundSetup(async () => ok(count));
+    await t.loaders.gitlab("u");
+    count = 2;
+    t.advance(13 * HOUR);
+
+    const views = await Promise.all([t.loaders.gitlab("u"), t.loaders.gitlab("u"), t.loaders.gitlab("u")]);
+    expect(views.map((v) => v.ok && v.data.stale)).toEqual([true, true, true]);
+    expect(views.map((v) => v.ok && v.data.days[0]!.count)).toEqual([1, 1, 1]);
+    expect(t.fetch).toHaveBeenCalledTimes(1);
+    expect(t.tasks).toHaveLength(1);
+
+    await t.runTasks();
+    expect(t.fetch).toHaveBeenCalledTimes(2);
+    const fresh = await t.loaders.gitlab("u");
+    expect(fresh.ok && fresh.data).toMatchObject({ days: [{ count: 2 }] });
+    expect(fresh.ok && fresh.data.stale).toBeUndefined();
+    expect(t.tasks).toHaveLength(0);
+  });
+
+  it("skips the upstream call when another instance already stored the new window", async () => {
+    const t = backgroundSetup(async () => ok(3));
+    await t.loaders.gitlab("u");
+    t.advance(13 * HOUR);
+    const other = t.instance();
+    await Promise.all([t.loaders.gitlab("u"), other.gitlab("u")]);
+    expect(t.tasks).toHaveLength(2);
+    await t.runTasks();
+    expect(t.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("writes nothing when the background refresh fails, schedules again on the next view, and recovers", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    let mode: "ok" | "fail" = "ok";
+    const t = backgroundSetup(async () =>
+      mode === "ok" ? ok(4) : adapterError("gitlab", "upstream", "GitLab responded with an error (503)."),
+    );
+    await t.loaders.gitlab("u");
+    mode = "fail";
+    t.advance(DAY);
+    await t.loaders.gitlab("u");
+    const writes = t.store.set.mock.calls.length;
+    await t.runTasks();
+    expect(t.store.set.mock.calls.length).toBe(writes);
+    expect(console.warn).toHaveBeenCalledWith("[gitvis] background gitlab refresh failed", "upstream");
+
+    const retry = await t.loaders.gitlab("u");
+    expect(retry.ok && retry.data.stale).toBe(true);
+    expect(t.tasks).toHaveLength(1);
+    mode = "ok";
+    await t.runTasks();
+    const recovered = await t.loaders.gitlab("u");
+    expect(recovered.ok && recovered.data.stale).toBeUndefined();
+  });
+
+  it("fetches before answering when the cache was evicted", async () => {
+    const t = backgroundSetup(async () => ok(5));
+    await t.loaders.gitlab("u");
+    t.advance(DAY);
+    t.entries.clear();
+    const result = await t.loaders.gitlab("u");
+    expect(result.ok && result.data.stale).toBeUndefined();
+    expect(t.fetch).toHaveBeenCalledTimes(2);
+    expect(t.tasks).toHaveLength(0);
+  });
+
+  it("fetches before answering when scheduling itself fails (e.g. outside a request)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const t = backgroundSetup(async () => ok(6));
+    await t.loaders.gitlab("u");
+    t.advance(DAY);
+    t.schedule.mockImplementationOnce(() => {
+      throw new Error("after() called outside a request scope");
+    });
+    const result = await t.loaders.gitlab("u");
+    expect(result.ok && result.data.stale).toBeUndefined();
+    expect(t.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps each platform's freshness independent", async () => {
+    const t = backgroundSetup(async (platform) => ({
+      ok: true,
+      data: { platform, username: "u", days: [{ date: toISODate("2026-11-01"), count: 1 }] },
+    }));
+    await t.loaders.github("u");
+    t.advance(13 * HOUR);
+    await t.loaders.gitlab("u");
+    const [github, gitlab] = await Promise.all([t.loaders.github("u"), t.loaders.gitlab("u")]);
+    expect(github.ok && github.data.stale).toBe(true);
+    expect(gitlab.ok && gitlab.data.stale).toBeUndefined();
+    expect(t.tasks).toHaveLength(1);
   });
 });
 

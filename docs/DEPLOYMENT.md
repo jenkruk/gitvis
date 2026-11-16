@@ -75,14 +75,14 @@ curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' "$SITE/?$Q"            
 curl -sI "$SITE/api/card?$Q" | grep -iE '^(HTTP|cache-control|etag|vercel-cdn|x-vercel-cache|x-gitvis)'
 ```
 
-| Header on `/api/card`      | Expected                                                                                                         |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `cache-control`            | `public, max-age=1800` on `ok` cards (camo may cache them); `no-cache, max-age=0` for every other status         |
-| `etag`                     | a quoted SHA-1 of the SVG                                                                                        |
-| `vercel-cdn-cache-control` | **absent**: Vercel consumes it (edge: 1 hour; stale and unavailable cards 60s; invalid URL and not found 1 hour) |
-| `x-vercel-cache`           | `MISS`, then `HIT` on a repeat request                                                                           |
-| `x-gitvis-status`          | `ok` (otherwise `stale`, `invalid_config`, `not_found`, `unavailable` or `internal_error`)                       |
-| `x-gitvis-data-as-of`      | when the upstream data was fetched                                                                               |
+| Header on `/api/card`      | Expected                                                                                                                                              |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cache-control`            | `public, max-age=1800` on `ok` cards (camo may cache them); `no-cache, max-age=0` for every other status                                              |
+| `etag`                     | a quoted SHA-1 of the SVG                                                                                                                             |
+| `vercel-cdn-cache-control` | **absent**: Vercel consumes it (edge: 1 hour; stale and unavailable cards 60s; invalid URL and not found 1 hour)                                      |
+| `x-vercel-cache`           | `MISS`, then `HIT` on a repeat request                                                                                                                |
+| `x-gitvis-status`          | `ok`; `stale` on the first view after a quiet window while a refresh runs; otherwise `invalid_config`, `not_found`, `unavailable` or `internal_error` |
+| `x-gitvis-data-as-of`      | when the upstream data was fetched                                                                                                                    |
 
 ### Preview checks
 
@@ -102,7 +102,11 @@ curl -s -o /dev/null -w '%{http_code}\n' -H 'If-None-Match: <etag>' "$SITE/api/c
 
 **Snapshots survive a deployment.** Note `x-gitvis-data-as-of`, redeploy the same commit, then request a different design variant (an edge miss that reads the same snapshot). The timestamp is unchanged, and Observability → Runtime Cache shows reads without new writes.
 
-**Freshness after idle.** Leave a test card unrequested for more than 13 hours (the 12-hour window plus the 1-hour edge cache). The first request returns `x-gitvis-status: ok` with `x-gitvis-data-as-of` within seconds of now.
+**Freshness after idle.** Leave a test card unrequested for more than 13 hours (the 12-hour window plus the 1-hour edge cache), then request it directly:
+
+- The first request answers quickly with `x-gitvis-status: stale`, `cache-control: no-cache, max-age=0`, an older `x-gitvis-data-as-of`, and a "Data from <date>" badge in the image. The function logs show no `background … refresh failed` line.
+- A request about a minute later (after the stale card's 60-second edge cache) returns `x-gitvis-status: ok` with `x-gitvis-data-as-of` from just after the first request. If it is still `stale`, the background refresh isn't completing: check the logs, and whether `after()` work is cut short.
+- A design variant of a card that has never been requested (for example a new `palette=`) with a username unknown to the cache waits for upstream and returns `ok`; its time to first byte is the slow path.
 
 **A real README through camo.** In a test repository, add a snippet with **Match reader's theme** selected:
 
@@ -119,6 +123,7 @@ for i in 1 2 3; do curl -s -o /dev/null -D - -w 'ttfb=%{time_starttransfer}\n' "
 - `cache-control` is passed through as `public, max-age=1800`, and `age` grows between requests but stays below 1800.
 - **Not held too long:** once a direct `$SITE/api/card` request shows a newer `x-gitvis-data-as-of`, the image on GitHub should show that data within about 1 hour 40 minutes (the edge's 1 hour plus 10 minutes, then camo's 30 minutes); compare the camo response's `etag` or content with the direct one. If camo holds an image noticeably longer, purge it (see "Recovery") and lower `DOWNSTREAM_MAX_AGE` in `src/server/card.ts`.
 - **Problem cards aren't held:** a card that is `stale` or an error still returns `cache-control: no-cache, max-age=0` through camo, and the next view after recovery shows the fixed image.
+- **After idle:** view the README after a gap of more than 13 hours. The first view should be quick and badged "Data from <date>"; reloading about a minute later should show the badge gone. If the badged image persists on GitHub while a direct request already returns `ok`, camo is holding a `no-cache` image: purge it and record the behavior here.
 - The image isn't a link, and "Get Yours · open source on GitHub" sits under the card's credit line, with both links working.
 
 **Old host (after the move to `gitvis.app`).**
@@ -137,9 +142,11 @@ Record the date and outcome of each full verification.
   - `GitHub rejected GITHUB_TOKEN (401)`: the token expired or was revoked; replace it and redeploy.
   - `unexpected … loader failure` or `card render failed`: a bug; cards show a generic error.
   - `snapshot read/write failed` or `history read/write failed`: Runtime Cache trouble; requests still succeed, but last-known-good is at risk.
+  - `background github|gitlab|history refresh failed`: a refresh after the response didn't complete; the card stays labelled "Data from …" and the next view retries. Occasional lines are expected during upstream trouble; a steady stream with healthy upstreams means background work is being cut short.
+  - `couldn't schedule a background refresh`: `after()` was unavailable, so the request waited for upstream; a bug if it recurs.
   - `Neither SITE_URL nor VERCEL_PROJECT_PRODUCTION_URL is usable`: published URLs are falling back to the request host. Fix the environment variables immediately.
 - **Usage**, against your plan's included amounts: Runtime Cache reads, function invocations, CDN requests and Fast Data Transfer.
-  - **Runtime Cache reads are the first limit to watch.** Every edge miss reads one snapshot per platform, plus one per history year and per avatar. At low traffic this stays well inside Hobby's allowance, but growth multiplies reads first.
+  - **Runtime Cache reads are the first limit to watch.** Every edge miss reads one snapshot per platform, plus one per history year and per avatar. The first card request in a new window also reads the earlier windows (up to 14 per platform) to find the last good snapshot. At low traffic this stays well inside Hobby's allowance, but growth multiplies reads first.
   - If reads approach the limit, move to Pro or raise the edge TTL on `ok` cards (fewer function runs, at the cost of freshness).
   - **GitHub API:** each user costs at most about two GraphQL calls a day for the newest year and one a week for history, against 5,000 points per hour. The in-app upstream budget (300 fetches per minute per instance) caps bursts.
 
@@ -149,11 +156,13 @@ Record the date and outcome of each full verification.
 - **A stored-shape change misbehaves:** bump the relevant schema constant (see "Releasing an update") and redeploy. Old entries are ignored and expire on their own.
 - **Stop upstream load:** remove `GITHUB_TOKEN` and redeploy. GitHub cards serve last-known-good data for up to 7 days, then an explanatory error; GitLab is unaffected.
 - **A README image is stuck at an old version:** purge it from camo with `curl -X PURGE <camo-url>`.
-- **Upstream outage:** nothing to do. Cards serve last-known-good data, badged "Data from <date>", for up to 7 days.
+- **Upstream outage:** nothing to do. Cards serve last-known-good data, badged "Data from <date>", for up to 7 days, and each view schedules another background attempt within the upstream budget.
 
 ## Known limits
 
 - **The Runtime Cache is best-effort.** LRU eviction (and, on Hobby, a cache shared with the account's other projects) makes last-known-good likely during an outage, not guaranteed.
 - **camo's cache is undocumented.** It may not honor `max-age` exactly (for example, how it treats the `age` of an image Vercel served from its edge cache). Verify with "Camo caching" after each change to cache headers.
-- **camo's timeout is undocumented.** The first view in a new 12-hour window waits for the upstream fetch (5s timeout); if camo gives up sooner, that one view shows a broken image.
+- **camo's timeout is undocumented.** A card waits for the upstream fetch (5s timeout) only for a username with nothing usable stored: a new username, more than 7 days without views, evicted cache entries, or a refresh that couldn't be scheduled. If camo gives up sooner, that one view shows a broken image.
+- **Background refreshes are best effort.** They run with `after()` within the function's maximum duration; a refresh that fails or is cut short writes nothing, and the card stays labelled until a later view's refresh succeeds or the data passes 7 days. Instances don't coordinate, so a burst of first views across several instances can fetch more than once.
+- **Rarely viewed READMEs usually show the badge first.** Refreshes follow views, so the first view after a quiet window shows the last snapshot labelled with its date, and later views show fresh data.
 - **Unverified on Vercel:** whether the CDN answers `If-None-Match` with a 304 on a cache `HIT` (see "Full verification").

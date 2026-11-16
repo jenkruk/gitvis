@@ -31,6 +31,17 @@ export function describeHistory({
   return parts.join(" ");
 }
 
+const dayOf = (timestamp: string) => formatDate(toISODate(timestamp.slice(0, 10)));
+
+function describeStaleness({ freshness, sources }: ContributionDataset): string {
+  if (!freshness?.stale) return "";
+  const stale = sources.flatMap((s) =>
+    s.stale && s.fetchedAt ? [`${PLATFORMS[s.platform].label} data last updated ${dayOf(s.fetchedAt)}`] : [],
+  );
+  const what = stale.length > 0 ? stale.join(" and ") : `data last updated ${dayOf(freshness.asOf)}`;
+  return `Showing ${what}; a refresh is pending.`;
+}
+
 export function describeVisualization(dataset: ContributionDataset, metrics: ContributionMetrics): string {
   const labelFor = (s: ContributionDataset["sources"][number]) => `${PLATFORMS[s.platform].label} @${s.username}`;
   const names = dataset.sources.map(labelFor);
@@ -50,9 +61,7 @@ export function describeVisualization(dataset: ContributionDataset, metrics: Con
     : "";
   return [
     dataset.provenance === "sample" ? "Sample data, not real activity." : "",
-    dataset.freshness?.stale
-      ? `Showing data last updated ${formatDate(toISODate(dataset.freshness.asOf.slice(0, 10)))}; a refresh is pending.`
-      : "",
+    describeStaleness(dataset),
     `${formatNumber(metrics.total)} contributions${where} from ${formatDate(dataset.range.start)} to ${formatDate(dataset.range.end)}.`,
     breakdown,
     describeWindows(dataset),

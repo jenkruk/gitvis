@@ -161,12 +161,17 @@ studio / card ──▶ loadContributions(request, loaders, { years })     src/s
 `src/server/freshness.ts`, independent of any cache handler:
 
 1. Time is split into fixed **12-hour windows**. Data is cached as one **immutable snapshot per (platform, username, window)**; the window is part of the key, so nothing is revalidated in place.
-2. **The first request in a new window fetches upstream and waits for it.** After any idle period, the first viewer gets fresh data; maximum data age is 12 hours.
-3. **A transient failure falls back to last-known-good:** earlier windows are read (never fetched or written) and the newest successful snapshot under **7 days** old is served, marked stale. The image shows a "Data from <date>" badge and says so in `<desc>`.
-4. **Older than 7 days, or nothing to fall back on:** an honest error card. `not_found` is never masked by old data and is re-checked after an hour.
-5. **Failures are never written.** Only successful snapshots and `not_found` answers are stored.
+2. **A snapshot from the current window is served as fresh.** Only these produce unlabelled `ok` cards, so an unlabelled image was fetched at most 12 hours before it was rendered.
+3. **Published cards don't wait for a new window** (`cardLoaders`). When the current window has no snapshot, the newest successful snapshot from an earlier window under **7 days** old is served at once, marked stale, and a refresh is scheduled with Next's `after()` (Vercel `waitUntil`) to run once the response is sent. Earlier windows are only read, never fetched or written.
+4. **Nothing usable stored** (a new username, data older than 7 days, or evicted entries), or the refresh **can't be scheduled**: the request fetches upstream and waits, as the studio always does.
+5. **The studio and `/api/contributions` wait for the fetch** (`serverLoaders`), because someone designing a card expects current numbers. They fall back to last-known-good only when that fetch fails transiently.
+6. **Stale data is always labelled.** The image shows a "Data from <date>" badge with the oldest source's date, and `<desc>` names each stale platform with its own date. Platforms are loaded independently: one can be fresh while the other is being refreshed.
+7. **Older than 7 days, or nothing to fall back on:** an honest error card. `not_found` is never masked by old data: once a refresh finds the account gone, that answer is stored and shown, and re-checked after an hour.
+8. **Failures are never written.** Only successful snapshots and `not_found` answers are stored.
 
-Next's `cacheLife` was rejected for this: `revalidate` serves stale data and refreshes in the background, so with low traffic every view after an idle gap would show data as old as the gap. Errors thrown inside `"use cache"` also lose their message in production builds.
+Background refresh is best effort. `after()` runs within the function's maximum duration (upstream timeouts of 5 seconds keep a refresh well inside it); if the instance stops, the fetch fails or the upstream budget is spent, nothing is written and the next view schedules another refresh. Each instance schedules at most one refresh per snapshot key at a time, and the refresh re-reads the store before calling upstream, so one that another instance already completed costs no request. Instances don't coordinate, so simultaneous first views on different instances can each fetch once.
+
+Next's `cacheLife` was rejected for this: its revalidation can't express the 7-day limit, the labelling or the "fetch when nothing usable is stored" rule, and errors thrown inside `"use cache"` lose their message in production builds.
 
 ### Snapshot storage
 
@@ -179,15 +184,20 @@ Next's `cacheLife` was rejected for this: `revalidate` serves stale data and ref
 - **Small entries:** snapshots are about 1–12 KB (sparse daily counts) against a 2 MB item limit.
 - **Schema versioning:** bump `SNAPSHOT_SCHEMA` when the stored shape changes. Values are validated on read; malformed entries are misses.
 - **Degrades gracefully:** a read error is a miss, a write error still returns fresh data, and concurrent misses for the same key share one upstream fetch per instance.
+- **Eviction costs speed, not honesty:** if the cache drops a card's snapshots, its next view waits for upstream like a new username.
 - **Outside Vercel**, `getCache()` falls back to an in-memory store with the same semantics (dev and E2E).
 
-| Situation                            | What the viewer sees                               | Upstream calls                |
-| ------------------------------------ | -------------------------------------------------- | ----------------------------- |
-| Several views within a window        | The same snapshot                                  | 1 per window                  |
-| First view after days of no traffic  | Fresh data, on that request                        | 1 (blocking)                  |
-| First view after idle, upstream down | Last snapshot ≤ 7 days old, badged "Data from …"   | 1 attempt + read-only lookups |
-| Upstream down for more than 7 days   | "Contributions temporarily unavailable" error card | 1 attempt per request         |
-| A new deployment                     | Unchanged: snapshots and last-known-good survive   | 0                             |
+For published cards:
+
+| Situation                                      | What the viewer sees                                                        | Upstream calls                         |
+| ---------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------- |
+| Several views within a window                  | The same snapshot                                                           | 1 per window                           |
+| First view in a new window, or after idle days | At once: the last snapshot ≤ 7 days old, badged "Data from …"               | 1, after the response                  |
+| The views after that refresh                   | Fresh data (after the stale card's 60-second edge cache)                    | 0                                      |
+| A new username, or nothing usable stored       | Fresh data, after waiting for upstream                                      | 1 (blocking)                           |
+| Upstream down                                  | The last snapshot ≤ 7 days old, badged; each view schedules another attempt | 1 attempt per view, after the response |
+| Upstream down for more than 7 days             | "Contributions temporarily unavailable" error card                          | 1 attempt per request (blocking)       |
+| A new deployment                               | Unchanged: snapshots and last-known-good survive                            | 0                                      |
 
 `e2e/cache.spec.ts` exercises these against a production build with a fake upstream and 4-second windows; deployment survival is covered by a unit test over a shared store.
 
@@ -196,6 +206,7 @@ Next's `cacheLife` was rejected for this: `revalidate` serves stale data and ref
 - `yrs=2|3` (at most `MAX_HISTORY_YEARS` = 3) adds earlier 12-month periods. History is **GitHub only**: GitLab publishes only the last 12 months.
 - `src/server/history.ts` fetches **complete calendar years** in one aliased GraphQL request and stores **one key per year** (`v<HISTORY_SCHEMA>:github-year:<login>:<year>`). Keys never move with "today", so 2- and 3-year views share them and only one new year is fetched after January 1.
 - Complete years are kept 30 days and refreshed at most weekly, serving the cached copy if a refresh fails; a current calendar year, if requested, refreshes every 12 hours. Failures are never written; concurrent loads share one request.
+- For published cards, when every requested year is stored but some are due for a refresh, the stored years are served at once and the refresh runs after the response, with the same per-instance deduplication and store re-check as snapshots. A year that has never been stored is fetched before answering. These years end before the newest period, so serving them while a refresh is pending doesn't change the newest period's numbers and isn't badged; the badge describes the newest period.
 - The studio loads 3 years whenever a multi-year design is chosen, so switching 2 ↔ 3 never refetches.
 - **If requested history can't load**, the response carries `history: { status, message, retryable }`. Cards show a "temporarily unavailable" card rather than fewer years; the studio shows the last 12 months with a "Try again" notice.
 
@@ -286,15 +297,19 @@ Next.js forbids `react-dom/server` in App Router route handlers, so `src/publish
 
 ## Caching and delivery
 
-Worst-case data age is about 14 hours: 12 hours (snapshot window) + 1 hour (edge) + 10 minutes (stale-while-revalidate) + 30 minutes (GitHub's camo, for fresh cards).
+What a README viewer can rely on:
 
-| Layer                                   | Setting                                                                                                                                 | Effect                                                                                                  |
-| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Data snapshots                          | Runtime Cache, 12-hour windows, 7-day last-known-good                                                                                   | Blocking refresh after idle; never stale-then-refresh                                                   |
-| Vercel CDN (`Vercel-CDN-Cache-Control`) | Cards: `public, s-maxage=3600, stale-while-revalidate=600` (stale, unavailable and error cards 60s; invalid URL and not found 1h)       | After about 70 idle minutes the edge refetches synchronously                                            |
-| Camo and browsers (`Cache-Control`)     | Fresh (`ok`) cards: `public, max-age=1800`. Stale, error, invalid and not-found cards: `no-cache, max-age=0`. All carry a strong `ETag` | Camo serves fresh cards from GitHub's CDN for up to 30 minutes; problem cards are never held downstream |
-| `/api/contributions`                    | `s-maxage=900, stale-while-revalidate=300`; stale or failed results `no-store`                                                          | Shares the same snapshots as cards                                                                      |
-| `/api/label`, `/api/avatar`             | Labels: edge 1 year, browsers 1 day. Avatars: edge 24 hours                                                                             | Labels change only with a new `LABEL_VERSION`                                                           |
+- **An unlabelled card** shows data fetched at most about 14 hours before it's displayed: 12 hours (snapshot window) + 1 hour (edge) + 10 minutes (stale-while-revalidate) + 30 minutes (GitHub's camo).
+- **A labelled card** ("Data from <date>") states its age and is never built from data more than 7 days old; it can stay at the edge for up to about 11 more minutes and is never cached by camo.
+- **Refreshes follow views, not a schedule.** A rarely viewed README typically shows a labelled card on its first view after a gap, and fresh data from about a minute later. No fixed maximum age applies to "the image currently in a README" beyond those two rules.
+
+| Layer                                   | Setting                                                                                                                                 | Effect                                                                                                                            |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Data snapshots                          | Runtime Cache, 12-hour windows, 7-day last-known-good                                                                                   | Cards: labelled last snapshot at once, refresh after the response. Studio, new usernames and data over 7 days old: blocking fetch |
+| Vercel CDN (`Vercel-CDN-Cache-Control`) | Cards: `public, s-maxage=3600, stale-while-revalidate=600` (stale, unavailable and error cards 60s; invalid URL and not found 1h)       | After about 70 idle minutes the edge asks the function again, which usually answers from snapshots                                |
+| Camo and browsers (`Cache-Control`)     | Fresh (`ok`) cards: `public, max-age=1800`. Stale, error, invalid and not-found cards: `no-cache, max-age=0`. All carry a strong `ETag` | Camo serves fresh cards from GitHub's CDN for up to 30 minutes; problem cards are never held downstream                           |
+| `/api/contributions`                    | `s-maxage=900, stale-while-revalidate=300`; stale or failed results `no-store`                                                          | Shares the same snapshots as cards                                                                                                |
+| `/api/label`, `/api/avatar`             | Labels: edge 1 year, browsers 1 day. Avatars: edge 24 hours                                                                             | Labels change only with a new `LABEL_VERSION`                                                                                     |
 
 `Vercel-CDN-Cache-Control` sets the edge policy and is consumed and stripped by Vercel; `Cache-Control` (`downstreamCacheControl` in `src/server/card.ts`) is what camo and browsers see. With `no-cache` on every card, camo (served through Fastly) missed its cache on every view, so each README view made a full round trip to Vercel (measured 250–670 ms) and downloaded the uncompressed SVG; camo also doesn't pass the `ETag` on to browsers. A cacheable image (the link labels) was served from camo's cache in 70–150 ms. Fresh cards therefore allow 30 minutes downstream, trading up to 30 minutes of extra delay for faster views; everything else stays `no-cache` so a temporary error or stale image is never held by camo. camo is on Vercel's verified-bot list. Operational details (firewall rules, purging a stuck camo image, post-deployment checks) are in [DEPLOYMENT](DEPLOYMENT.md).
 

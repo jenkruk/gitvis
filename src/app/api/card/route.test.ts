@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toISODate } from "@/domain/dates";
 
 const loaders = vi.hoisted(() => ({ github: vi.fn(), gitlab: vi.fn(), today: () => "2026-11-06" }));
-vi.mock("@/server/cached", () => ({ serverLoaders: loaders }));
+vi.mock("@/server/cached", () => ({ cardLoaders: loaders }));
 
 const { GET } = await import("./route");
 const { CARD_LIMIT_PER_MINUTE } = await import("@/server/rate-limit");

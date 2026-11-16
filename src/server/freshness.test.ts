@@ -9,21 +9,27 @@ import {
   policyFromEnv,
   type Snapshot,
   type SnapshotOutcome,
+  type SnapshotSource,
 } from "./freshness";
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 
-function harness(policy: FreshnessPolicy = DEFAULT_POLICY) {
+function harness(policy: FreshnessPolicy = DEFAULT_POLICY, { background = false } = {}) {
   let now = Date.parse("2026-11-01T00:00:00Z");
   const store = new Map<number, Snapshot>();
   let upstream: () => AdapterResult = () => ok(1);
   const fetches = vi.fn();
+  let scheduled: number[] = [];
+  let canSchedule = true;
 
-  const read = async (epoch: number): Promise<SnapshotOutcome> => {
+  const stored = async (epoch: number): Promise<SnapshotOutcome> => {
     const hit = store.get(epoch);
-    if (hit) return { kind: "snapshot", snapshot: hit };
-    if (epoch !== epochOf(now, policy)) return { kind: "missing" };
+    return hit ? { kind: "snapshot", snapshot: hit } : { kind: "missing" };
+  };
+  const fetch = async (epoch: number): Promise<SnapshotOutcome> => {
+    const hit = await stored(epoch);
+    if (hit.kind === "snapshot" || epoch !== epochOf(now, policy)) return hit;
     fetches();
     const result = upstream();
     if (!result.ok && result.error.kind !== "not_found") return { kind: "failed", error: result.error };
@@ -31,13 +37,33 @@ function harness(policy: FreshnessPolicy = DEFAULT_POLICY) {
     store.set(epoch, snapshot);
     return { kind: "snapshot", snapshot };
   };
+  const source: SnapshotSource = {
+    stored,
+    fetch,
+    ...(background
+      ? {
+          refreshLater: (epoch: number) => {
+            if (!canSchedule) return false;
+            scheduled.push(epoch);
+            return true;
+          },
+        }
+      : {}),
+  };
   const recover = (): AdapterResult => adapterError("gitlab", "upstream", "generic");
 
   return {
-    load: () => loadWithFreshness(read, recover, policy, "gitlab", () => now),
+    load: () => loadWithFreshness(source, recover, policy, "gitlab", () => now),
     advance: (ms: number) => (now += ms),
     setUpstream: (fn: () => AdapterResult) => (upstream = fn),
     fetches,
+    scheduled: () => scheduled,
+    disableScheduling: () => (canSchedule = false),
+    runScheduled: async () => {
+      const due = scheduled;
+      scheduled = [];
+      for (const epoch of due) await fetch(epoch);
+    },
   };
 }
 
@@ -50,7 +76,7 @@ function ok(count: number): AdapterResult {
 const countOf = (r: AdapterResult) => (r.ok ? r.data.days[0]!.count : null);
 const failing = () => adapterError("gitlab", "upstream", "GitLab responded with an error (503).");
 
-describe("freshness policy", () => {
+describe("freshness policy (blocking refresh, used by the studio)", () => {
   it("serves cached data within the 12h window without refetching", async () => {
     const h = harness();
     expect(countOf(await h.load())).toBe(1);
@@ -141,10 +167,11 @@ describe("freshness policy", () => {
   });
 
   it("degrades unexpected exceptions to a generic failure instead of crashing", async () => {
+    const unavailable = async (): Promise<SnapshotOutcome> => {
+      throw new Error("cache store unavailable");
+    };
     const result = await loadWithFreshness(
-      async () => {
-        throw new Error("cache store unavailable");
-      },
+      { stored: unavailable, fetch: unavailable, refreshLater: () => true },
       () => adapterError("github", "upstream", "Couldn't load contributions right now."),
       DEFAULT_POLICY,
       "github",
@@ -156,6 +183,128 @@ describe("freshness policy", () => {
     const h = harness();
     h.setUpstream(failing);
     expect(await h.load()).toMatchObject({ ok: false, error: { kind: "upstream" } });
+  });
+});
+
+describe("freshness policy (background refresh, used by published cards)", () => {
+  const backgroundHarness = () => harness(DEFAULT_POLICY, { background: true });
+  const fetchedAt = (r: AdapterResult) => (r.ok ? r.data.fetchedAt : null);
+
+  it("serves the current window from cache without scheduling anything", async () => {
+    const h = backgroundHarness();
+    await h.load();
+    h.advance(11 * HOUR);
+    const result = await h.load();
+    expect(result.ok && result.data.stale).toBeUndefined();
+    expect(h.fetches).toHaveBeenCalledTimes(1);
+    expect(h.scheduled()).toEqual([]);
+  });
+
+  it.each([
+    ["a new window begins", 13 * HOUR],
+    ["24 hours idle", DAY],
+    ["several days idle", 6 * DAY],
+  ])("after %s, answers at once with the last good snapshot, labelled, and refreshes later", async (_, idle) => {
+    const h = backgroundHarness();
+    await h.load();
+    h.setUpstream(() => ok(2));
+    h.advance(idle);
+
+    const first = await h.load();
+    expect(countOf(first)).toBe(1);
+    expect(first.ok && first.data).toMatchObject({ stale: true, fetchedAt: "2026-11-01T00:00:00.000Z" });
+    expect(h.fetches).toHaveBeenCalledTimes(1);
+    expect(h.scheduled()).toHaveLength(1);
+
+    await h.runScheduled();
+    const next = await h.load();
+    expect(countOf(next)).toBe(2);
+    expect(next.ok && next.data.stale).toBeUndefined();
+    expect(h.fetches).toHaveBeenCalledTimes(2);
+  });
+
+  it("serves the newest of several stored snapshots", async () => {
+    const h = backgroundHarness();
+    await h.load();
+    h.advance(DAY);
+    await h.load();
+    await h.runScheduled();
+    h.advance(2 * DAY);
+    expect(fetchedAt(await h.load())).toBe("2026-11-02T00:00:00.000Z");
+  });
+
+  it("never serves a snapshot older than 7 days; it fetches before answering instead", async () => {
+    const h = backgroundHarness();
+    await h.load();
+    h.setUpstream(() => ok(3));
+    h.advance(7 * DAY + HOUR);
+    const result = await h.load();
+    expect(countOf(result)).toBe(3);
+    expect(result.ok && result.data.stale).toBeUndefined();
+    expect(h.scheduled()).toEqual([]);
+  });
+
+  it("fetches before answering for a brand-new username", async () => {
+    const h = backgroundHarness();
+    const result = await h.load();
+    expect(countOf(result)).toBe(1);
+    expect(h.scheduled()).toEqual([]);
+  });
+
+  it("fails honestly for a brand-new username when upstream is down", async () => {
+    const h = backgroundHarness();
+    h.setUpstream(failing);
+    expect(await h.load()).toMatchObject({ ok: false, error: { kind: "upstream" } });
+  });
+
+  it("keeps serving the labelled snapshot while background refreshes fail, then recovers", async () => {
+    const h = backgroundHarness();
+    await h.load();
+    h.setUpstream(failing);
+    h.advance(DAY);
+    await h.load();
+    await h.runScheduled();
+
+    const retry = await h.load();
+    expect(retry.ok && retry.data.stale).toBe(true);
+    expect(h.scheduled()).toHaveLength(1);
+
+    h.setUpstream(() => ok(4));
+    await h.runScheduled();
+    const recovered = await h.load();
+    expect(countOf(recovered)).toBe(4);
+    expect(recovered.ok && recovered.data.stale).toBeUndefined();
+  });
+
+  it("stops serving the old snapshot once it passes 7 days, even while refreshes keep failing", async () => {
+    const h = backgroundHarness();
+    await h.load();
+    h.setUpstream(failing);
+    h.advance(6 * DAY);
+    expect((await h.load()).ok).toBe(true);
+    h.advance(DAY + HOUR);
+    expect(await h.load()).toMatchObject({ ok: false, error: { kind: "upstream" } });
+  });
+
+  it("reports a deleted account once the background refresh finds it gone", async () => {
+    const h = backgroundHarness();
+    await h.load();
+    h.setUpstream(() => adapterError("gitlab", "not_found", "No public GitLab profile found."));
+    h.advance(DAY);
+    expect((await h.load()).ok).toBe(true);
+    await h.runScheduled();
+    expect(await h.load()).toMatchObject({ ok: false, error: { kind: "not_found" } });
+  });
+
+  it("fetches before answering when a refresh can't be scheduled", async () => {
+    const h = backgroundHarness();
+    await h.load();
+    h.setUpstream(() => ok(5));
+    h.advance(DAY);
+    h.disableScheduling();
+    const result = await h.load();
+    expect(countOf(result)).toBe(5);
+    expect(result.ok && result.data.stale).toBeUndefined();
   });
 });
 

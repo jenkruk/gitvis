@@ -1,14 +1,14 @@
 import type { NextRequest } from "next/server";
 import { downstreamCacheControl, etagMatches, renderCard, svgEtag } from "@/server/card";
 import { serverAvatarLoader } from "@/server/avatars";
-import { serverLoaders } from "@/server/cached";
+import { cardLoaders } from "@/server/cached";
 import { cardLimiter, clientKey, tooManyRequests } from "@/server/rate-limit";
 
 export async function GET(request: NextRequest) {
   const limit = cardLimiter.hit(clientKey(request.headers));
   if (!limit.allowed) return tooManyRequests(limit.retryAfterSeconds);
 
-  const card = await renderCard(request.nextUrl.searchParams, serverLoaders, serverAvatarLoader);
+  const card = await renderCard(request.nextUrl.searchParams, cardLoaders, serverAvatarLoader);
   const etag = await svgEtag(card.svg);
 
   const headers = new Headers({

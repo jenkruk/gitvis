@@ -117,6 +117,76 @@ describe("GitHub history cache", () => {
   });
 });
 
+describe("GitHub history with background refresh (published cards)", () => {
+  const range = { start: toISODate("2023-11-08"), end: toISODate("2025-11-07") };
+
+  function setup() {
+    const { store } = memoryStore();
+    const fetchYears = vi.fn(async (_u: string, years: readonly number[]) => okYears(years));
+    const tasks: (() => Promise<void>)[] = [];
+    let now = NOW;
+    const schedule = (task: () => Promise<void>) => void tasks.push(task);
+    const instance = () => createHistoryLoader({ store, fetchYears, now: () => now, schedule });
+    return {
+      load: instance(),
+      instance,
+      fetchYears,
+      tasks,
+      advance: (ms: number) => (now += ms),
+      runTasks: async () => {
+        for (const task of tasks.splice(0)) await task();
+      },
+    };
+  }
+
+  it("serves stored years at once when a weekly refresh is due, then refreshes once in the background", async () => {
+    const t = setup();
+    await t.load("jenkruk", range);
+    t.advance(8 * DAY);
+    const result = await Promise.all([t.load("jenkruk", range), t.load("jenkruk", range)]);
+    await t.load("jenkruk", range);
+    expect(result[0]).toEqual({ ok: true, days: [...yearDays(2024), ...yearDays(2025)] });
+    expect(t.fetchYears).toHaveBeenCalledTimes(1);
+    expect(t.tasks).toHaveLength(1);
+
+    await t.runTasks();
+    expect(t.fetchYears).toHaveBeenCalledTimes(2);
+    expect(t.fetchYears).toHaveBeenLastCalledWith("jenkruk", [2023, 2024, 2025]);
+    await t.load("jenkruk", range);
+    expect(t.tasks).toHaveLength(0);
+  });
+
+  it("fetches before answering when any year has never been stored", async () => {
+    const t = setup();
+    await t.load("jenkruk", { start: toISODate("2024-01-01"), end: toISODate("2024-12-31") });
+    await t.load("jenkruk", range);
+    expect(t.fetchYears).toHaveBeenLastCalledWith("jenkruk", [2023, 2025]);
+    expect(t.tasks).toHaveLength(0);
+  });
+
+  it("skips the upstream call when another instance already refreshed the years", async () => {
+    const t = setup();
+    await t.load("jenkruk", range);
+    t.advance(8 * DAY);
+    await Promise.all([t.load("jenkruk", range), t.instance()("jenkruk", range)]);
+    expect(t.tasks).toHaveLength(2);
+    await t.runTasks();
+    expect(t.fetchYears).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps serving stored years when the background refresh fails", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const t = setup();
+    await t.load("jenkruk", range);
+    t.advance(8 * DAY);
+    t.fetchYears.mockResolvedValueOnce({ ok: false, error: { platform: "github", kind: "upstream", message: "x" } });
+    await t.load("jenkruk", range);
+    await t.runTasks();
+    expect(await t.load("jenkruk", range)).toMatchObject({ ok: true });
+    expect(t.tasks).toHaveLength(1);
+  });
+});
+
 function ok(platform: "github" | "gitlab", entries: [string, number][]): AdapterResult {
   return {
     ok: true,

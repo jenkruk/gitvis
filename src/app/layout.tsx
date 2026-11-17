@@ -1,4 +1,6 @@
+
 import type { Metadata, Viewport } from "next";
+import AnalyticsTracker from "./AnalyticsTracker";
 import { SITE_DESCRIPTION } from "@/config/site";
 import { siteOrigin } from "@/server/origin";
 import { fontVariables } from "./fonts";
@@ -23,7 +25,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${fontVariables} h-full antialiased`}>
-      <body className="flex min-h-full flex-col bg-canvas font-sans text-body text-fg">{children}</body>
+      <body className="flex min-h-full flex-col bg-canvas font-sans text-body text-fg">
+        {children}
+        <AnalyticsTracker />
+      </body>
     </html>
   );
 }

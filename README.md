@@ -19,7 +19,7 @@ GitVis combines GitHub and GitLab contribution activity into a customizable grap
 
 ## Run it locally
 
-Requires Node 22+.
+Requires Node.js 26.x.
 
 ```bash
 npm install

@@ -11,7 +11,7 @@ Thanks for your interest in contributing! GitVis is maintained by one person, so
 
 ## Setup
 
-Requires Node.js 22 or later.
+Requires Node.js 26.x.
 
 Fork the repository, then clone your fork:
 

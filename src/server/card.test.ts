@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { adapterError, type AdapterResult } from "@/adapters/types";
 import { toISODate } from "@/domain/dates";
 import type { ContributionLoaders } from "./contributions";
-import { etagMatches, renderCard, svgEtag } from "./card";
+import { cacheHeaders, etagMatches, renderCard, svgEtag } from "./card";
+import { DEFAULT_POLICY } from "./freshness";
 
 const ok = (platform: "github" | "gitlab", username: string): AdapterResult => ({
   ok: true,
@@ -205,5 +206,102 @@ describe("renderCard avatars", () => {
     });
     expect(card.status).toBe("ok");
     expect(card.svg).toMatch(/<text[^>]*>J<\/text>/);
+  });
+});
+
+describe("cache lifetimes follow the 12-hour data window", () => {
+  const at = (iso: string) => Date.parse(iso);
+  const renderAt = (startIso: string, query = "v=1&github=jenkruk") =>
+    renderCard(new URLSearchParams(query), loaders(), undefined, { policy: DEFAULT_POLICY, now: () => at(startIso) });
+  const seconds = (header: string) => Number(/max-?age=(\d+)/.exec(header)![1]);
+
+  it.each([
+    ["2026-11-17T00:00:00.000Z", "2026-11-17T12:00:00.000Z", 43_200],
+    ["2026-11-17T06:00:00.000Z", "2026-11-17T12:00:00.000Z", 21_600],
+    ["2026-11-17T11:59:30.000Z", "2026-11-17T12:00:00.000Z", 30],
+    ["2026-11-17T11:59:59.999Z", "2026-11-17T12:00:00.000Z", 0],
+    ["2026-11-17T12:00:00.000Z", "2026-11-18T00:00:00.000Z", 43_200],
+    ["2026-11-17T23:59:59.000Z", "2026-11-18T00:00:00.000Z", 1],
+  ])("a fresh card rendered at %s is valid until %s (max-age %i)", async (start, end, maxAge) => {
+    const card = await renderAt(start);
+    expect(card).toMatchObject({ status: "ok", validUntil: at(end) });
+    expect(cacheHeaders(card, at(start))).toEqual({
+      "Cache-Control": `public, max-age=${maxAge}`,
+      "Vercel-CDN-Cache-Control": `public, s-maxage=${Math.min(maxAge, 3600)}`,
+    });
+  });
+
+  it("never lets any cache keep a fresh card past the end of its window, whenever it's served", async () => {
+    for (let minute = 0; minute < 24 * 60; minute += 7) {
+      const now = at("2026-11-17T00:00:00.000Z") + minute * 60_000 + 123;
+      const card = await renderCard(new URLSearchParams("v=1&github=jenkruk"), loaders(), undefined, {
+        now: () => now,
+      });
+      const headers = cacheHeaders(card, now);
+      expect(now + seconds(headers["Cache-Control"]) * 1000).toBeLessThanOrEqual(card.validUntil!);
+      expect(now + seconds(headers["Vercel-CDN-Cache-Control"]) * 1000).toBeLessThanOrEqual(card.validUntil!);
+      expect(headers["Vercel-CDN-Cache-Control"]).not.toContain("stale-while-revalidate");
+    }
+  });
+
+  it("keeps the window of the request's start when the window rolls over while it renders", async () => {
+    const card = await renderAt("2026-11-17T11:59:59.900Z");
+    expect(cacheHeaders(card, at("2026-11-17T12:00:00.400Z"))).toEqual({
+      "Cache-Control": "public, max-age=0",
+      "Vercel-CDN-Cache-Control": "public, s-maxage=0",
+    });
+  });
+
+  it("leaves stale and error cards uncacheable downstream with their existing edge lifetimes", async () => {
+    const staleGitHub = async (u: string): Promise<AdapterResult> => {
+      const result = ok("github", u);
+      return result.ok
+        ? { ok: true, data: { ...result.data, stale: true, fetchedAt: "2026-11-16T08:00:00.000Z" } }
+        : result;
+    };
+    const stale = await renderCard(new URLSearchParams("v=1&github=jenkruk"), loaders({ github: staleGitHub }));
+    expect(stale.validUntil).toBeUndefined();
+    expect(cacheHeaders(stale, Date.now())).toEqual({
+      "Cache-Control": "no-cache, max-age=0",
+      "Vercel-CDN-Cache-Control": "public, s-maxage=60, stale-while-revalidate=600",
+    });
+    const invalid = await render("v=1&github=jenkruk&palette=neon");
+    expect(cacheHeaders(invalid, Date.now())).toEqual({
+      "Cache-Control": "no-cache, max-age=0",
+      "Vercel-CDN-Cache-Control": "public, s-maxage=3600, stale-while-revalidate=600",
+    });
+  });
+
+  it("caches a card missing a requested avatar for at most 30 minutes, so a failed fetch doesn't stick", async () => {
+    const start = "2026-11-17T01:00:00.000Z";
+    const options = { now: () => at(start) };
+    const missing = await renderCard(
+      new URLSearchParams("v=1&github=jenkruk&gitlab=contactkruk&hdr=compact&av=github,gitlab"),
+      loaders(),
+      async () => ({ github: "data:image/png;base64,iVBORw0KGgo=" }),
+      options,
+    );
+    expect(missing.missingAvatar).toBe(true);
+    expect(cacheHeaders(missing, at(start))).toEqual({
+      "Cache-Control": "public, max-age=1800",
+      "Vercel-CDN-Cache-Control": "public, s-maxage=1800",
+    });
+
+    const nearEnd = await renderCard(
+      new URLSearchParams("v=1&github=jenkruk&hdr=compact&av=github"),
+      loaders(),
+      async () => ({}),
+      { now: () => at("2026-11-17T11:50:00.000Z") },
+    );
+    expect(cacheHeaders(nearEnd, at("2026-11-17T11:50:00.000Z"))["Cache-Control"]).toBe("public, max-age=600");
+
+    const complete = await renderCard(
+      new URLSearchParams("v=1&github=jenkruk&hdr=compact&av=github"),
+      loaders(),
+      async () => ({ github: "data:image/png;base64,iVBORw0KGgo=" }),
+      options,
+    );
+    expect(complete.missingAvatar).toBeUndefined();
+    expect(cacheHeaders(complete, at(start))["Cache-Control"]).toBe("public, max-age=39600");
   });
 });

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { toISODate } from "@/domain/dates";
 
 const loaders = vi.hoisted(() => ({ github: vi.fn(), gitlab: vi.fn(), today: () => "2026-11-06" }));
@@ -7,19 +7,27 @@ vi.mock("@/server/cached", () => ({ cardLoaders: loaders }));
 
 const { GET } = await import("./route");
 const { CARD_LIMIT_PER_MINUTE } = await import("@/server/rate-limit");
-const { downstreamCacheControl } = await import("@/server/card");
+const { cacheHeaders } = await import("@/server/card");
+
+const NOW = "2026-11-06T09:00:00.000Z";
+const FRESH = "public, max-age=10800";
+const FRESH_EDGE = "public, s-maxage=3600";
 
 let ip = 0;
-function get(query: string, headers: Record<string, string> = {}) {
+function get(query: string, headers: Record<string, string> = {}, origin = "http://localhost") {
   ip += 1;
   return GET(
-    new NextRequest(`http://localhost/api/card?${query}`, {
+    new NextRequest(`${origin}/api/card?${query}`, {
       headers: { "x-forwarded-for": `203.0.113.${ip % 250}`, ...headers },
     }),
   );
 }
 
+afterEach(() => vi.useRealTimers());
+
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(NOW));
   loaders.github.mockReset();
   loaders.github.mockResolvedValue({
     ok: true,
@@ -37,8 +45,8 @@ describe("GET /api/card", () => {
     const res = await get("v=1&github=jenkruk&layout=minimal&palette=ember&mode=light&f=heatmap,total");
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("image/svg+xml; charset=utf-8");
-    expect(res.headers.get("Cache-Control")).toBe("public, max-age=1800");
-    expect(res.headers.get("Vercel-CDN-Cache-Control")).toBe("public, s-maxage=3600, stale-while-revalidate=600");
+    expect(res.headers.get("Cache-Control")).toBe(FRESH);
+    expect(res.headers.get("Vercel-CDN-Cache-Control")).toBe(FRESH_EDGE);
     expect(res.headers.get("ETag")).toMatch(/^"[0-9a-f]{40}"$/);
     expect(res.headers.get("X-GitVis-Status")).toBe("ok");
     expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
@@ -53,7 +61,7 @@ describe("GET /api/card", () => {
     expect(second.status).toBe(304);
     expect(await second.text()).toBe("");
     expect(second.headers.get("ETag")).toBe(etag);
-    expect(second.headers.get("Cache-Control")).toBe("public, max-age=1800");
+    expect(second.headers.get("Cache-Control")).toBe(FRESH);
   });
 
   describe("caching by status: only fresh images may be cached downstream (GitHub's camo)", () => {
@@ -64,7 +72,7 @@ describe("GET /api/card", () => {
       });
 
     it.each([
-      ["ok", () => {}, "github=jenkruk", "public, max-age=1800", 3600],
+      ["ok", () => {}, "github=jenkruk", FRESH, FRESH_EDGE],
       [
         "stale",
         () =>
@@ -80,24 +88,42 @@ describe("GET /api/card", () => {
           }),
         "github=jenkruk",
         "no-cache, max-age=0",
-        60,
+        "public, s-maxage=60, stale-while-revalidate=600",
       ],
-      ["invalid_config", () => {}, "github=jenkruk&palette=neon", "no-cache, max-age=0", 3600],
-      ["not_found", () => failing("not_found"), "github=jenkruk", "no-cache, max-age=0", 3600],
-      ["unavailable", () => failing("upstream"), "github=jenkruk", "no-cache, max-age=0", 60],
-    ] as const)("%s", async (status, arrange, query, cacheControl, edgeSeconds) => {
+      [
+        "invalid_config",
+        () => {},
+        "github=jenkruk&palette=neon",
+        "no-cache, max-age=0",
+        "public, s-maxage=3600, stale-while-revalidate=600",
+      ],
+      [
+        "not_found",
+        () => failing("not_found"),
+        "github=jenkruk",
+        "no-cache, max-age=0",
+        "public, s-maxage=3600, stale-while-revalidate=600",
+      ],
+      [
+        "unavailable",
+        () => failing("upstream"),
+        "github=jenkruk",
+        "no-cache, max-age=0",
+        "public, s-maxage=60, stale-while-revalidate=600",
+      ],
+    ] as const)("%s", async (status, arrange, query, cacheControl, edgeCacheControl) => {
       arrange();
       const res = await get(query);
       expect(res.headers.get("X-GitVis-Status")).toBe(status);
       expect(res.headers.get("Cache-Control")).toBe(cacheControl);
-      expect(res.headers.get("Vercel-CDN-Cache-Control")).toBe(
-        `public, s-maxage=${edgeSeconds}, stale-while-revalidate=600`,
-      );
+      expect(res.headers.get("Vercel-CDN-Cache-Control")).toBe(edgeCacheControl);
       expect(res.headers.get("ETag")).toMatch(/^"[0-9a-f]{40}"$/);
     });
 
     it("never lets an unexpected error or a rate-limit response be cached downstream", async () => {
-      expect(downstreamCacheControl("internal_error")).toBe("no-cache, max-age=0");
+      expect(cacheHeaders({ svg: "", status: "internal_error", edgeMaxAge: 60 }, Date.now())["Cache-Control"]).toBe(
+        "no-cache, max-age=0",
+      );
       const pinned = { "x-forwarded-for": "198.51.100.99" };
       let limited: Response | undefined;
       for (let i = 0; i <= CARD_LIMIT_PER_MINUTE && !limited; i++) {
@@ -106,6 +132,29 @@ describe("GET /api/card", () => {
       }
       expect(limited?.headers.get("Cache-Control")).toBe("no-store");
     });
+  });
+
+  it("expires fresh cards at the 12:00 UTC window boundary, not a fixed time later", async () => {
+    vi.setSystemTime(new Date("2026-11-06T11:59:30.000Z"));
+    const res = await get("github=jenkruk");
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=30");
+    expect(res.headers.get("Vercel-CDN-Cache-Control")).toBe("public, s-maxage=30");
+
+    vi.setSystemTime(new Date("2026-11-06T12:00:00.000Z"));
+    const next = await get("github=jenkruk");
+    expect(next.headers.get("Cache-Control")).toBe("public, max-age=43200");
+    expect(next.headers.get("Vercel-CDN-Cache-Control")).toBe(FRESH_EDGE);
+  });
+
+  it("serves existing gitvis.vercel.app embeds exactly like gitvis.dev ones", async () => {
+    const query = "v=1&github=jenkruk&layout=minimal&palette=ember&mode=light";
+    const legacy = await get(query, {}, "https://gitvis.vercel.app");
+    const current = await get(query, {}, "https://gitvis.dev");
+    for (const header of ["Cache-Control", "Vercel-CDN-Cache-Control", "ETag", "X-GitVis-Status", "Content-Type"]) {
+      expect(legacy.headers.get(header), header).toBe(current.headers.get(header));
+    }
+    expect(legacy.status).toBe(200);
+    expect(await legacy.text()).toBe(await current.text());
   });
 
   it("renders invalid URLs as an explanatory 200 SVG with a short-lived edge cache", async () => {

@@ -10,8 +10,8 @@ import type { ContributionLoaders } from "./contributions";
 import {
   epochOf,
   type FreshnessPolicy,
+  livePolicy,
   loadWithFreshness,
-  policyFromEnv,
   type Snapshot,
   type SnapshotOutcome,
 } from "./freshness";
@@ -203,7 +203,7 @@ function liveLoaders(schedule?: Schedule): ContributionLoaders {
     ...createLoaders({
       store: sharedStore,
       fetcher: liveFetcher,
-      policy: () => (testOverridesAllowed() ? policyFromEnv() : policyFromEnv({})),
+      policy: () => livePolicy(),
       schedule,
     }),
     githubHistory: createHistoryLoader({

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { E2E_POLICY } from "../playwright.config";
-import { freshWindow, getCard, hits, nextWindow, uniqueUser, upstream } from "./helpers";
+import { freshWindow, getCard, hits, nextWindow, TTL_MS, uniqueUser, upstream } from "./helpers";
 
 test.describe("data freshness and cache layers", () => {
   test("within a window, repeated requests are served from cache (one upstream fetch)", async ({ request }) => {
@@ -140,15 +140,20 @@ test.describe("data freshness and cache layers", () => {
     expect((await getCard(request, `gitlab=${user}`)).svg).toContain("Account not found");
   });
 
-  test("fresh cards are cacheable downstream, and ETag revalidation returns 304 until the data changes", async ({
+  test("fresh cards are cacheable until their window ends, and ETag revalidation returns 304 until the data changes", async ({
     request,
   }) => {
     const user = uniqueUser("etag");
     await upstream(request, user, { count: 2 });
     await freshWindow();
+    const requestedAt = Date.now();
+    const windowEnd = requestedAt - (requestedAt % TTL_MS) + TTL_MS;
     const first = await getCard(request, `gitlab=${user}`);
     const etag = first.res.headers()["etag"]!;
-    expect(first.res.headers()["cache-control"]).toBe("public, max-age=1800");
+    const maxAge = Number(/^public, max-age=(\d+)$/.exec(first.res.headers()["cache-control"]!)?.[1]);
+    expect(maxAge).toBeGreaterThanOrEqual(1);
+    expect(requestedAt + maxAge * 1000).toBeLessThanOrEqual(windowEnd);
+    expect(first.res.headers()["vercel-cdn-cache-control"]).toBe(`public, s-maxage=${maxAge}`);
 
     const revalidated = await getCard(request, `gitlab=${user}`, { "If-None-Match": etag });
     expect(revalidated.res.status()).toBe(304);

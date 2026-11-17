@@ -4,12 +4,14 @@ import { toISODate } from "@/domain/dates";
 import {
   DEFAULT_POLICY,
   epochOf,
+  livePolicy,
   type FreshnessPolicy,
   loadWithFreshness,
   policyFromEnv,
   type Snapshot,
   type SnapshotOutcome,
   type SnapshotSource,
+  windowEndOf,
 } from "./freshness";
 
 const HOUR = 3_600_000;
@@ -323,5 +325,28 @@ describe("policyFromEnv", () => {
       ttlMs: 60000,
       maxStaleMs: 60000,
     });
+  });
+});
+
+describe("data windows", () => {
+  it("are fixed 12-hour UTC windows ending at 00:00 and 12:00", () => {
+    expect(windowEndOf(Date.parse("2026-11-17T00:00:00.000Z"), DEFAULT_POLICY)).toBe(
+      Date.parse("2026-11-17T12:00:00Z"),
+    );
+    expect(windowEndOf(Date.parse("2026-11-17T11:59:59.999Z"), DEFAULT_POLICY)).toBe(
+      Date.parse("2026-11-17T12:00:00Z"),
+    );
+    expect(windowEndOf(Date.parse("2026-11-17T12:00:00.000Z"), DEFAULT_POLICY)).toBe(
+      Date.parse("2026-11-18T00:00:00Z"),
+    );
+    expect(windowEndOf(Date.parse("2026-11-17T23:59:59.999Z"), DEFAULT_POLICY)).toBe(
+      Date.parse("2026-11-18T00:00:00Z"),
+    );
+  });
+
+  it("use the production policy in production, ignoring test overrides", () => {
+    const overrides = { GITVIS_DATA_TTL_SECONDS: "60", GITVIS_MAX_STALE_SECONDS: "120" };
+    expect(livePolicy({ ...overrides, VERCEL_ENV: "production" })).toEqual(DEFAULT_POLICY);
+    expect(livePolicy({ ...overrides, VERCEL_ENV: "preview" })).toEqual({ ttlMs: 60_000, maxStaleMs: 120_000 });
   });
 });

@@ -1,7 +1,8 @@
 import "server-only";
 import { PLATFORM_IDS, type PlatformId } from "@/domain/types";
 import type { AvatarImages } from "@/renderers/IdentityHeader";
-import { type SnapshotStore, testOverridesAllowed, upstreamUrls, vercelRuntimeStore } from "./cached";
+import { after } from "next/server";
+import { type Schedule, type SnapshotStore, testOverridesAllowed, upstreamUrls, vercelRuntimeStore } from "./cached";
 import { upstreamBudget } from "./rate-limit";
 
 export const AVATAR_PIXELS = 96;
@@ -9,9 +10,12 @@ export const AVATAR_MAX_BYTES = 64 * 1024;
 const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 const PRODUCTION_HOSTS = ["avatars.githubusercontent.com", "secure.gravatar.com", "www.gravatar.com", "gitlab.com"];
 const GITHUB_AVATAR_ORIGIN = "https://avatars.githubusercontent.com";
-const AVATAR_TTL_SECONDS = 24 * 3600;
-const MISSING_TTL_SECONDS = 3600;
-const AVATAR_SCHEMA = 1;
+export const AVATAR_POLICY = {
+  refreshAfterMs: 24 * 3_600_000,
+  ttlSeconds: 7 * 86_400,
+  missingTtlSeconds: 3_600,
+} as const;
+const AVATAR_SCHEMA = 2;
 
 export interface AvatarDeps {
   fetchImpl?: typeof fetch;
@@ -84,23 +88,78 @@ export function avatarKey(platform: PlatformId, username: string): string {
   return `v${AVATAR_SCHEMA}:avatar:${platform}:${username.toLowerCase()}`;
 }
 
-export function createAvatarLoader(store: SnapshotStore, deps: () => AvatarDeps = () => ({})) {
-  const inFlight = new Map<string, Promise<string | null>>();
+interface StoredAvatar {
+  dataUri: string | null;
+  fetchedAt: string;
+}
 
-  async function load(platform: PlatformId, username: string): Promise<string | null> {
-    const key = avatarKey(platform, username);
-    try {
-      const cached = (await store.get(key)) as { dataUri?: unknown } | null;
-      if (cached && typeof cached === "object") {
-        return typeof cached.dataUri === "string" && cached.dataUri.startsWith("data:image/") ? cached.dataUri : null;
-      }
-    } catch {}
+function asStoredAvatar(value: unknown): StoredAvatar | null {
+  if (!value || typeof value !== "object") return null;
+  const { dataUri, fetchedAt } = value as Partial<StoredAvatar>;
+  if (typeof fetchedAt !== "string" || Number.isNaN(Date.parse(fetchedAt))) return null;
+  if (dataUri === null) return { dataUri, fetchedAt };
+  return typeof dataUri === "string" && dataUri.startsWith("data:image/") ? { dataUri, fetchedAt } : null;
+}
+
+export interface AvatarLoaderOptions {
+  now?: () => number;
+  schedule?: Schedule;
+}
+
+export function createAvatarLoader(
+  store: SnapshotStore,
+  deps: () => AvatarDeps = () => ({}),
+  { now = Date.now, schedule }: AvatarLoaderOptions = {},
+) {
+  const inFlight = new Map<string, Promise<string | null>>();
+  const refreshing = new Set<string>();
+
+  async function fetchAndStore(platform: PlatformId, username: string, retained: boolean): Promise<string | null> {
     if (!upstreamBudget.take()) return null;
     const dataUri = await fetchAvatar(platform, username, deps());
+    if (!dataUri && retained) return null;
     try {
-      await store.set(key, { dataUri }, dataUri ? AVATAR_TTL_SECONDS : MISSING_TTL_SECONDS);
+      await store.set(
+        avatarKey(platform, username),
+        { dataUri, fetchedAt: new Date(now()).toISOString() } satisfies StoredAvatar,
+        dataUri ? AVATAR_POLICY.ttlSeconds : AVATAR_POLICY.missingTtlSeconds,
+      );
     } catch {}
     return dataUri;
+  }
+
+  function refreshLater(platform: PlatformId, username: string) {
+    const key = avatarKey(platform, username);
+    if (!schedule || refreshing.has(key)) return;
+    refreshing.add(key);
+    try {
+      schedule(async () => {
+        try {
+          if (!(await fetchAndStore(platform, username, true))) {
+            console.warn(`[gitvis] background ${platform} avatar refresh failed (keeping the stored avatar)`);
+          }
+        } catch (error) {
+          console.error(`[gitvis] background ${platform} avatar refresh failed`, error);
+        } finally {
+          refreshing.delete(key);
+        }
+      });
+    } catch (error) {
+      refreshing.delete(key);
+      console.error("[gitvis] couldn't schedule an avatar refresh (serving the stored avatar)", error);
+    }
+  }
+
+  async function load(platform: PlatformId, username: string): Promise<string | null> {
+    let stored: StoredAvatar | null = null;
+    try {
+      stored = asStoredAvatar(await store.get(avatarKey(platform, username)));
+    } catch {}
+    if (!stored) return fetchAndStore(platform, username, false);
+    if (stored.dataUri && now() - Date.parse(stored.fetchedAt) > AVATAR_POLICY.refreshAfterMs) {
+      refreshLater(platform, username);
+    }
+    return stored.dataUri;
   }
 
   return async function loadAvatars(
@@ -141,4 +200,5 @@ function serverAvatarDeps(): AvatarDeps {
 export const serverAvatarLoader = createAvatarLoader(
   { get: (k) => vercelRuntimeStore().get(k), set: (k, v, t) => vercelRuntimeStore().set(k, v, t) },
   serverAvatarDeps,
+  { schedule: after },
 );

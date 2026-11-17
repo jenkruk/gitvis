@@ -79,6 +79,12 @@ describe("fetchAvatar", () => {
 });
 
 describe("createAvatarLoader", () => {
+  const DAY = 24 * 3_600_000;
+  const T0 = Date.parse("2026-11-17T10:00:00.000Z");
+  const OLD = `data:image/png;base64,${Buffer.from([1, 2, 3]).toString("base64")}`;
+  const NEW = `data:image/png;base64,${Buffer.from(PNG).toString("base64")}`;
+  const key = avatarKey("github", "jenkruk");
+
   function store() {
     const map = new Map<string, unknown>();
     return {
@@ -88,29 +94,123 @@ describe("createAvatarLoader", () => {
     };
   }
 
-  it("fetches only requested, connected platforms and caches results for a day", async () => {
+  function setup({ fetchImpl = vi.fn<typeof fetch>(async () => image()), now = T0, withSchedule = true } = {}) {
     const s = store();
-    const deps = { fetchImpl: vi.fn<typeof fetch>(async () => image()) };
-    const load = createAvatarLoader(s, () => deps);
+    const tasks: (() => Promise<void>)[] = [];
+    const clock = { now };
+    const schedule = vi.fn((task: () => Promise<void>) => void tasks.push(task));
+    const load = createAvatarLoader(s, () => ({ fetchImpl }), {
+      now: () => clock.now,
+      ...(withSchedule ? { schedule } : {}),
+    });
+    const runScheduled = async () => {
+      for (const task of tasks.splice(0)) await task();
+    };
+    return { s, load, fetchImpl, schedule, runScheduled, clock };
+  }
+
+  it("fetches only requested, connected platforms and keeps a fetched avatar for 7 days", async () => {
+    const { s, load, fetchImpl } = setup();
     const result = await load({ github: "jenkruk", gitlab: "contactkruk" }, ["github"]);
     expect(Object.keys(result)).toEqual(["github"]);
-    expect(s.set).toHaveBeenCalledWith(avatarKey("github", "jenkruk"), expect.any(Object), 24 * 3600);
-
+    expect(s.set).toHaveBeenCalledWith(key, { dataUri: NEW, fetchedAt: new Date(T0).toISOString() }, 7 * 86_400);
     await load({ github: "jenkruk" }, ["github"]);
-    expect(deps.fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
-  it("remembers missing avatars for an hour and returns nothing for them", async () => {
-    const s = store();
-    const load = createAvatarLoader(s, () => ({ fetchImpl: async () => new Response(null, { status: 404 }) }));
+  it("serves a stored avatar under a day old without fetching or scheduling anything", async () => {
+    const { s, load, fetchImpl, schedule } = setup({ now: T0 + DAY - 1 });
+    s.map.set(key, { dataUri: OLD, fetchedAt: new Date(T0).toISOString() });
+    expect(await load({ github: "jenkruk" }, ["github"])).toEqual({ github: OLD });
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(schedule).not.toHaveBeenCalled();
+  });
+
+  it("serves a day-old avatar immediately and refreshes it once in the background", async () => {
+    const { s, load, fetchImpl, schedule, runScheduled } = setup({ now: T0 + DAY + 1 });
+    s.map.set(key, { dataUri: OLD, fetchedAt: new Date(T0).toISOString() });
+    const [a, b] = await Promise.all([
+      load({ github: "jenkruk" }, ["github"]),
+      load({ github: "jenkruk" }, ["github"]),
+    ]);
+    expect(a).toEqual({ github: OLD });
+    expect(b).toEqual({ github: OLD });
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(schedule).toHaveBeenCalledTimes(1);
+
+    await runScheduled();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(s.map.get(key)).toEqual({ dataUri: NEW, fetchedAt: new Date(T0 + DAY + 1).toISOString() });
+    expect(await load({ github: "jenkruk" }, ["github"])).toEqual({ github: NEW });
+  });
+
+  it("keeps the last good avatar, without extending it, when a background refresh fails", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { s, load, runScheduled } = setup({
+      now: T0 + 2 * DAY,
+      fetchImpl: vi.fn<typeof fetch>(async () => new Response(null, { status: 503 })),
+    });
+    const stored = { dataUri: OLD, fetchedAt: new Date(T0).toISOString() };
+    s.map.set(key, stored);
+    expect(await load({ github: "jenkruk" }, ["github"])).toEqual({ github: OLD });
+    await runScheduled();
+    expect(s.set).not.toHaveBeenCalled();
+    expect(s.map.get(key)).toEqual(stored);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("background github avatar refresh failed"));
+    warn.mockRestore();
+  });
+
+  it("still serves the stored avatar without blocking when a refresh can't be scheduled, or there's no scheduler", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const throwing = setup({ now: T0 + 2 * DAY });
+    throwing.schedule.mockImplementation(() => {
+      throw new Error("after() called outside a request");
+    });
+    throwing.s.map.set(key, { dataUri: OLD, fetchedAt: new Date(T0).toISOString() });
+    expect(await throwing.load({ github: "jenkruk" }, ["github"])).toEqual({ github: OLD });
+    expect(throwing.fetchImpl).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalled();
+
+    const unscheduled = setup({ now: T0 + 2 * DAY, withSchedule: false });
+    unscheduled.s.map.set(key, { dataUri: OLD, fetchedAt: new Date(T0).toISOString() });
+    expect(await unscheduled.load({ github: "jenkruk" }, ["github"])).toEqual({ github: OLD });
+    expect(unscheduled.fetchImpl).not.toHaveBeenCalled();
+    error.mockRestore();
+  });
+
+  it("waits for a fetch only when nothing is stored, such as after the 7-day expiry", async () => {
+    const { s, load, fetchImpl, schedule } = setup({ now: T0 + 8 * DAY });
+    expect(await load({ github: "jenkruk" }, ["github"])).toEqual({ github: NEW });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(schedule).not.toHaveBeenCalled();
+    expect(s.set).toHaveBeenCalledTimes(1);
+  });
+
+  it("remembers missing avatars for an hour and never refreshes them in the background", async () => {
+    const { s, load, schedule, clock } = setup({
+      fetchImpl: vi.fn<typeof fetch>(async () => new Response(null, { status: 404 })),
+    });
     expect(await load({ github: "ghost" }, ["github"])).toEqual({});
-    expect(s.set).toHaveBeenCalledWith(avatarKey("github", "ghost"), { dataUri: null }, 3600);
+    expect(s.set).toHaveBeenCalledWith(
+      avatarKey("github", "ghost"),
+      { dataUri: null, fetchedAt: new Date(T0).toISOString() },
+      3600,
+    );
+    clock.now = T0 + 2 * DAY;
+    expect(await load({ github: "ghost" }, ["github"])).toEqual({});
+    expect(schedule).not.toHaveBeenCalled();
   });
 
-  it("ignores tampered cache entries that aren't image data URIs", async () => {
-    const s = store();
-    s.map.set(avatarKey("github", "jenkruk"), { dataUri: "javascript:alert(1)" });
-    const load = createAvatarLoader(s, () => ({ fetchImpl: async () => image() }));
-    expect(await load({ github: "jenkruk" }, ["github"])).toEqual({});
+  it.each([
+    [
+      "a tampered entry that isn't an image data URI",
+      { dataUri: "javascript:alert(1)", fetchedAt: "2026-11-17T09:00:00.000Z" },
+    ],
+    ["an entry without a fetch time (the old format)", { dataUri: "data:image/png;base64,AQID" }],
+  ])("never serves %s, and fetches a fresh avatar instead", async (_label, entry) => {
+    const { s, load, fetchImpl } = setup();
+    s.map.set(key, entry);
+    expect(await load({ github: "jenkruk" }, ["github"])).toEqual({ github: NEW });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });

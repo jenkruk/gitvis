@@ -19,8 +19,16 @@ export function policyFromEnv(env: Record<string, string | undefined> = process.
   return { ttlMs, maxStaleMs: Math.max(maxStaleMs, ttlMs) };
 }
 
+export function livePolicy(env: Record<string, string | undefined> = process.env): FreshnessPolicy {
+  return env.VERCEL_ENV === "production" ? policyFromEnv({}) : policyFromEnv(env);
+}
+
 export function epochOf(nowMs: number, policy: FreshnessPolicy): number {
   return Math.floor(nowMs / policy.ttlMs);
+}
+
+export function windowEndOf(nowMs: number, policy: FreshnessPolicy): number {
+  return (epochOf(nowMs, policy) + 1) * policy.ttlMs;
 }
 
 export interface Snapshot {

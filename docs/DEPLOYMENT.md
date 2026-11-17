@@ -75,14 +75,14 @@ curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' "$SITE/?$Q"            
 curl -sI "$SITE/api/card?$Q" | grep -iE '^(HTTP|cache-control|etag|vercel-cdn|x-vercel-cache|x-gitvis)'
 ```
 
-| Header on `/api/card`      | Expected                                                                                                                                              |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cache-control`            | `public, max-age=1800` on `ok` cards (camo may cache them); `no-cache, max-age=0` for every other status                                              |
-| `etag`                     | a quoted SHA-1 of the SVG                                                                                                                             |
-| `vercel-cdn-cache-control` | **absent**: Vercel consumes it (edge: 1 hour; stale and unavailable cards 60s; invalid URL and not found 1 hour)                                      |
-| `x-vercel-cache`           | `MISS`, then `HIT` on a repeat request                                                                                                                |
-| `x-gitvis-status`          | `ok`; `stale` on the first view after a quiet window while a refresh runs; otherwise `invalid_config`, `not_found`, `unavailable` or `internal_error` |
-| `x-gitvis-data-as-of`      | when the upstream data was fetched                                                                                                                    |
+| Header on `/api/card`      | Expected                                                                                                                                                                                       |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cache-control`            | `ok` cards: `public, max-age=N`, N = seconds until the 12-hour UTC window ends at 00:00 or 12:00 (at most 1800 if a requested avatar is missing); `no-cache, max-age=0` for every other status |
+| `etag`                     | a quoted SHA-1 of the SVG                                                                                                                                                                      |
+| `vercel-cdn-cache-control` | **absent**: Vercel consumes it (`ok` cards: until the window ends, at most 1 hour, no stale-while-revalidate; stale and unavailable cards 60s; invalid URL and not found 1 hour)               |
+| `x-vercel-cache`           | `MISS`, then `HIT` on a repeat request                                                                                                                                                         |
+| `x-gitvis-status`          | `ok`; `stale` on the first view after a quiet window while a refresh runs; otherwise `invalid_config`, `not_found`, `unavailable` or `internal_error`                                          |
+| `x-gitvis-data-as-of`      | when the upstream data was fetched                                                                                                                                                             |
 
 ### Preview checks
 
@@ -102,7 +102,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -H 'If-None-Match: <etag>' "$SITE/api/c
 
 **Snapshots survive a deployment.** Note `x-gitvis-data-as-of`, redeploy the same commit, then request a different design variant (an edge miss that reads the same snapshot). The timestamp is unchanged, and Observability → Runtime Cache shows reads without new writes.
 
-**Freshness after idle.** Leave a test card unrequested for more than 13 hours (the 12-hour window plus the 1-hour edge cache), then request it directly:
+**Freshness after idle.** Leave a test card unrequested until a window boundary (00:00 or 12:00 UTC) has passed, then request it directly:
 
 - The first request answers quickly with `x-gitvis-status: stale`, `cache-control: no-cache, max-age=0`, an older `x-gitvis-data-as-of`, and a "Data from <date>" badge in the image. The function logs show no `background … refresh failed` line.
 - A request about a minute later (after the stale card's 60-second edge cache) returns `x-gitvis-status: ok` with `x-gitvis-data-as-of` from just after the first request. If it is still `stale`, the background refresh isn't completing: check the logs, and whether `after()` work is cut short.
@@ -113,17 +113,18 @@ curl -s -o /dev/null -w '%{http_code}\n' -H 'If-None-Match: <etag>' "$SITE/api/c
 - github.com shows the right variant in light and dark, signed in with a chosen theme and signed out, on desktop and on a phone (the full 840px image scaled to fit).
 - The image URL is `camo.githubusercontent.com/…`; check camo's behavior with the steps below.
 
-**Camo caching.** Camo's cache (Fastly) isn't documented, so confirm what it does with `max-age=1800` rather than assuming it matches Vercel. Take the card's camo URL from the README page (`src` of the `<img>`, or a `<source>` `srcset`):
+**Camo caching.** Camo's cache (Fastly) isn't documented, so confirm what it does with window-aligned `max-age` values rather than assuming it matches Vercel. Take the card's camo URL from the README page (`src` of the `<img>`, or a `<source>` `srcset`):
 
 ```bash
 for i in 1 2 3; do curl -s -o /dev/null -D - -w 'ttfb=%{time_starttransfer}\n' "<camo-url>" | grep -iE '^(cache-control|age|x-cache|x-served-by)|ttfb'; done
 ```
 
 - The first request may be `x-cache: MISS`; repeats from the same region should be `HIT` with a lower TTFB (cached labels measured 70–150 ms, versus 250–670 ms when camo had to fetch).
-- `cache-control` is passed through as `public, max-age=1800`, and `age` grows between requests but stays below 1800.
-- **Not held too long:** once a direct `$SITE/api/card` request shows a newer `x-gitvis-data-as-of`, the image on GitHub should show that data within about 1 hour 40 minutes (the edge's 1 hour plus 10 minutes, then camo's 30 minutes); compare the camo response's `etag` or content with the direct one. If camo holds an image noticeably longer, purge it (see "Recovery") and lower `DOWNSTREAM_MAX_AGE` in `src/server/card.ts`.
+- `cache-control` is passed through as `public, max-age=N`, and camo's `age` grows between requests but stays below N.
+- **camo honors `Age` (unverified; check before relying on the boundary):** when camo misses and fetches a copy Vercel served from its edge (the direct request shows `x-vercel-cache: HIT` with `age: A`), camo's first response should show `age` of at least about A, not 0. If camo restarts at 0, it can keep a card up to the edge's age past the boundary; that is why fresh edge copies are capped at 1 hour (`EDGE_MAX_AGE` in `src/server/card.ts`). Only raise that cap once this check passes.
+- **Not held past the window:** request the camo URL just after 00:00 or 12:00 UTC. It should be a `MISS` (or show a new `etag`), and the image should be the labelled stale card or fresh data, never the previous window's unlabelled card. If camo still serves the old image, purge it (see "Recovery") and record the behavior here.
 - **Problem cards aren't held:** a card that is `stale` or an error still returns `cache-control: no-cache, max-age=0` through camo, and the next view after recovery shows the fixed image.
-- **After idle:** view the README after a gap of more than 13 hours. The first view should be quick and badged "Data from <date>"; reloading about a minute later should show the badge gone. If the badged image persists on GitHub while a direct request already returns `ok`, camo is holding a `no-cache` image: purge it and record the behavior here.
+- **After idle:** view the README after a gap that crosses a window boundary. The first view should be quick and badged "Data from <date>"; reloading about a minute later should show the badge gone. If the badged image persists on GitHub while a direct request already returns `ok`, camo is holding a `no-cache` image: purge it and record the behavior here.
 - The image isn't a link, and "Get Yours · open source on GitHub" sits under the card's credit line, with both links working.
 
 **Old host (after the move to `gitvis.dev`).**
@@ -144,10 +145,11 @@ Record the date and outcome of each full verification.
   - `snapshot read/write failed` or `history read/write failed`: Runtime Cache trouble; requests still succeed, but last-known-good is at risk.
   - `background github|gitlab|history refresh failed`: a refresh after the response didn't complete; the card stays labelled "Data from …" and the next view retries. Occasional lines are expected during upstream trouble; a steady stream with healthy upstreams means background work is being cut short.
   - `couldn't schedule a background refresh`: `after()` was unavailable, so the request waited for upstream; a bug if it recurs.
+  - `background github|gitlab avatar refresh failed (keeping the stored avatar)`: an avatar older than a day couldn't be refetched; the stored one is still served until it's 7 days old. `couldn't schedule an avatar refresh` means `after()` was unavailable.
   - `Neither SITE_URL nor VERCEL_PROJECT_PRODUCTION_URL is usable`: published URLs are falling back to the request host. Fix the environment variables immediately.
 - **Usage**, against your plan's included amounts: Runtime Cache reads, function invocations, CDN requests and Fast Data Transfer.
   - **Runtime Cache reads are the first limit to watch.** Every edge miss reads one snapshot per platform, plus one per history year and per avatar. The first card request in a new window also reads the earlier windows (up to 14 per platform) to find the last good snapshot. At low traffic this stays well inside Hobby's allowance, but growth multiplies reads first.
-  - If reads approach the limit, move to Pro or raise the edge TTL on `ok` cards (fewer function runs, at the cost of freshness).
+  - If reads approach the limit, move to Pro. Fresh cards already stay at the edge until their window ends (at most 1 hour until camo's `Age` handling is verified).
   - **GitHub API:** each user costs at most about two GraphQL calls a day for the newest year and one a week for history, against 5,000 points per hour. The in-app upstream budget (300 fetches per minute per instance) caps bursts.
 
 ## Recovery
@@ -161,7 +163,7 @@ Record the date and outcome of each full verification.
 ## Known limits
 
 - **The Runtime Cache is best-effort.** LRU eviction (and, on Hobby, a cache shared with the account's other projects) makes last-known-good likely during an outage, not guaranteed.
-- **camo's cache is undocumented.** It may not honor `max-age` exactly (for example, how it treats the `age` of an image Vercel served from its edge cache). Verify with "Camo caching" after each change to cache headers.
+- **camo's cache is undocumented.** It may not honor `max-age` exactly, and whether it honors the `Age` of an image Vercel served from its edge cache is unverified. Fresh cards are cached until their window ends, so the guarantee that no earlier-window card appears unlabelled holds only once "Camo caching" confirms camo honors `Age`; until then, a late edge copy (at most 1 hour old) could outlive the boundary by up to its age. camo may also evict images before they expire. Verify with "Camo caching" after each change to cache headers.
 - **camo's timeout is undocumented.** A card waits for the upstream fetch (5s timeout) only for a username with nothing usable stored: a new username, more than 7 days without views, evicted cache entries, or a refresh that couldn't be scheduled. If camo gives up sooner, that one view shows a broken image.
 - **Background refreshes are best effort.** They run with `after()` within the function's maximum duration; a refresh that fails or is cut short writes nothing, and the card stays labelled until a later view's refresh succeeds or the data passes 7 days. Instances don't coordinate, so a burst of first views across several instances can fetch more than once.
 - **Rarely viewed READMEs usually show the badge first.** Refreshes follow views, so the first view after a quiet window shows the last snapshot labelled with its date, and later views show fresh data.

@@ -11,6 +11,7 @@ import { CANVAS_WIDTHS, type CardSize } from "@/renderers/primitives";
 import { Visualization } from "@/renderers/Visualization";
 import { resolveTheme } from "@/theme/palettes";
 import { type ContributionLoaders, loadContributions } from "./contributions";
+import { DEFAULT_POLICY, type FreshnessPolicy, windowEndOf } from "./freshness";
 
 export type CardStatus = "ok" | "stale" | "invalid_config" | "not_found" | "unavailable" | "internal_error";
 
@@ -19,15 +20,37 @@ export interface CardResult {
   status: CardStatus;
   edgeMaxAge: number;
   asOf?: string;
+  validUntil?: number;
+  missingAvatar?: boolean;
 }
 
 const HOUR = 3_600;
 const MINUTE = 60;
 
-export const DOWNSTREAM_MAX_AGE = 30 * MINUTE;
+// Fresh cards may be cached until their data window ends, but an edge copy is capped: a downstream cache that
+// ignored Age (camo's handling is unverified) could otherwise keep a late edge copy for a whole extra window.
+export const EDGE_MAX_AGE = HOUR;
+export const MISSING_AVATAR_MAX_AGE = 30 * MINUTE;
+const PROBLEM_EDGE_STALE_SECONDS = 600;
 
-export function downstreamCacheControl(status: CardStatus): string {
-  return status === "ok" ? `public, max-age=${DOWNSTREAM_MAX_AGE}` : "no-cache, max-age=0";
+export interface CacheHeaders {
+  "Cache-Control": string;
+  "Vercel-CDN-Cache-Control": string;
+}
+
+export function cacheHeaders(card: CardResult, nowMs: number): CacheHeaders {
+  if (card.status !== "ok") {
+    return {
+      "Cache-Control": "no-cache, max-age=0",
+      "Vercel-CDN-Cache-Control": `public, s-maxage=${card.edgeMaxAge}, stale-while-revalidate=${PROBLEM_EDGE_STALE_SECONDS}`,
+    };
+  }
+  const remaining = Math.max(0, Math.floor(((card.validUntil ?? nowMs) - nowMs) / 1000));
+  const downstream = card.missingAvatar ? Math.min(remaining, MISSING_AVATAR_MAX_AGE) : remaining;
+  return {
+    "Cache-Control": `public, max-age=${downstream}`,
+    "Vercel-CDN-Cache-Control": `public, s-maxage=${Math.min(downstream, card.edgeMaxAge)}`,
+  };
 }
 
 function errorCard(
@@ -72,7 +95,9 @@ export async function renderCard(
   search: URLSearchParams,
   loaders: ContributionLoaders,
   loadAvatars?: AvatarLoader,
+  { policy = DEFAULT_POLICY, now = Date.now }: { policy?: FreshnessPolicy; now?: () => number } = {},
 ): Promise<CardResult> {
+  const validUntil = windowEndOf(now(), policy);
   const { request, config, issues, size = "full" } = decodeCardParams(search);
   const look: Look = { config, size };
 
@@ -89,7 +114,9 @@ export async function renderCard(
     const wantsAvatars = config.identity.style !== "none" && config.identity.avatars.length > 0 && loadAvatars;
     const [response, avatars] = await Promise.all([
       loadContributions(request, loaders, { years: config.years }),
-      wantsAvatars ? loadAvatars(request, config.identity.avatars).catch(() => ({})) : Promise.resolve({}),
+      wantsAvatars
+        ? loadAvatars(request, config.identity.avatars).catch((): AvatarImages => ({}))
+        : Promise.resolve<AvatarImages>({}),
     ]);
     const failure = response.results.find((r): r is FailedResult => r.status !== "ok");
     if (failure) return failureCard(look, failure);
@@ -107,9 +134,20 @@ export async function renderCard(
     const svg = renderSvgMarkup(
       createElement(Visualization, { dataset: response.dataset, config, size, avatars, tooltips: false }),
     );
-    return response.dataset.freshness?.stale
-      ? { svg, status: "stale", edgeMaxAge: MINUTE, asOf: response.dataset.freshness.asOf }
-      : { svg, status: "ok", edgeMaxAge: HOUR, asOf: response.dataset.freshness?.asOf };
+    if (response.dataset.freshness?.stale) {
+      return { svg, status: "stale", edgeMaxAge: MINUTE, asOf: response.dataset.freshness.asOf };
+    }
+    const missingAvatar = wantsAvatars
+      ? config.identity.avatars.some((platform) => request[platform] && !avatars[platform])
+      : false;
+    return {
+      svg,
+      status: "ok",
+      edgeMaxAge: EDGE_MAX_AGE,
+      asOf: response.dataset.freshness?.asOf,
+      validUntil,
+      ...(missingAvatar ? { missingAvatar } : {}),
+    };
   } catch (error) {
     console.error("[gitvis] card render failed", error);
     return errorCard(look, "internal_error", MINUTE, {

@@ -9,9 +9,9 @@ describe("logo mark", () => {
     expect(icon).toBe(logoSvg());
   });
 
-  it("has exactly one coral cell, at full opacity in the newest column", () => {
+  it("has exactly one coral cell, at full opacity in the bottom-right corner", () => {
     const accents = LOGO_CELLS.filter((cell) => cell.color === LOGO_ACCENT);
-    expect(accents).toEqual([expect.objectContaining({ x: 17, y: 1, opacity: 1 })]);
+    expect(accents).toEqual([expect.objectContaining({ x: 17, y: 17, opacity: 1 })]);
   });
 
   it("is a 3×3 grid of contribution cells inside the 24px viewBox", () => {

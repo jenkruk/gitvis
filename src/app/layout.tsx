@@ -1,4 +1,3 @@
-
 import type { Metadata, Viewport } from "next";
 import AnalyticsTracker from "./AnalyticsTracker";
 import { SITE_DESCRIPTION } from "@/config/site";

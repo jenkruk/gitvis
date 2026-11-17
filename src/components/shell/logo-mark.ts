@@ -2,9 +2,9 @@ export const LOGO_VIEWBOX = 24;
 export const LOGO_COLOR = "#4baeaa";
 export const LOGO_ACCENT = "#ff8a65";
 
-const ACCENT_CELL = 2;
+const ACCENT_CELL = 8;
 
-export const LOGO_CELLS = [0.35, 0.6, 1, 0.6, 1, 0.35, 1, 0.35, 0.6].map((opacity, i) => ({
+export const LOGO_CELLS = [1, 0.35, 0.6, 0.6, 1, 0.35, 0.35, 0.6, 1].map((opacity, i) => ({
   x: (i % 3) * 8 + 1,
   y: Math.floor(i / 3) * 8 + 1,
   size: 6,

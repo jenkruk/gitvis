@@ -2,11 +2,11 @@
 
 GitVis combines GitHub and GitLab contribution activity into a customizable graphic for your GitHub README.
 
-[Try GitVis](https://gitvis.vercel.app) · [See a live example](https://github.com/jenkruk)
+[Try GitVis](https://gitvis.dev) · [See a live example](https://github.com/jenkruk)
 
 ## Getting Started
 
-1. Open **[gitvis.vercel.app](https://gitvis.vercel.app)**.
+1. Open **[gitvis.dev](https://gitvis.dev)**.
 2. **Connect:** enter your GitHub and/or GitLab username (public data only; no sign-in).
 3. **Design:** pick a layout, palette, light or dark mode, profile header, the stats to show and up to three years of history.
 4. **Publish:** copy the snippet into your profile README. The image refreshes on its own as people view it, at most every 12 hours.

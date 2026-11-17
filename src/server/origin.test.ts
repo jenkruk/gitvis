@@ -57,7 +57,7 @@ describe("resolvePublicOrigin", () => {
   });
 
   it("logs loudly instead of silently trusting Host on a misconfigured Vercel deployment", () => {
-    const log = vi.spyOn(console, "error").mockImplementation(() => { });
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
     resolvePublicOrigin({ VERCEL_ENV: "production" }, { host: "evil.example" });
     expect(log).toHaveBeenCalled();
     log.mockRestore();

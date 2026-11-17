@@ -74,7 +74,7 @@ The goal is to **paste one snippet into a GitHub README and never touch it again
 
 **Out of scope for V1:** user accounts and sign-in, payments, self-hosted GitLab instances, Bitbucket (the data model allows for it), private-repository access via OAuth, and animated graphics.
 
-Anonymous, aggregate usage analytics are under consideration. If they're added, they won't record usernames, generated URLs or anything else that identifies a person.
+**Analytics:** cookieless Vercel Web Analytics counts page views of `/` and `/studio` only. Page URLs are sent without query strings or fragments, a referring site is kept only as a bare domain, and a visit whose referrer has a path or query isn't recorded. README images aren't tracked, and there are no custom events or user identifiers. The public disclosure is the README's "Privacy" section, linked from the site footer.
 
 ## Success criteria (launch goals)
 

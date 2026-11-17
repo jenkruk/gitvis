@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { LOGO_CELLS, LOGO_VIEWBOX } from "./logo-mark";
 import { button, focusRing, link } from "@/components/ui/recipes";
-import { GITVIS_REPO_URL, SITE_NAME, SITE_TAGLINE } from "@/config/site";
+import { GITVIS_REPO_URL, PRIVACY_URL, SITE_NAME, SITE_TAGLINE } from "@/config/site";
 import { STUDIO_PATH } from "@/publish/studio-url";
 
 function LogoMark() {
@@ -88,6 +88,12 @@ export function AppShell({ children, page = "studio" }: { children: ReactNode; p
       <footer className="border-t border-line">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-4 text-caption text-fg-muted sm:px-6">
           <p>GitVis reads public contribution counts from GitHub and GitLab. It never reads repository contents.</p>
+          <p>
+            Cookieless page-view counts, without usernames or link details ·{" "}
+            <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className={link}>
+              Privacy <span className="sr-only">(opens in a new tab)</span>
+            </a>
+          </p>
           <p>
             Open source (MIT) ·{" "}
             <a href={GITVIS_REPO_URL} target="_blank" rel="noopener noreferrer" className={link}>

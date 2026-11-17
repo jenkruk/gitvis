@@ -56,6 +56,16 @@ Product reference:
 
 GitHub and GitLab count different activities (for example, GitLab counts comments and MR approvals). GitVis reports **contributions as each platform defines them**, not raw commits, and combined totals aren't deduplicated.
 
+## Privacy
+
+GitVis counts page views of its home page and studio with [Vercel Web Analytics](https://vercel.com/docs/analytics/privacy-policy). It doesn't use cookies; Vercel tells visits apart with a hash of each request that it discards after 24 hours.
+
+- Page addresses are sent without their query string or fragment, so the usernames and design settings in studio and Edit links aren't included.
+- A referring website is counted only when the browser reports just its domain, such as `https://github.com/`. If the referrer includes a page path or query, which could name a person or a repository, that visit isn't recorded at all.
+- README images (`/api/card` and `/api/label`) aren't part of analytics.
+
+Like any website, GitVis's host, Vercel, processes requests (including IP addresses) to serve the site. To build graphics, GitVis's server requests public contribution data and avatars from GitHub and GitLab for the usernames you enter or publish, and caches them for up to 7 days.
+
 ## License
 
 GitVis is open source under the [MIT License](LICENSE). © 2026 Jennifer Kruk.

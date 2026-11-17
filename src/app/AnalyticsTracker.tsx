@@ -1,24 +1,8 @@
 "use client";
 
 import { Analytics } from "@vercel/analytics/next";
+import { filterAnalyticsEvent } from "./analytics-filter";
 
 export default function AnalyticsTracker() {
-  return (
-    <Analytics
-      beforeSend={(event) => {
-        if (event.type !== "pageview") return null;
-
-        const url = new URL(event.url);
-
-        if (url.pathname !== "/" && url.pathname !== "/studio") {
-          return null;
-        }
-
-        return {
-          ...event,
-          url: `${url.origin}${url.pathname}`,
-        };
-      }}
-    />
-  );
+  return <Analytics beforeSend={(event) => filterAnalyticsEvent(event, document.referrer)} />;
 }

@@ -2,8 +2,7 @@
 
 A maintainer's guide to running GitVis on Vercel. Contributors don't need it to develop locally; see [CONTRIBUTING](../CONTRIBUTING.md). The reasoning behind the caching, security and URL rules is in [ARCHITECTURE](ARCHITECTURE.md).
 
-**Production today:** one Vercel project, served at `https://gitvis.vercel.app`.
-**Official domain:** `https://gitvis.dev` is chosen but **not yet purchased or connected**. Until it is, `SITE_URL` stays on the current production origin; the compatibility rules for the move are in "Domain and URL compatibility" below.
+**Production:** one Vercel project, served at `https://gitvis.dev` (the canonical origin). `https://gitvis.vercel.app` keeps serving published images; see "Domain and URL compatibility" below.
 
 Settings below are what GitVis requires or recommends. Unless a step says it has been verified, confirm it in the Vercel dashboard rather than assuming it's in place.
 
@@ -11,12 +10,12 @@ Settings below are what GitVis requires or recommends. Unless a step says it has
 
 ### Environment variables
 
-| Variable                                                                                                   | Production                                                                     | Preview                          | Notes                                                                                                                                                                     |
-| ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GITHUB_TOKEN`                                                                                             | **Required**                                                                   | Recommended, as a separate token | Fine-grained PAT with **Public repositories (read-only)** and no other permissions. Prefer a dedicated account (its own 5,000 points/hour budget). Mark it **Sensitive**. |
-| `SITE_URL`                                                                                                 | **Required**: the production origin (`https://gitvis.dev` once it's connected) | The same production origin       | The origin for every published URL, Edit link, canonical link and Open Graph URL. Page metadata reads it **at build time**, so changing it needs a redeploy.              |
-| System environment variables                                                                               | Enabled (the default)                                                          | Enabled                          | `VERCEL_ENV` and `VERCEL_PROJECT_PRODUCTION_URL` drive the origin fallback and disable the test overrides in production.                                                  |
-| `GITVIS_DATA_TTL_SECONDS`, `GITVIS_MAX_STALE_SECONDS`, `GITVIS_GITHUB_GRAPHQL_URL`, `GITVIS_GITLAB_ORIGIN` | **Never set**                                                                  | **Never set**                    | E2E-only. Ignored when `VERCEL_ENV=production`, but don't rely on that.                                                                                                   |
+| Variable                                                                                                   | Production                                                | Preview                          | Notes                                                                                                                                                                     |
+| ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GITHUB_TOKEN`                                                                                             | **Required**                                              | Recommended, as a separate token | Fine-grained PAT with **Public repositories (read-only)** and no other permissions. Prefer a dedicated account (its own 5,000 points/hour budget). Mark it **Sensitive**. |
+| `SITE_URL`                                                                                                 | **Required**: the production origin, `https://gitvis.dev` | The same production origin       | The origin for every published URL, Edit link, canonical link and Open Graph URL. Page metadata reads it **at build time**, so changing it needs a redeploy.              |
+| System environment variables                                                                               | Enabled (the default)                                     | Enabled                          | `VERCEL_ENV` and `VERCEL_PROJECT_PRODUCTION_URL` drive the origin fallback and disable the test overrides in production.                                                  |
+| `GITVIS_DATA_TTL_SECONDS`, `GITVIS_MAX_STALE_SECONDS`, `GITVIS_GITHUB_GRAPHQL_URL`, `GITVIS_GITLAB_ORIGIN` | **Never set**                                             | **Never set**                    | E2E-only. Ignored when `VERCEL_ENV=production`, but don't rely on that.                                                                                                   |
 
 GitLab needs no token. `src/server/origin.ts` resolves the public origin as `SITE_URL`, then `VERCEL_PROJECT_PRODUCTION_URL`, then (locally only) the request host, and never uses a preview's own hostname.
 
@@ -37,6 +36,15 @@ Published READMEs embed absolute image URLs, so every host that has ever served 
 | Deployment Protection | **Vercel Authentication on for previews.** Preview image URLs then return 401, so they can't be embedded by accident.                                                                                                                |
 | Skew Protection       | Optional; snapshot keys don't depend on the deployment.                                                                                                                                                                              |
 | Plan                  | Hobby is for **non-commercial, personal use**, and exceeding a Hobby limit **pauses** that resource for up to 30 days; for the Runtime Cache, that means no snapshots. Move to Pro before commercial use or traffic near the limits. |
+
+### Web Analytics
+
+Enabled in the project's Analytics settings and rendered by `src/app/AnalyticsTracker.tsx`. Its `beforeSend` (`src/app/analytics-filter.ts`):
+
+- sends only pageviews of `/` and `/studio`, with the query string and fragment removed, and drops custom events;
+- drops the pageview when `document.referrer` has a path, query, fragment or credentials. Vercel's collector sends the referrer verbatim and `beforeSend` can't edit it, so suppressing the event is the only supported way to keep paths like `github.com/<user>/<repo>` out. Visits from GitHub repository pages (which send full URLs) are therefore not counted, while GitHub profile pages and most other sites send only their origin and are counted.
+
+Any change to this, or to the README "Privacy" section it backs, must keep the two in step. Re-verify after Vercel updates its collector script (the `sv` field in the request): see "Full verification".
 
 ### Firewall (Vercel WAF)
 
@@ -126,6 +134,13 @@ for i in 1 2 3; do curl -s -o /dev/null -D - -w 'ttfb=%{time_starttransfer}\n' "
 - **Problem cards aren't held:** a card that is `stale` or an error still returns `cache-control: no-cache, max-age=0` through camo, and the next view after recovery shows the fixed image.
 - **After idle:** view the README after a gap that crosses a window boundary. The first view should be quick and badged "Data from <date>"; reloading about a minute later should show the badge gone. If the badged image persists on GitHub while a direct request already returns `ok`, camo is holding a `no-cache` image: purge it and record the behavior here.
 - The image isn't a link, and "Get Yours · open source on GitHub" sits under the card's credit line, with both links working.
+
+**Analytics referrers.** With DevTools open and "Preserve log" on, follow a `gitvis.dev` link from each source and inspect the request to Vercel's `…/view` endpoint (the path varies per deployment):
+
+- From `https://github.com/<user>` (sends only its origin): one request with `o` = `https://gitvis.dev/` and `r` = `https://github.com/`.
+- From a repository page such as `https://github.com/<user>/<user>` (sends its full URL): **no** request for that visit, including after moving to the studio.
+- A direct visit to `https://gitvis.dev/studio?…#design`: `o` = `https://gitvis.dev/studio` and no `r`.
+- Repeat in Chrome, Firefox and Safari, and note the collector version (`sv`). Afterwards, the Analytics Referrers drill-down for `github.com` shows no paths dated after the change.
 
 **Old host (after the move to `gitvis.dev`).**
 

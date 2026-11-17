@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { AppShell } from "@/components/shell/AppShell";
-import { GITVIS_REPO_URL, LIVE_EXAMPLE_URL } from "@/config/site";
+import { GITVIS_REPO_URL, LIVE_EXAMPLE_URL, PRIVACY_URL } from "@/config/site";
 import { LandingDetails } from "./LandingDetails";
 import { LandingHero } from "./LandingHero";
 
@@ -96,7 +96,7 @@ describe("landing page", () => {
     expect(within(trust).queryByRole("link")).not.toBeInTheDocument();
   });
 
-  it("links to the repository once in the header and once in the footer, and to a live example under the hero", () => {
+  it("links to the repository once in the header and once in the footer, to privacy details in the footer, and to a live example under the hero", () => {
     renderLanding();
     const external = screen
       .getAllByRole("link")
@@ -105,6 +105,7 @@ describe("landing page", () => {
     expect(external).toEqual([
       [GITVIS_REPO_URL, "nav"],
       [LIVE_EXAMPLE_URL, "figure"],
+      [PRIVACY_URL, "footer"],
       [GITVIS_REPO_URL, "footer"],
     ]);
   });

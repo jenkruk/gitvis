@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { GITVIS_REPO_URL } from "@/config/site";
+import { GITVIS_REPO_URL, PRIVACY_URL } from "@/config/site";
 import { AppShell } from "./AppShell";
 
 describe("AppShell footer", () => {
@@ -16,6 +16,20 @@ describe("AppShell footer", () => {
     expect(link).toHaveAttribute("href", GITVIS_REPO_URL);
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    expect(footer).toContainElement(link);
+  });
+
+  it("states how analytics work and links to the privacy details", () => {
+    render(
+      <AppShell>
+        <p>content</p>
+      </AppShell>,
+    );
+    const footer = screen.getByRole("contentinfo");
+    expect(footer).toHaveTextContent(/cookieless page-view counts, without usernames/i);
+    const link = screen.getByRole("link", { name: "Privacy (opens in a new tab)" });
+    expect(link).toHaveAttribute("href", PRIVACY_URL);
+    expect(link).toHaveAttribute("target", "_blank");
     expect(footer).toContainElement(link);
   });
 });

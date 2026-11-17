@@ -97,6 +97,80 @@ test("Explore with sample data opens Design on labelled sample data that can't b
   await expect(stepHeading(page)).toHaveText(/design your graphic/i);
 });
 
+test.describe("repeat visits from the landing page", () => {
+  const home = async (page: import("@playwright/test").Page) => {
+    await page
+      .getByRole("link", { name: /gitvis/i })
+      .first()
+      .click();
+    await expect(page).toHaveURL(/\/$/);
+  };
+  const create = (page: import("@playwright/test").Page) =>
+    page.getByRole("link", { name: "Create your graphic" }).click();
+  const explore = (page: import("@playwright/test").Page) =>
+    page.getByRole("link", { name: "Explore with sample data" }).click();
+  const onConnect = async (page: import("@playwright/test").Page) => {
+    await expect(page).toHaveURL(/\/studio\?(?!.*sample=1).*#connect$/);
+    await expect(stepHeading(page)).toHaveText(/connect your accounts/i);
+  };
+  const onSampleDesign = async (page: import("@playwright/test").Page) => {
+    await expect(page).toHaveURL(/\/studio\?.*sample=1#design$/);
+    await expect(stepHeading(page)).toHaveText(/design your graphic/i);
+    await expect(page.getByText(/previewing sample data/i)).toBeVisible();
+  };
+
+  test("Create your graphic opens Connect after exploring sample data", async ({ page }) => {
+    await page.goto("/");
+    await explore(page);
+    await onSampleDesign(page);
+    await home(page);
+    await expect(page).toHaveURL(/\/$/);
+    await create(page);
+    await onConnect(page);
+  });
+
+  test("Explore with sample data opens Design after visiting Connect", async ({ page }) => {
+    await page.goto("/");
+    await create(page);
+    await onConnect(page);
+    await home(page);
+    await explore(page);
+    await onSampleDesign(page);
+  });
+
+  test("Back and Forward return to each visit's own step", async ({ page }) => {
+    await page.goto("/");
+    await explore(page);
+    await onSampleDesign(page);
+    await home(page);
+    await create(page);
+    await onConnect(page);
+
+    await page.goBack();
+    await expect(page).toHaveURL(/\/$/);
+    await page.goBack();
+    await onSampleDesign(page);
+    await page.goForward();
+    await expect(page).toHaveURL(/\/$/);
+    await page.goForward();
+    await onConnect(page);
+  });
+
+  test("the header's Open studio link resumes work in progress", async ({ page }) => {
+    await page.goto("/");
+    await explore(page);
+    await onSampleDesign(page);
+    await page.getByRole("radio", { name: "Terracotta", exact: true }).focus();
+    await page.keyboard.press("Space");
+    await expect(page.getByRole("radio", { name: "Terracotta", exact: true })).toBeChecked();
+    await home(page);
+    await page.getByRole("navigation", { name: "Site" }).getByRole("link", { name: "Open studio" }).click();
+    await expect(page).toHaveURL(/\/studio\?.*palette=terracotta.*#design$/);
+    await expect(stepHeading(page)).toHaveText(/design your graphic/i);
+    await expect(page.getByRole("radio", { name: /terracotta/i })).toBeChecked();
+  });
+});
+
 test("old root studio links still open the studio with their design and step", async ({ page, request }) => {
   const user = uniqueUser("legacy");
   await upstream(request, user, { count: 5 });

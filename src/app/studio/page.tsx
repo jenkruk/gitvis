@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Suspense } from "react";
 import { AppShell } from "@/components/shell/AppShell";
-import { Studio } from "@/components/studio/Studio";
+import { StudioRoute } from "@/components/studio/StudioRoute";
 import { StudioSkeleton } from "@/components/studio/StudioSkeleton";
 import { createSampleDataset } from "@/fixtures/sample-dataset";
 import { decodeCardParams } from "@/publish/card-params";
@@ -59,7 +59,8 @@ async function StudioLoader({ searchParams }: Pick<PageProps<"/studio">, "search
   const initialResponse = request ? await loadContributions(request, serverLoaders, { years }) : null;
 
   return (
-    <Studio
+    <StudioRoute
+      resume={search.size === 0}
       sampleDataset={createSampleDataset()}
       initialRequest={request}
       initialResponse={initialResponse}

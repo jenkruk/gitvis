@@ -62,16 +62,16 @@ describe("PublishPanel", () => {
   it("on preview deployments, says published URLs point at production", () => {
     render(
       <Harness
-        origin="https://gitvis.app"
+        origin="https://gitvis.dev"
         request={{ github: "jenkruk" }}
         results={okResults}
         config={createDefaultConfig()}
         isPreviewDeployment
       />,
     );
-    expect(screen.getByText(/this is a preview deployment/i)).toHaveTextContent("gitvis.app");
+    expect(screen.getByText(/this is a preview deployment/i)).toHaveTextContent("gitvis.dev");
     const markdown = screen.getByRole("textbox", { name: "README Markdown" }) as HTMLTextAreaElement;
-    expect(markdown.value).toContain("https://gitvis.app/api/card?");
+    expect(markdown.value).toContain("https://gitvis.dev/api/card?");
     expect(markdown.value).not.toMatch(/vercel\.app/);
   });
 
@@ -145,7 +145,7 @@ describe("PublishPanel", () => {
 
   it("downloads the published SVG", async () => {
     fetchMock.mockResolvedValue(new Response("<svg></svg>", { headers: { "X-GitVis-Status": "ok" } }));
-    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => { });
     const { user } = setup();
     await user.click(screen.getByRole("button", { name: "Download SVG" }));
 
@@ -173,7 +173,7 @@ describe("PublishPanel", () => {
 describe("offline card source (Storybook)", () => {
   it("renders the preview and downloads from renderCard without touching the network", async () => {
     const renderCard = vi.fn((url: string) => `<svg data-url="${new URL(url).search.length}"></svg>`);
-    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => { });
     const user = userEvent.setup();
     render(
       <Harness

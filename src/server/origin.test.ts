@@ -5,20 +5,20 @@ const previewEnv = {
   VERCEL_ENV: "preview",
   VERCEL_URL: "gitvis-abc123-team.vercel.app",
   VERCEL_BRANCH_URL: "gitvis-git-feature-team.vercel.app",
-  VERCEL_PROJECT_PRODUCTION_URL: "gitvis.app",
+  VERCEL_PROJECT_PRODUCTION_URL: "gitvis.dev",
 };
 const previewRequest = { host: "gitvis-git-feature-team.vercel.app", proto: "https" };
 
 describe("resolvePublicOrigin", () => {
   it("uses SITE_URL in production", () => {
     expect(
-      resolvePublicOrigin({ VERCEL_ENV: "production", SITE_URL: "https://gitvis.app/" }, { host: "x.vercel.app" }),
-    ).toEqual({ origin: "https://gitvis.app", environment: "production", source: "SITE_URL" });
+      resolvePublicOrigin({ VERCEL_ENV: "production", SITE_URL: "https://gitvis.dev/" }, { host: "x.vercel.app" }),
+    ).toEqual({ origin: "https://gitvis.dev", environment: "production", source: "SITE_URL" });
   });
 
   it("never lets a preview deployment publish its own hostname, even with no SITE_URL", () => {
     expect(resolvePublicOrigin(previewEnv, previewRequest)).toEqual({
-      origin: "https://gitvis.app",
+      origin: "https://gitvis.dev",
       environment: "preview",
       source: "VERCEL_PROJECT_PRODUCTION_URL",
     });
@@ -29,7 +29,7 @@ describe("resolvePublicOrigin", () => {
       { ...previewEnv, SITE_URL: "https://gitvis-git-feature-team.vercel.app" },
       previewRequest,
     );
-    expect(result.origin).toBe("https://gitvis.app");
+    expect(result.origin).toBe("https://gitvis.dev");
   });
 
   it("falls back to the production vercel.app domain when there is no custom domain", () => {
@@ -42,10 +42,10 @@ describe("resolvePublicOrigin", () => {
   it("ignores invalid SITE_URL values", () => {
     expect(
       resolvePublicOrigin(
-        { VERCEL_ENV: "production", SITE_URL: "javascript:alert(1)", VERCEL_PROJECT_PRODUCTION_URL: "gitvis.app" },
+        { VERCEL_ENV: "production", SITE_URL: "javascript:alert(1)", VERCEL_PROJECT_PRODUCTION_URL: "gitvis.dev" },
         {},
       ).origin,
-    ).toBe("https://gitvis.app");
+    ).toBe("https://gitvis.dev");
   });
 
   it("uses the request host only for local development", () => {
@@ -57,7 +57,7 @@ describe("resolvePublicOrigin", () => {
   });
 
   it("logs loudly instead of silently trusting Host on a misconfigured Vercel deployment", () => {
-    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const log = vi.spyOn(console, "error").mockImplementation(() => { });
     resolvePublicOrigin({ VERCEL_ENV: "production" }, { host: "evil.example" });
     expect(log).toHaveBeenCalled();
     log.mockRestore();
@@ -66,8 +66,8 @@ describe("resolvePublicOrigin", () => {
 
 describe("siteOrigin", () => {
   it("is the production origin for metadata, never a preview host", () => {
-    expect(siteOrigin({ VERCEL_ENV: "production", SITE_URL: "https://gitvis.app/" }).href).toBe("https://gitvis.app/");
-    expect(siteOrigin(previewEnv).href).toBe("https://gitvis.app/");
+    expect(siteOrigin({ VERCEL_ENV: "production", SITE_URL: "https://gitvis.dev/" }).href).toBe("https://gitvis.dev/");
+    expect(siteOrigin(previewEnv).href).toBe("https://gitvis.dev/");
     expect(siteOrigin({}).href).toBe("http://localhost:3000/");
   });
 });

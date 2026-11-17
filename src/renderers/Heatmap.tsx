@@ -18,6 +18,34 @@ export interface HeatmapProps {
 }
 
 const LEGEND_TEXT_WIDTH = 34;
+const CELL_RADIUS = 2;
+
+// One path per color instead of a rect per day. Each cell is a square inset by CELL_RADIUS, stroked
+// 2 × CELL_RADIUS wide with round joins: exactly the outline of the cell-sized rect with rx = CELL_RADIUS.
+// Only valid for opaque colors, since the stroke overlaps the fill.
+function CellPaths({
+  grid,
+  g,
+  top,
+  theme,
+}: {
+  grid: ReturnType<typeof buildHeatmapGrid>;
+  g: HeatmapGeometry;
+  top: number;
+  theme: ThemeTokens;
+}) {
+  const side = g.cell - 2 * CELL_RADIUS;
+  const byColor = new Map<string, string>();
+  for (const { day, column, row, level } of grid.cells) {
+    const color = cellColor(day, level, theme);
+    const x = g.labelWidth + column * g.step + CELL_RADIUS;
+    const y = top + row * g.step + CELL_RADIUS;
+    byColor.set(color, `${byColor.get(color) ?? ""}M${x} ${y}h${side}v${side}h-${side}z`);
+  }
+  return [...byColor].map(([color, d]) => (
+    <path key={color} d={d} fill={color} stroke={color} strokeWidth={2 * CELL_RADIUS} strokeLinejoin="round" />
+  ));
+}
 
 const WEEKDAY_LABELS: [row: number, label: string][] = [
   [1, "Mon"],
@@ -87,19 +115,23 @@ export function Heatmap({
           {label}
         </text>
       ))}
-      {grid.cells.map(({ day, column, row, level }) => (
-        <rect
-          key={day.date}
-          x={g.labelWidth + column * g.step}
-          y={gridTop + row * g.step}
-          width={g.cell}
-          height={g.cell}
-          rx={2}
-          fill={cellColor(day, level, theme)}
-        >
-          {tooltips && <title>{describeDay(day, platforms, !!theme.platformHeatmap)}</title>}
-        </rect>
-      ))}
+      {tooltips || g.cell <= 2 * CELL_RADIUS ? (
+        grid.cells.map(({ day, column, row, level }) => (
+          <rect
+            key={day.date}
+            x={g.labelWidth + column * g.step}
+            y={gridTop + row * g.step}
+            width={g.cell}
+            height={g.cell}
+            rx={CELL_RADIUS}
+            fill={cellColor(day, level, theme)}
+          >
+            {tooltips && <title>{describeDay(day, platforms, !!theme.platformHeatmap)}</title>}
+          </rect>
+        ))
+      ) : (
+        <CellPaths grid={grid} g={g} top={gridTop} theme={theme} />
+      )}
       {showLegend && theme.platformHeatmap && (
         <PlatformLegend theme={theme} platforms={platformsIn(days)} g={g} text={text} />
       )}

@@ -330,7 +330,7 @@ Card errors return **HTTP 200 with a readable error SVG** and an `X-GitVis-Statu
 
 ### Production origin
 
-Published URLs and page metadata must never point at a preview or the request host. `src/server/origin.ts` resolves the public origin from `SITE_URL`, then `https://VERCEL_PROJECT_PRODUCTION_URL`, then (local development only) the request host, and rejects any candidate equal to the preview's own hostname. The canonical origin is `https://gitvis.app` (see [DEPLOYMENT "Domain and URL compatibility"](DEPLOYMENT.md#domain-and-url-compatibility)); images already published from `gitvis.vercel.app` keep working there. Page metadata uses `siteOrigin()`, which is read at build time so pages stay static. On preview deployments the Publish panel explains that its URLs point at production. The `GITVIS_*` test overrides (fake upstream URLs, short windows) are ignored when `VERCEL_ENV=production`.
+Published URLs and page metadata must never point at a preview or the request host. `src/server/origin.ts` resolves the public origin from `SITE_URL`, then `https://VERCEL_PROJECT_PRODUCTION_URL`, then (local development only) the request host, and rejects any candidate equal to the preview's own hostname. The canonical origin is `https://gitvis.dev` (see [DEPLOYMENT "Domain and URL compatibility"](DEPLOYMENT.md#domain-and-url-compatibility)); images already published from `gitvis.vercel.app` keep working there. Page metadata uses `siteOrigin()`, which is read at build time so pages stay static. On preview deployments the Publish panel explains that its URLs point at production. The `GITVIS_*` test overrides (fake upstream URLs, short windows) are ignored when `VERCEL_ENV=production`.
 
 ## Third-party code
 

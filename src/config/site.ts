@@ -1,5 +1,6 @@
 export const GITVIS_REPO_URL = "https://github.com/jenkruk/gitvis";
-export const PRIVACY_URL = `${GITVIS_REPO_URL}#privacy`;
+export const PRIVACY_PATH = "/privacy";
+export const GITVIS_ISSUES_URL = `${GITVIS_REPO_URL}/issues`;
 export const LIVE_EXAMPLE_URL = "https://github.com/jenkruk";
 
 export const SITE_NAME = "GitVis";

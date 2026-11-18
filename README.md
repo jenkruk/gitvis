@@ -58,13 +58,11 @@ GitHub and GitLab count different activities (for example, GitLab counts comment
 
 ## Privacy
 
-GitVis counts page views of its home page and studio with [Vercel Web Analytics](https://vercel.com/docs/analytics/privacy-policy). It doesn't use cookies; Vercel tells visits apart with a hash of each request that it discards after 24 hours.
+GitVis needs no account and no access token, and uses only public contribution counts, never repository contents. The full details are on the [Privacy page](https://gitvis.dev/privacy).
 
-- Page addresses are sent without their query string or fragment, so the usernames and design settings in studio and Edit links aren't included.
-- A referring website is counted only when the browser reports just its domain, such as `https://github.com/`. If the referrer includes a page path or query, which could name a person or a repository, that visit isn't recorded at all.
-- README images (`/api/card` and `/api/label`) aren't part of analytics.
-
-Like any website, GitVis's host, Vercel, processes requests (including IP addresses) to serve the site. To build graphics, GitVis's server requests public contribution data and avatars from GitHub and GitLab for the usernames you enter or publish, and caches them for up to 7 days.
+- **Cache:** GitVis's server caches public contribution data and profile pictures for the usernames you enter or publish. Recent data expires within about 7½ days, profile pictures within 7 days, and earlier GitHub years within 30 days. Copies of finished images held by Vercel's network, browsers and GitHub's image proxy, and Vercel's hosting logs, follow their own retention.
+- **Analytics:** [Vercel Web Analytics](https://vercel.com/docs/analytics/privacy-policy) counts page views of `/` and `/studio` without cookies. Query strings and fragments are removed, a referring site is kept only as its domain, and visits whose referrer has a path or query aren't counted. README images (`/api/card`, `/api/label`) aren't part of analytics.
+- **Hosting:** Vercel processes technical request information, such as IP addresses and requested addresses, to serve and protect the site.
 
 ## License
 

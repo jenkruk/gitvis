@@ -1,8 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { LOGO_CELLS, LOGO_VIEWBOX } from "./logo-mark";
-import { button, focusRing, link } from "@/components/ui/recipes";
-import { GITVIS_REPO_URL, PRIVACY_URL, SITE_NAME, SITE_TAGLINE } from "@/config/site";
+import { button, focusRing } from "@/components/ui/recipes";
+import { GITVIS_REPO_URL, PRIVACY_PATH, SITE_NAME, SITE_TAGLINE } from "@/config/site";
 import { STUDIO_PATH } from "@/publish/studio-url";
 
 function LogoMark() {
@@ -39,7 +39,11 @@ function GitHubMark({ className }: { className?: string }) {
   );
 }
 
-export function AppShell({ children, page = "studio" }: { children: ReactNode; page?: "landing" | "studio" }) {
+const footerLink = `inline-flex min-h-6 items-center rounded-sm font-medium text-accent underline-offset-4 hover:underline aria-[current=page]:text-fg ${focusRing}`;
+
+export type ShellPage = "landing" | "studio" | "privacy";
+
+export function AppShell({ children, page = "studio" }: { children: ReactNode; page?: ShellPage }) {
   const landing = page === "landing";
   return (
     <>
@@ -71,7 +75,7 @@ export function AppShell({ children, page = "studio" }: { children: ReactNode; p
               <GitHubMark className="size-4" />
               <span className="max-[359px]:sr-only">Source</span>
             </a>
-            {landing && (
+            {page !== "studio" && (
               <Link href={STUDIO_PATH} className={button("secondary", "sm")}>
                 Open studio
               </Link>
@@ -86,20 +90,22 @@ export function AppShell({ children, page = "studio" }: { children: ReactNode; p
         {children}
       </main>
       <footer className="border-t border-line">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-4 text-caption text-fg-muted sm:px-6">
-          <p>GitVis reads public contribution counts from GitHub and GitLab. It never reads repository contents.</p>
-          <p>
-            Cookieless page-view counts, without usernames or link details ·{" "}
-            <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className={link}>
-              Privacy <span className="sr-only">(opens in a new tab)</span>
-            </a>
-          </p>
-          <p>
-            Open source (MIT) ·{" "}
-            <a href={GITVIS_REPO_URL} target="_blank" rel="noopener noreferrer" className={link}>
-              View the source on GitHub <span className="sr-only">(opens in a new tab)</span>
-            </a>
-          </p>
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-5 text-caption text-fg-muted sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
+          <p>© 2026 {SITE_NAME} · MIT licensed</p>
+          <nav aria-label="Footer">
+            <ul className="flex flex-wrap items-center gap-x-5 gap-y-2">
+              <li>
+                <a href={GITVIS_REPO_URL} target="_blank" rel="noopener noreferrer" className={footerLink}>
+                  Source on GitHub <span className="sr-only">(opens in a new tab)</span>
+                </a>
+              </li>
+              <li>
+                <Link href={PRIVACY_PATH} aria-current={page === "privacy" ? "page" : undefined} className={footerLink}>
+                  Privacy
+                </Link>
+              </li>
+            </ul>
+          </nav>
         </div>
       </footer>
     </>

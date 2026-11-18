@@ -22,7 +22,7 @@ import { upstreamBudget } from "./rate-limit";
 
 export const SNAPSHOT_SCHEMA = 2;
 
-const NOT_FOUND_TTL_SECONDS = 3_600;
+export const NOT_FOUND_TTL_SECONDS = 3_600;
 
 export interface SnapshotStore {
   get(key: string): Promise<unknown>;

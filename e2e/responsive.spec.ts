@@ -104,3 +104,23 @@ for (const width of [320, 375, 768, 1280]) {
     await expectNoHorizontalScroll(page);
   });
 }
+
+test.describe("studio loading placeholder", () => {
+  // Without JavaScript the streamed studio never replaces the server-rendered placeholder, so it can be measured.
+  test.use({ javaScriptEnabled: false });
+
+  for (const width of [320, 1280]) {
+    test(`fits a ${width}px screen without horizontal scrolling`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 720 });
+      await page.goto("/studio");
+      const steps = page.getByTestId("skeleton-steps");
+      await expect(steps).toBeVisible();
+      await expect(page.locator('[aria-busy="true"]')).toBeAttached();
+      const items = steps.locator(":scope > *");
+      await expect(items).toHaveCount(3);
+      const last = (await items.last().boundingBox())!;
+      expect(last.x + last.width).toBeLessThanOrEqual(width - 16);
+      await expectNoHorizontalScroll(page);
+    });
+  }
+});

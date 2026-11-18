@@ -44,7 +44,7 @@ Enabled in the project's Analytics settings and rendered by `src/app/AnalyticsTr
 - sends only pageviews of `/` and `/studio`, with the query string and fragment removed, and drops custom events;
 - drops the pageview when `document.referrer` has a path, query, fragment or credentials. Vercel's collector sends the referrer verbatim and `beforeSend` can't edit it, so suppressing the event is the only supported way to keep paths like `github.com/<user>/<repo>` out. Visits from GitHub repository pages (which send full URLs) are therefore not counted, while GitHub profile pages and most other sites send only their origin and are counted.
 
-Any change to this, or to the README "Privacy" section it backs, must keep the two in step. Re-verify after Vercel updates its collector script (the `sv` field in the request): see "Full verification".
+The `/privacy` page (`src/components/privacy/Privacy.tsx`) and the README "Privacy" section describe this filter and the cache lifetimes; `src/app/privacy/page.test.tsx` fails if the stated lifetimes or tracked pages drift from the code, but any other change to data handling must update both by hand, along with the page's "Last updated" date. Re-verify after Vercel updates its collector script (the `sv` field in the request): see "Full verification".
 
 ### Firewall (Vercel WAF)
 
@@ -81,6 +81,7 @@ Set `$SITE` to the production origin and `$Q` to `v=1&github=jenkruk&gitlab=cont
 curl -s "$SITE/" | grep -oE '<link rel="canonical"[^>]*>|<meta property="og:(url|image)"[^>]*>'   # $SITE, never a preview host
 curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' "$SITE/?$Q"                              # 307 → $SITE/studio?$Q
 curl -sI "$SITE/api/card?$Q" | grep -iE '^(HTTP|cache-control|etag|vercel-cdn|x-vercel-cache|x-gitvis)'
+curl -s "$SITE/privacy" | grep -oE '<link rel="canonical"[^>]*>'                                 # $SITE/privacy
 ```
 
 | Header on `/api/card`      | Expected                                                                                                                                                                                       |

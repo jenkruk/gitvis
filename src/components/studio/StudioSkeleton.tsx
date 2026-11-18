@@ -7,11 +7,11 @@ export function StudioSkeleton() {
       <p role="status" className="sr-only">
         Loading the studio…
       </p>
-      <div aria-hidden="true" className="flex items-center gap-3">
+      <div aria-hidden="true" data-testid="skeleton-steps" className="flex items-center gap-2 sm:gap-3">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="flex items-center gap-2">
-            <div className={`${block} size-7 rounded-full`} />
-            <div className={`${block} h-4 w-16`} />
+          <div key={i} className="flex items-center gap-1.5 sm:gap-2">
+            <div className={`${block} size-6 rounded-full sm:size-7`} />
+            <div className={`${block} h-4 w-12 sm:w-16`} />
           </div>
         ))}
       </div>

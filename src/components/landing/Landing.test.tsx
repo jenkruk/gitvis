@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { AppShell } from "@/components/shell/AppShell";
-import { GITVIS_REPO_URL, LIVE_EXAMPLE_URL, PRIVACY_URL } from "@/config/site";
+import { GITVIS_REPO_URL, LIVE_EXAMPLE_URL, PRIVACY_PATH } from "@/config/site";
 import { LandingDetails } from "./LandingDetails";
 import { LandingHero } from "./LandingHero";
 
@@ -38,6 +38,14 @@ describe("landing page", () => {
       "href",
       expect.stringMatching(/sample=1#design$/),
     );
+  });
+
+  it("links the data-care section to the Privacy page in the same tab", () => {
+    renderLanding();
+    const section = screen.getByRole("region", { name: "Free, open source, and careful with your data" });
+    const privacy = within(section).getByRole("link", { name: "How GitVis handles your data" });
+    expect(privacy).toHaveAttribute("href", PRIVACY_PATH);
+    expect(privacy).not.toHaveAttribute("target");
   });
 
   it("shows the real renderer's graphic, labelled as sample data", () => {
@@ -93,19 +101,22 @@ describe("landing page", () => {
     expect(trust).toHaveTextContent(/private contributions appear only as counts/i);
     expect(trust).not.toHaveTextContent(/commits/i);
     expect(document.body).not.toHaveTextContent(/every 12 hours|guaranteed|instantly/i);
-    expect(within(trust).queryByRole("link")).not.toBeInTheDocument();
+    expect(
+      within(trust)
+        .getAllByRole("link")
+        .map((a) => a.getAttribute("href")),
+    ).toEqual([PRIVACY_PATH]);
   });
 
-  it("links to the repository once in the header and once in the footer, to privacy details in the footer, and to a live example under the hero", () => {
+  it("links to the repository once in the header and once in the footer, and to a live example under the hero", () => {
     renderLanding();
     const external = screen
       .getAllByRole("link")
       .filter((a) => a.getAttribute("href")?.startsWith("https://github.com/"))
-      .map((a) => [a.getAttribute("href"), a.closest("nav, footer, figure")?.tagName.toLowerCase()]);
+      .map((a) => [a.getAttribute("href"), (a.closest("footer") ?? a.closest("nav, figure"))?.tagName.toLowerCase()]);
     expect(external).toEqual([
       [GITVIS_REPO_URL, "nav"],
       [LIVE_EXAMPLE_URL, "figure"],
-      [PRIVACY_URL, "footer"],
       [GITVIS_REPO_URL, "footer"],
     ]);
   });

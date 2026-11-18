@@ -46,6 +46,7 @@ describe("analytics events", () => {
   it("drops pageviews outside the allowlist and every custom event", () => {
     expect(filterAnalyticsEvent(pageview("https://gitvis.dev/api/card?github=jenkruk"), "")).toBeNull();
     expect(filterAnalyticsEvent(pageview("https://gitvis.dev/studio/extra"), "")).toBeNull();
+    expect(filterAnalyticsEvent(pageview("https://gitvis.dev/privacy"), "")).toBeNull();
     expect(filterAnalyticsEvent({ type: "event", url: "https://gitvis.dev/" }, "")).toBeNull();
   });
 

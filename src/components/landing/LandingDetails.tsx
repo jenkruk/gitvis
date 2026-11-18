@@ -1,5 +1,7 @@
-import { Check } from "lucide-react";
-import { overline } from "@/components/ui/recipes";
+import { ArrowRight, Check } from "lucide-react";
+import Link from "next/link";
+import { link, overline } from "@/components/ui/recipes";
+import { PRIVACY_PATH } from "@/config/site";
 
 const STEPS = [
   {
@@ -58,6 +60,10 @@ export function LandingDetails() {
             <p className="mt-2 max-w-md text-body text-fg-muted">
               GitVis is MIT-licensed. Read the code, open an issue, or run your own copy.
             </p>
+            <Link href={PRIVACY_PATH} className={`${link} mt-3 gap-1 text-body`}>
+              How GitVis handles your data
+              <ArrowRight aria-hidden="true" className="size-3.5" />
+            </Link>
           </div>
           <ul className="grid max-w-2xl gap-y-3">
             {FACTS.map((fact) => (
